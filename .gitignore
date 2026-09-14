@@ -1,0 +1,21 @@
+target/
+build/
+*.class
+
+# kernel build artifacts
+*.ko
+*.o
+*.mod
+*.mod.c
+*.cmd
+*.symvers
+*.order
+.tmp_versions/
+kernel/windows/*.sys
+kernel/windows/*.cat
+kernel/windows/*.pdb
+
+# local agent tooling noise
+.swarm/
+.hive-mind/
+.ruvector/
