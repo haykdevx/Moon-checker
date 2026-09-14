@@ -56,23 +56,73 @@ public final class LinuxProcessCheck implements CheckModule {
             String comm = Proc.comm(pid);
             String cmdline = Proc.cmdline(pid);
             String exe = Proc.exe(pid);
-            String probe = ((comm == null ? "" : comm) + " "
-                    + (cmdline == null ? "" : cmdline) + " "
-                    + (exe == null ? "" : exe)).toLowerCase(Locale.ROOT);
 
-            ctx.signatures().matchCheatName(probe).ifPresent(rule ->
-                    ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.CRITICAL,
+            // The process IS the cheat only when its own image/name matches.
+            String identity = ((comm == null ? "" : comm) + " "
+                    + (exe == null ? "" : exe)).toLowerCase(Locale.ROOT);
+            ctx.signatures().matchCheatName(identity).ifPresent(rule ->
+                    ctx.emit(Finding.builder(Category.ENVIRONMENT, runningSeverity(rule.severity()),
                                     "Процесс чита запущен / Cheat process is running")
                             .module(ID)
                             .detail(rule.label() + "  (pid " + pid + ")")
-                            .evidence(exe != null ? exe : (cmdline != null ? cmdline : comm))
+                            .evidence(exe != null ? exe : comm)
                             .source("process")
                             .build()));
 
-            if (isGame(probe)) {
+            // A match only in the command line is far weaker: a shell or editor
+            // that merely mentions a cheat word is not a running cheat.
+            if (cmdline != null && !isInterpreter(comm)) {
+                String cmdLower = cmdline.toLowerCase(Locale.ROOT);
+                if (ctx.signatures().matchCheatName(identity).isEmpty()) {
+                    ctx.signatures().matchCheatName(cmdLower).ifPresent(rule ->
+                            ctx.emit(Finding.builder(Category.ENVIRONMENT, weaken(rule.severity()),
+                                            "Чит в командной строке процесса / Cheat referenced in a process command line")
+                                    .module(ID)
+                                    .detail(rule.label() + "  (pid " + pid + ", " + comm + ")")
+                                    .evidence(cmdline.length() > 200 ? cmdline.substring(0, 200) : cmdline)
+                                    .source("process cmdline")
+                                    .build()));
+                }
+            }
+
+            if (isGame(identity)) {
                 inspectGameProcess(ctx, pid, comm);
             }
         }
+    }
+
+    /**
+     * A cheat actually running is decisive — but only lift rules that were
+     * already strong. A MEDIUM keyword like "bhop" must not become a CHEAT
+     * verdict on its own (it briefly did: a bash process whose command line
+     * contained the word was reported as a running cheat).
+     */
+    private Severity runningSeverity(Severity ruleSeverity) {
+        return ruleSeverity == Severity.HIGH || ruleSeverity == Severity.CRITICAL
+                ? Severity.CRITICAL
+                : ruleSeverity;
+    }
+
+    /** Command-line mentions are context, never proof. */
+    private Severity weaken(Severity ruleSeverity) {
+        return switch (ruleSeverity) {
+            case CRITICAL, HIGH -> Severity.MEDIUM;
+            case MEDIUM -> Severity.LOW;
+            default -> Severity.INFO;
+        };
+    }
+
+    /** Shells and interpreters run other people's text; their cmdline is noise. */
+    private boolean isInterpreter(String comm) {
+        if (comm == null) {
+            return true;
+        }
+        String c = comm.toLowerCase(Locale.ROOT);
+        return c.equals("bash") || c.equals("sh") || c.equals("zsh") || c.equals("dash")
+                || c.equals("fish") || c.startsWith("python") || c.equals("perl")
+                || c.equals("node") || c.equals("java") || c.equals("grep")
+                || c.equals("sed") || c.equals("awk") || c.equals("less")
+                || c.equals("vim") || c.equals("nano") || c.equals("code");
     }
 
     private boolean isGame(String probe) {

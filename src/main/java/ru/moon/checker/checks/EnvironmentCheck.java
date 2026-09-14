@@ -77,8 +77,13 @@ public final class EnvironmentCheck implements CheckModule {
             if (ctx.isCancelled()) {
                 return;
             }
+            // Escalate only rules that were already strong: a MEDIUM keyword
+            // must not turn into a CHEAT verdict just because a process
+            // happens to carry it in its name.
             ctx.signatures().matchCheatName(p.name()).ifPresent(rule ->
-                    ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.CRITICAL,
+                    ctx.emit(Finding.builder(Category.ENVIRONMENT,
+                                    rule.severity() == Severity.HIGH || rule.severity() == Severity.CRITICAL
+                                            ? Severity.CRITICAL : rule.severity(),
                                     "Процесс чита запущен / Cheat process is running")
                             .module(ID)
                             .detail(rule.label() + "  (pid " + p.pid() + ")")

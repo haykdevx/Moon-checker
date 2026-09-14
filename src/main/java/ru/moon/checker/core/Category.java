@@ -6,6 +6,7 @@ package ru.moon.checker.core;
  * key; display names come from the message bundles.
  */
 public enum Category {
+    CS2("cat.cs2"),
     FILES("cat.files"),
     DELETED("cat.deleted"),
     EXECUTION("cat.execution"),

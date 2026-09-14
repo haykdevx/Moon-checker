@@ -9,6 +9,10 @@ import ru.moon.checker.core.ScanContext;
 import ru.moon.checker.win.Ntfs;
 import ru.moon.checker.win.Volumes;
 
+import java.nio.file.Files;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Locale;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +69,7 @@ public final class FileScanCheck implements CheckModule {
                 if (index.size() > 0) {
                     indexed = true;
                     matchNames(ctx, index);
+                    deepScanWholeDrive(ctx, index);
                 }
             }
         }
@@ -123,6 +128,65 @@ public final class FileScanCheck implements CheckModule {
                         .openPath(parentOf(path))
                         .build());
             });
+        }
+    }
+
+    /** Time and volume budget for the whole-drive content scan. */
+    private static final Duration DEEP_SCAN_BUDGET = Duration.ofMinutes(4);
+    private static final int DEEP_SCAN_MAX_FILES = 20_000;
+
+    /**
+     * Content-inspect every binary on the drive that does not live in a trusted
+     * location — so a cheat cannot escape inspection simply by sitting outside
+     * the user's folders. The MFT already gave us every path on the volume, so
+     * this needs no directory walking.
+     *
+     * <p>Trusted paths (Windows, Program Files, Steam, vendor installs) are
+     * skipped because they are allowlisted for heuristics anyway; that is what
+     * keeps a whole-drive scan affordable. Bounded by time and file count, and
+     * it reports when it had to stop early rather than silently truncating.
+     */
+    private void deepScanWholeDrive(ScanContext ctx, Ntfs.Index index) {
+        Instant deadline = Instant.now().plus(DEEP_SCAN_BUDGET);
+        int inspected = 0;
+        boolean truncated = false;
+
+        for (var entry : index.nodes().entrySet()) {
+            if (ctx.isCancelled()) {
+                return;
+            }
+            if (inspected >= DEEP_SCAN_MAX_FILES || Instant.now().isAfter(deadline)) {
+                truncated = true;
+                break;
+            }
+            Ntfs.Node node = entry.getValue();
+            if (node.directory() || node.name() == null
+                    || !FileInspection.isBinaryName(node.name())) {
+                continue;
+            }
+            String path = index.resolvePath(entry.getKey());
+            if (ctx.signatures().isAllowedPath(path.toLowerCase(Locale.ROOT))) {
+                continue; // OS / Steam / vendor code
+            }
+            try {
+                Path file = Path.of(path);
+                if (Files.isRegularFile(file)) {
+                    FileInspection.inspect(file, ctx, ID, Category.FILES);
+                    inspected++;
+                }
+            } catch (Exception ignored) {
+                // unreadable or an exotic path — skip
+            }
+        }
+        ctx.log(I18n.t("log.deepscan", inspected));
+        if (truncated) {
+            ctx.emit(Finding.builder(Category.FILES, ru.moon.checker.core.Severity.INFO,
+                            "Глубокое сканирование остановлено по лимиту / Deep scan hit its budget")
+                    .module(ID)
+                    .detail("Проверено " + inspected + " файлов вне доверенных папок; "
+                            + "остальные проверены по имени и хешу через таблицу файлов NTFS.")
+                    .source("deep scan")
+                    .build());
         }
     }
 

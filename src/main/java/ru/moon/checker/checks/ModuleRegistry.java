@@ -15,6 +15,7 @@ public final class ModuleRegistry {
     /** The full Windows inspection suite. */
     public static List<CheckModule> windowsModules() {
         return List.of(
+                new Cs2IntegrityCheck(),
                 new FileScanCheck(),
                 new DeletedEvidenceCheck(),
                 new ExecutionTraceCheck(),
@@ -33,6 +34,7 @@ public final class ModuleRegistry {
     /** The Linux inspection suite. */
     public static List<CheckModule> linuxModules() {
         return List.of(
+                new Cs2IntegrityCheck(),
                 new LinuxProcessCheck(),
                 new LinuxFileScanCheck(),
                 new KernelCheck(),

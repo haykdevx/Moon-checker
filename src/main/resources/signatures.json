@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.13b",
+  "version": "2026.09.14-cs2",
   "cheatNames": [
     {
       "pattern": "neverlose",
@@ -108,17 +108,17 @@
     },
     {
       "pattern": "calypso",
-      "severity": "CRITICAL",
+      "severity": "HIGH",
       "note": "Calypso cheat"
     },
     {
       "pattern": "monolith",
-      "severity": "CRITICAL",
+      "severity": "HIGH",
       "note": "Monolith cheat"
     },
     {
       "pattern": "hyperion",
-      "severity": "CRITICAL",
+      "severity": "HIGH",
       "note": "Hyperion cheat"
     },
     {
@@ -135,7 +135,7 @@
     },
     {
       "pattern": "colossus",
-      "severity": "CRITICAL",
+      "severity": "HIGH",
       "note": "Colossus cheats",
       "substring": true
     },
@@ -161,8 +161,8 @@
     },
     {
       "pattern": "hwid",
-      "severity": "MEDIUM",
-      "note": "HWID tool (verify)"
+      "severity": "LOW",
+      "note": "HWID tool (verify) — вне CS2-контекста, справочно"
     },
     {
       "pattern": "osiris",
@@ -272,18 +272,18 @@
     },
     {
       "pattern": "reclass",
-      "severity": "MEDIUM",
-      "note": "ReClass.NET (RE tool)"
+      "severity": "LOW",
+      "note": "ReClass.NET (RE tool) — вне CS2-контекста, справочно"
     },
     {
       "pattern": "cheat engine",
-      "severity": "HIGH",
-      "note": "Cheat Engine"
+      "severity": "LOW",
+      "note": "Cheat Engine — вне CS2-контекста, справочно"
     },
     {
       "pattern": "cheatengine",
-      "severity": "HIGH",
-      "note": "Cheat Engine"
+      "severity": "LOW",
+      "note": "Cheat Engine — вне CS2-контекста, справочно"
     },
     {
       "pattern": "x64dbg",
@@ -297,13 +297,13 @@
     },
     {
       "pattern": "scylla",
-      "severity": "MEDIUM",
-      "note": "Scylla dumper"
+      "severity": "LOW",
+      "note": "Scylla dumper — вне CS2-контекста, справочно"
     },
     {
       "pattern": "megadumper",
-      "severity": "MEDIUM",
-      "note": "MegaDumper"
+      "severity": "LOW",
+      "note": "MegaDumper — вне CS2-контекста, справочно"
     }
   ],
   "domains": [
