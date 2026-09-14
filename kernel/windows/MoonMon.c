@@ -78,8 +78,15 @@ static NTSTATUS BuildReport(PCHAR out, ULONG outCap, PULONG written) {
     ULONG pos = 0;
     for (ULONG i = 0; i < mods->NumberOfModules; i++) {
         PCHAR name = (PCHAR)mods->Modules[i].FullPathName;
-        CHAR line[300];
-        NTSTATUS r = RtlStringCbPrintfA(line, sizeof(line), "DRIVER %s\n", name);
+        CHAR line[320];
+        /* A loaded driver whose image is not under \SystemRoot is abnormal and
+         * is what a manually-mapped / BYOVD driver typically looks like. The
+         * user-mode KernelCheck turns this marker into a finding. */
+        BOOLEAN systemPath =
+            (_strnicmp(name, "\\SystemRoot\\", 12) == 0) ||
+            (_strnicmp(name, "\\??\\C:\\Windows\\", 15) == 0);
+        NTSTATUS r = RtlStringCbPrintfA(line, sizeof(line), "DRIVER %s%s\n",
+                                        name, systemPath ? "" : " [non-system-path]");
         if (!NT_SUCCESS(r)) continue;
         ULONG len = (ULONG)strlen(line);
         if (pos + len >= outCap) break;

@@ -62,6 +62,40 @@ public final class LinuxInfo {
         return out;
     }
 
+    /**
+     * Module names from {@code /sys/module}. Compared against
+     * {@code /proc/modules}: a mismatch means a module is hidden from one of
+     * the two views, which is how LKM rootkits conceal themselves.
+     */
+    public static List<String> sysModules() {
+        if (!Platform.isLinux()) {
+            return new ArrayList<>();
+        }
+        return sysModules(Path.of("/sys/module"));
+    }
+
+    /**
+     * Only <em>loadable</em> modules are returned. Built-in (compiled-in)
+     * modules also have a {@code /sys/module} directory but never appear in
+     * {@code /proc/modules} — on a stock kernel that is 130+ entries, which
+     * would swamp the hidden-module check with false positives. Loadable
+     * modules are the ones with an {@code initstate} file.
+     */
+    static List<String> sysModules(Path dir) {
+        List<String> out = new ArrayList<>();
+        if (!Files.isDirectory(dir)) {
+            return out;
+        }
+        try (var stream = Files.list(dir)) {
+            stream.filter(Files::isDirectory)
+                    .filter(p -> Files.exists(p.resolve("initstate")))
+                    .forEach(p -> out.add(p.getFileName().toString()));
+        } catch (Exception ignored) {
+            // best-effort
+        }
+        return out;
+    }
+
     /** Kernel taint bitmask ({@code /proc/sys/kernel/tainted}); 0 = clean. */
     public static long taint() {
         String s = Proc.readString(Path.of("/proc/sys/kernel/tainted"));

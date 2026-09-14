@@ -59,6 +59,7 @@ public final class KernelCheck implements CheckModule {
         KernelBridge.Report report = KernelBridge.read();
         if (report.present()) {
             consumeDriverReport(ctx, report);
+            hiddenProcesses(ctx, report);
         } else {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
                             "Kernel-драйвер Moon не загружен / Moon kernel driver not loaded")
@@ -85,6 +86,14 @@ public final class KernelCheck implements CheckModule {
                 ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
                                 "Скрытый объект ядра (руткит) / Kernel object hidden from user-mode")
                         .module(ID).detail(l.substring(7)).source(report.source()).build());
+            } else if (l.contains("[non-system-path]")) {
+                ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
+                                "Драйвер загружен не из системной папки / Driver loaded from a non-system path")
+                        .module(ID)
+                        .detail("Типично для ручного маппинга (kdmapper/BYOVD): " + l)
+                        .evidence(l.replace("DRIVER ", "").replace(" [non-system-path]", ""))
+                        .source(report.source())
+                        .build());
             } else {
                 String low = l.toLowerCase(Locale.ROOT);
                 ctx.signatures().matchDriver(low).ifPresent(rule ->
@@ -96,6 +105,36 @@ public final class KernelCheck implements CheckModule {
                                         "Чит в отчёте ядра / Cheat object in kernel report")
                                 .module(ID).detail(rule.label() + " — " + l).source(report.source()).build()));
             }
+        }
+    }
+
+    /**
+     * Processes the kernel driver lists that {@code /proc} does not show. Each
+     * candidate is re-verified, because a process legitimately exiting between
+     * the two reads would otherwise look hidden.
+     */
+    private void hiddenProcesses(ScanContext ctx, KernelBridge.Report report) {
+        java.util.Set<Integer> kernelPids =
+                ru.moon.checker.kernel.HiddenObjects.parseKernelPids(report.lines());
+        if (kernelPids.isEmpty()) {
+            return;
+        }
+        java.util.Set<Integer> visible =
+                new java.util.HashSet<>(ru.moon.checker.linux.Proc.pids());
+        for (Integer pid : ru.moon.checker.kernel.HiddenObjects.hiddenPids(kernelPids, visible)) {
+            // re-verify: still absent from /proc?
+            if (java.nio.file.Files.exists(java.nio.file.Path.of("/proc", String.valueOf(pid)))) {
+                continue;
+            }
+            String comm = ru.moon.checker.kernel.HiddenObjects.commOf(report.lines(), pid);
+            ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
+                            "Скрытый процесс (руткит) / Process hidden from user-mode")
+                    .module(ID)
+                    .detail("PID " + pid + (comm != null ? " (" + comm + ")" : "")
+                            + " виден ядру, но отсутствует в /proc")
+                    .evidence("pid " + pid)
+                    .source(report.source())
+                    .build());
         }
     }
 
@@ -122,6 +161,20 @@ public final class KernelCheck implements CheckModule {
                             .module(ID).detail(rule.label() + " — " + name)
                             .evidence(image != null ? image : name).source("kernel service").build()));
         }
+        // Boot options that weaken kernel integrity (test-signing, DSE off,
+        // kernel debugger) — all preconditions for loading a cheat driver.
+        String startOptions = Registry.getString(Registry.HKLM,
+                "SYSTEM\\CurrentControlSet\\Control", "SystemStartOptions");
+        for (String weak : ru.moon.checker.kernel.HiddenObjects.weakBootOptions(startOptions)) {
+            ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
+                            "Ослаблена защита ядра при загрузке / Kernel integrity weakened at boot")
+                    .module(ID)
+                    .detail(weak)
+                    .evidence(startOptions)
+                    .source("SystemStartOptions")
+                    .build());
+        }
+
         WinInfo.testSigningEnabled().ifPresent(on -> {
             if (on) {
                 ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
@@ -155,6 +208,19 @@ public final class KernelCheck implements CheckModule {
                             .module(ID).detail(rule.label() + " — " + mod)
                             .evidence(mod).source("/proc/modules").build()));
         }
+        // A module unlinked from /proc/modules but still present in /sys/module
+        // (or vice versa) is a classic LKM rootkit hiding trick.
+        for (String mismatch : ru.moon.checker.kernel.HiddenObjects.moduleDisagreement(
+                LinuxInfo.loadedModules(), LinuxInfo.sysModules())) {
+            ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
+                            "Скрытый модуль ядра / Kernel module hidden from one view")
+                    .module(ID)
+                    .detail(mismatch)
+                    .evidence(mismatch)
+                    .source("/proc/modules vs /sys/module")
+                    .build());
+        }
+
         List<String> preload = LinuxInfo.ldSoPreload();
         for (String entry : preload) {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
