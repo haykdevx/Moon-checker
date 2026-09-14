@@ -1,0 +1,212 @@
+package ru.moon.checker.core;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Turns a flat list of findings into something an admin can act on in seconds.
+ *
+ * <p>A single cheat typically produces evidence in five different modules — the
+ * file on disk, the Prefetch entry, the AmCache record, the Run key and the
+ * loaded driver. Presented as five unrelated rows that reads as noise; grouped
+ * under one subject it reads as a case. This class also explains how the score
+ * was reached and orders timestamped findings into a timeline.
+ *
+ * <p>Pure functions, no I/O — fully unit-tested.
+ */
+public final class Analysis {
+
+    private Analysis() {
+    }
+
+    /** Correlated evidence about one subject (usually one cheat). */
+    public record Group(String subject, Severity topSeverity, int weight,
+                        List<Finding> findings, Set<String> modules) {
+        public int count() {
+            return findings.size();
+        }
+    }
+
+    /**
+     * The subject a finding is about — normally the signature rule's label,
+     * which modules put at the start of {@code detail}. Falls back to the title.
+     */
+    public static String subjectOf(Finding f) {
+        String d = f.detail();
+        if (d != null && !d.isBlank()) {
+            String s = d;
+            for (String sep : new String[]{" — ", "  (", "  [", " -> ", ", "}) {
+                int i = s.indexOf(sep);
+                if (i > 0) {
+                    s = s.substring(0, i);
+                }
+            }
+            s = s.trim();
+            if (looksLikeSubject(s)) {
+                return s;
+            }
+        }
+        return f.title();
+    }
+
+    /**
+     * Modules put the signature label first in {@code detail} ("Nixware CS2
+     * cheat"), but some details are descriptions instead ({@code Stream
+     * "payload" (204800 bytes)}, {@code 4 match(es): dwEntityList},
+     * {@code login=smurf_alt}). Those are not subjects — grouping by them
+     * produces nonsense cards, so fall back to the finding's title.
+     */
+    private static boolean looksLikeSubject(String s) {
+        if (s.isEmpty() || s.length() > 60) {
+            return false;
+        }
+        if (Character.isDigit(s.charAt(0))) {
+            return false;
+        }
+        for (String bad : new String[]{"\"", "=", ":", "/", "\\", "(", ")", "bytes", "match("}) {
+            if (s.contains(bad)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Group findings by subject, merging subjects where one is a prefix of the
+     * other ("Nixware" and "Nixware CS2 cheat" are the same case). Ordered by
+     * severity then accumulated weight, so the strongest case is first.
+     */
+    public static List<Group> group(List<Finding> findings) {
+        Map<String, List<Finding>> bySubject = new LinkedHashMap<>();
+        for (Finding f : findings) {
+            bySubject.computeIfAbsent(subjectOf(f), k -> new ArrayList<>()).add(f);
+        }
+        mergePrefixes(bySubject);
+
+        List<Group> groups = new ArrayList<>();
+        for (var e : bySubject.entrySet()) {
+            Severity top = Severity.INFO;
+            int weight = 0;
+            Set<String> modules = new LinkedHashSet<>();
+            for (Finding f : e.getValue()) {
+                if (f.severity().rank() > top.rank()) {
+                    top = f.severity();
+                }
+                weight += f.weight();
+                modules.add(f.module());
+            }
+            groups.add(new Group(e.getKey(), top, weight, List.copyOf(e.getValue()), modules));
+        }
+        groups.sort(Comparator
+                .comparingInt((Group g) -> g.topSeverity().rank()).reversed()
+                .thenComparing(Comparator.comparingInt(Group::weight).reversed()));
+        return groups;
+    }
+
+    /** Fold "Nixware" into "Nixware CS2 cheat" (keep the longer, more specific name). */
+    private static void mergePrefixes(Map<String, List<Finding>> bySubject) {
+        List<String> keys = new ArrayList<>(bySubject.keySet());
+        keys.sort(Comparator.comparingInt(String::length)); // shortest first
+        for (int i = 0; i < keys.size(); i++) {
+            String shortKey = keys.get(i);
+            if (!bySubject.containsKey(shortKey)) {
+                continue;
+            }
+            for (int j = keys.size() - 1; j > i; j--) {
+                String longKey = keys.get(j);
+                if (longKey.equals(shortKey) || !bySubject.containsKey(longKey)) {
+                    continue;
+                }
+                if (longKey.toLowerCase(Locale.ROOT).startsWith(shortKey.toLowerCase(Locale.ROOT))) {
+                    bySubject.get(longKey).addAll(bySubject.remove(shortKey));
+                    break;
+                }
+            }
+        }
+    }
+
+    /** Findings that carry a timestamp, most recent first. */
+    public static List<Finding> timeline(List<Finding> findings) {
+        List<Finding> out = new ArrayList<>();
+        for (Finding f : findings) {
+            if (f.when() != null) {
+                out.add(f);
+            }
+        }
+        out.sort(Comparator.comparing(Finding::when).reversed());
+        return out;
+    }
+
+    /**
+     * Why the verdict is what it is, in plain language: the rule that decided
+     * it and the evidence that carried the most weight.
+     */
+    public static String explain(ScanResult r) {
+        StringBuilder sb = new StringBuilder();
+        List<Finding> findings = r.findings();
+
+        switch (r.verdict()) {
+            case CHEAT -> {
+                Finding critical = firstOf(findings, Severity.CRITICAL);
+                if (critical != null) {
+                    sb.append("ЧИТ: одна улика уровня CRITICAL решает вердикт сама по себе.\n")
+                      .append("CHEAT: a single CRITICAL finding decides this on its own.\n\n")
+                      .append("  → ").append(critical.title());
+                    if (critical.evidence() != null) {
+                        sb.append("\n     ").append(critical.evidence());
+                    }
+                } else {
+                    sb.append("ЧИТ: сумма улик ").append(r.score())
+                      .append(" ≥ порога ").append(ScoreCalculator.CHEAT_THRESHOLD).append(".\n")
+                      .append("CHEAT: accumulated weight ").append(r.score())
+                      .append(" reached the threshold of ").append(ScoreCalculator.CHEAT_THRESHOLD).append(".");
+                }
+            }
+            case SUSPICIOUS -> sb.append("ПОДОЗРИТЕЛЬНО: сумма ").append(r.score())
+                    .append(" ≥ ").append(ScoreCalculator.SUSPICIOUS_THRESHOLD)
+                    .append(", но нет прямой улики. Решает администратор.\n")
+                    .append("SUSPICIOUS: weight ").append(r.score())
+                    .append(" passed ").append(ScoreCalculator.SUSPICIOUS_THRESHOLD)
+                    .append(" with no single decisive finding — admin judgement required.");
+            case CLEAN -> sb.append("ЧИСТО: значимых улик не найдено (").append(r.score())
+                    .append("/100).\nCLEAN: nothing of weight was found.");
+            case INCONCLUSIVE -> sb.append("НЕ ЗАВЕРШЕНО: проверка шла без прав администратора, ")
+                    .append("часть модулей недоступна — чистому результату доверять нельзя.\n")
+                    .append("INCONCLUSIVE: ran without administrator rights, so a clean result is not trustworthy.");
+        }
+
+        List<Group> groups = group(findings);
+        if (!groups.isEmpty()) {
+            sb.append("\n\nОсновные улики / main evidence:");
+            int shown = 0;
+            for (Group g : groups) {
+                if (g.topSeverity().rank() < Severity.MEDIUM.rank() || shown >= 5) {
+                    continue;
+                }
+                sb.append("\n  • ").append(g.subject())
+                  .append("  — ").append(g.count()).append(" улик(и), вес ").append(g.weight())
+                  .append(", модули: ").append(String.join(", ", g.modules()));
+                shown++;
+            }
+            if (shown == 0) {
+                sb.append("\n  (только информационные записи / informational only)");
+            }
+        }
+        return sb.toString();
+    }
+
+    private static Finding firstOf(List<Finding> findings, Severity severity) {
+        for (Finding f : findings) {
+            if (f.severity() == severity) {
+                return f;
+            }
+        }
+        return null;
+    }
+}

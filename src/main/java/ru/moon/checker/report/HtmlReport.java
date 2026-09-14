@@ -33,6 +33,9 @@ public final class HtmlReport {
         header(sb, r);
         verdict(sb, r);
         summary(sb, r);
+        explanation(sb, r);
+        evidenceGroups(sb, r);
+        timeline(sb, r);
         findings(sb, r);
         modules(sb, r);
         String canonSha = ru.moon.checker.core.Integrity.sha256Hex(JsonReport.canonicalBytes(r));
@@ -87,6 +90,59 @@ public final class HtmlReport {
         chip(sb, "LOW", r.countBySeverity(Severity.LOW), "#9aa0ec");
         chip(sb, "INFO", r.countBySeverity(Severity.INFO), "#b6b6b6");
         sb.append("</div>");
+    }
+
+    /** Why this verdict — the same explanation the UI shows. */
+    private static void explanation(StringBuilder sb, ScanResult r) {
+        sb.append("<h2>Почему такой вердикт / Why this verdict</h2>");
+        sb.append("<pre class=\"explain\">")
+          .append(esc(ru.moon.checker.core.Analysis.explain(r)))
+          .append("</pre>");
+    }
+
+    /** Evidence correlated per subject, so one cheat reads as one case. */
+    private static void evidenceGroups(StringBuilder sb, ScanResult r) {
+        var groups = ru.moon.checker.core.Analysis.group(r.findings());
+        if (groups.isEmpty()) {
+            return;
+        }
+        sb.append("<h2>Сводка по уликам / Evidence summary</h2>");
+        sb.append("<table class=\"find\"><thead><tr><th>Severity</th><th>Субъект</th>")
+          .append("<th>Улик</th><th>Вес</th><th>Модули</th></tr></thead><tbody>");
+        for (var g : groups) {
+            sb.append("<tr class=\"sev-").append(g.topSeverity().name().toLowerCase()).append("\">")
+              .append("<td><span class=\"badge b-").append(g.topSeverity().name().toLowerCase())
+              .append("\">").append(g.topSeverity()).append("</span></td>")
+              .append("<td>").append(esc(g.subject())).append("</td>")
+              .append("<td>").append(g.count()).append("</td>")
+              .append("<td>").append(g.weight()).append("</td>")
+              .append("<td>").append(esc(String.join(", ", g.modules()))).append("</td>")
+              .append("</tr>");
+        }
+        sb.append("</tbody></table>");
+    }
+
+    /** Chronological view — most recent first. */
+    private static void timeline(StringBuilder sb, ScanResult r) {
+        var tl = ru.moon.checker.core.Analysis.timeline(r.findings());
+        if (tl.isEmpty()) {
+            return;
+        }
+        sb.append("<h2>Хронология / Timeline (").append(tl.size()).append(")</h2>");
+        sb.append("<table class=\"find\"><thead><tr><th>Время</th><th>Severity</th>")
+          .append("<th>Событие</th><th>Источник</th></tr></thead><tbody>");
+        for (Finding f : tl) {
+            sb.append("<tr class=\"sev-").append(f.severity().name().toLowerCase()).append("\">")
+              .append("<td>").append(TS.format(f.when())).append("</td>")
+              .append("<td><span class=\"badge b-").append(f.severity().name().toLowerCase())
+              .append("\">").append(f.severity()).append("</span></td>")
+              .append("<td>").append(esc(f.title()));
+            if (f.evidence() != null) {
+                sb.append("<div class=\"ev\">").append(esc(f.evidence())).append("</div>");
+            }
+            sb.append("</td><td>").append(esc(nz(f.source()))).append("</td></tr>");
+        }
+        sb.append("</tbody></table>");
     }
 
     private static void findings(StringBuilder sb, ScanResult r) {
@@ -179,6 +235,8 @@ public final class HtmlReport {
                 .b-low{background:#9aa0ec}.b-info{background:#b6b6b6}
                 tr.sev-critical td,tr.sev-high td{background:rgba(255,90,90,.06)}
                 .empty{color:var(--mut)}
+                pre.explain{background:var(--card);border-left:3px solid var(--acc);border-radius:8px;
+                  padding:14px 16px;white-space:pre-wrap;font:13px/1.6 Inter,Segoe UI,Arial,sans-serif;margin:0}
                 footer{margin-top:30px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
                 """;
     }

@@ -16,6 +16,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -67,6 +68,10 @@ public final class ResultsPanel extends JPanel {
         add(verdictHeader(), BorderLayout.NORTH);
         add(centerSplit(), BorderLayout.CENTER);
         add(buttons(actions), BorderLayout.SOUTH);
+
+        // With nothing selected the detail pane would sit empty; show the
+        // verdict explanation there instead so the admin reads *why* first.
+        showDetail();
     }
 
     private JPanel verdictHeader() {
@@ -122,14 +127,22 @@ public final class ResultsPanel extends JPanel {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
+        table.setAutoCreateRowSorter(true); // click a header to sort
         table.getColumnModel().getColumn(0).setPreferredWidth(90);
         table.getColumnModel().getColumn(1).setPreferredWidth(120);
         table.getColumnModel().getColumn(2).setPreferredWidth(420);
+        table.setDefaultRenderer(Object.class, new SeverityRowRenderer());
         table.getColumnModel().getColumn(0).setCellRenderer(new SeverityRenderer());
         table.getSelectionModel().addListSelectionListener(e -> showDetail());
 
         JScrollPane tsp = new JScrollPane(table);
         tsp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
+
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab(I18n.t("tab.findings") + "  (" + result.findings().size() + ")", tsp);
+        tabs.addTab(I18n.t("tab.summary"), buildSummary());
+        var timeline = ru.moon.checker.core.Analysis.timeline(result.findings());
+        tabs.addTab(I18n.t("tab.timeline") + "  (" + timeline.size() + ")", buildTimeline(timeline));
 
         detail.setEditable(false);
         detail.setLineWrap(true);
@@ -144,7 +157,7 @@ public final class ResultsPanel extends JPanel {
 
         JPanel stack = new JPanel(new BorderLayout(0, 10));
         stack.setOpaque(false);
-        stack.add(tsp, BorderLayout.CENTER);
+        stack.add(tabs, BorderLayout.CENTER);
         stack.add(dsp, BorderLayout.SOUTH);
         p.add(stack, BorderLayout.CENTER);
         return p;
@@ -204,10 +217,94 @@ public final class ResultsPanel extends JPanel {
         return l;
     }
 
+    /** Correlated evidence: one card per subject (usually one cheat). */
+    private JScrollPane buildSummary() {
+        JPanel list = new JPanel();
+        list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
+        list.setBackground(MoonTheme.PANEL);
+        list.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        var groups = ru.moon.checker.core.Analysis.group(result.findings());
+        if (groups.isEmpty()) {
+            JLabel none = new JLabel(I18n.t("summary.none"));
+            none.setForeground(MoonTheme.MUTED);
+            list.add(none);
+        }
+        for (var g : groups) {
+            JPanel card = new JPanel(new BorderLayout(12, 0));
+            card.setBackground(MoonTheme.PANEL2);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 3, 0, 0,
+                            MoonTheme.severityColor(g.topSeverity().name())),
+                    BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
+
+            JLabel subject = new JLabel(g.subject());
+            subject.setForeground(MoonTheme.TEXT);
+            subject.setFont(MoonTheme.font(Font.BOLD, 13));
+
+            JLabel meta = new JLabel(I18n.t("summary.meta",
+                    g.count(), g.weight(), String.join(", ", g.modules())));
+            meta.setForeground(MoonTheme.MUTED);
+            meta.setFont(MoonTheme.font(Font.PLAIN, 11));
+
+            JPanel text = new JPanel();
+            text.setOpaque(false);
+            text.setLayout(new javax.swing.BoxLayout(text, javax.swing.BoxLayout.Y_AXIS));
+            subject.setAlignmentX(Component.LEFT_ALIGNMENT);
+            meta.setAlignmentX(Component.LEFT_ALIGNMENT);
+            text.add(subject);
+            text.add(meta);
+
+            JLabel sev = new JLabel(g.topSeverity().name());
+            sev.setForeground(MoonTheme.severityColor(g.topSeverity().name()));
+            sev.setFont(MoonTheme.font(Font.BOLD, 12));
+
+            card.add(text, BorderLayout.CENTER);
+            card.add(sev, BorderLayout.EAST);
+            list.add(card);
+            list.add(javax.swing.Box.createVerticalStrut(8));
+        }
+        JScrollPane sp = new JScrollPane(list);
+        sp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
+        sp.getVerticalScrollBar().setUnitIncrement(16);
+        return sp;
+    }
+
+    /** Chronological view — what happened and when, most recent first. */
+    private JScrollPane buildTimeline(java.util.List<Finding> timeline) {
+        String[] cols = {I18n.t("col.time"), I18n.t("col.severity"), I18n.t("col.finding"), I18n.t("col.source")};
+        Object[][] rows = new Object[timeline.size()][4];
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                .withZone(java.time.ZoneId.systemDefault());
+        for (int i = 0; i < timeline.size(); i++) {
+            Finding f = timeline.get(i);
+            rows[i] = new Object[]{fmt.format(f.when()), f.severity().name(), f.title(),
+                    f.source() == null ? "" : f.source()};
+        }
+        JTable t = new JTable(new javax.swing.table.DefaultTableModel(rows, cols) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        });
+        t.setRowHeight(24);
+        t.setFillsViewportHeight(true);
+        t.getTableHeader().setReorderingAllowed(false);
+        t.setDefaultRenderer(Object.class, new SeverityRowRenderer());
+        t.getColumnModel().getColumn(0).setPreferredWidth(150);
+        t.getColumnModel().getColumn(1).setPreferredWidth(80);
+        t.getColumnModel().getColumn(2).setPreferredWidth(430);
+        JScrollPane sp = new JScrollPane(t);
+        sp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
+        return sp;
+    }
+
     private void showDetail() {
         Finding f = model.at(table.getSelectedRow());
         if (f == null) {
-            detail.setText("");
+            detail.setText(ru.moon.checker.core.Analysis.explain(result));
+            detail.setCaretPosition(0);
             return;
         }
         StringBuilder sb = new StringBuilder();
@@ -259,14 +356,23 @@ public final class ResultsPanel extends JPanel {
         if (f == null) {
             return;
         }
-        String target = f.openPath() != null ? f.openPath() : f.evidence();
-        if (target == null) {
+        // Prefer the evidence itself (the actual file) over openPath (its
+        // parent), so Explorer highlights the file rather than its folder.
+        File file = null;
+        if (f.evidence() != null && new File(f.evidence()).exists()) {
+            file = new File(f.evidence());
+        } else if (f.openPath() != null && new File(f.openPath()).exists()) {
+            file = new File(f.openPath());
+        }
+        if (file == null) {
+            JOptionPane.showMessageDialog(this, I18n.t("reveal.gone"));
             return;
         }
         try {
-            File file = new File(target);
-            if (ru.moon.checker.core.Platform.isWindows() && file.exists()) {
-                new ProcessBuilder("explorer.exe", "/select,", target).start();
+            if (ru.moon.checker.core.Platform.isWindows() && !file.isDirectory()) {
+                // "/select," and the path MUST be one argument — passing them
+                // separately makes Explorer ignore the path entirely.
+                new ProcessBuilder("explorer.exe", "/select," + file.getAbsolutePath()).start();
             } else {
                 File dir = file.isDirectory() ? file : file.getParentFile();
                 if (dir != null && dir.exists() && Desktop.isDesktopSupported()) {
@@ -335,6 +441,43 @@ public final class ResultsPanel extends JPanel {
             case CHEAT -> MoonTheme.CHEAT;
             case INCONCLUSIVE -> MoonTheme.INFO;
         };
+    }
+
+    /** Tints whole rows by severity so CRITICAL/HIGH stand out at a glance. */
+    private static final class SeverityRowRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object value, boolean sel,
+                                                       boolean focus, int row, int col) {
+            Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
+            String severity = severityOfRow(t, row);
+            if (!sel) {
+                c.setBackground(switch (severity) {
+                    case "CRITICAL" -> new Color(0x3a, 0x1f, 0x27);
+                    case "HIGH" -> new Color(0x36, 0x25, 0x1f);
+                    case "MEDIUM" -> new Color(0x31, 0x2c, 0x1e);
+                    default -> MoonTheme.PANEL;
+                });
+                c.setForeground(MoonTheme.TEXT);
+            }
+            return c;
+        }
+
+        /** Severity lives in column 0 (findings table) or 1 (timeline table). */
+        private String severityOfRow(JTable t, int row) {
+            for (int col : new int[]{0, 1}) {
+                if (col < t.getColumnCount()) {
+                    Object v = t.getValueAt(row, col);
+                    if (v != null) {
+                        String s = v.toString();
+                        if (s.equals("CRITICAL") || s.equals("HIGH") || s.equals("MEDIUM")
+                                || s.equals("LOW") || s.equals("INFO")) {
+                            return s;
+                        }
+                    }
+                }
+            }
+            return "";
+        }
     }
 
     /** Colours the severity column by level. */

@@ -34,6 +34,9 @@ public final class ScanPanel extends JPanel implements ScanListener {
 
     private final Map<String, JLabel> statusLabels = new HashMap<>();
     private final Map<String, JLabel> findLabels = new HashMap<>();
+    private final Map<String, Long> moduleStart = new java.util.concurrent.ConcurrentHashMap<>();
+    private final JLabel elapsed = new JLabel();
+    private final long startedAt = System.currentTimeMillis();
     private final JProgressBar progress = new JProgressBar();
     private final JTextArea log = new JTextArea();
     private final JLabel heading = new JLabel();
@@ -50,7 +53,19 @@ public final class ScanPanel extends JPanel implements ScanListener {
         heading.setFont(MoonTheme.font(Font.BOLD, 18)); // body font: heading can be Cyrillic
         heading.setForeground(MoonTheme.TEXT);
         heading.setText(I18n.t("scan.running"));
-        add(heading, BorderLayout.NORTH);
+
+        elapsed.setFont(new Font("Consolas", Font.PLAIN, 13));
+        elapsed.setForeground(MoonTheme.MUTED);
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        top.add(heading, BorderLayout.WEST);
+        top.add(elapsed, BorderLayout.EAST);
+        add(top, BorderLayout.NORTH);
+
+        javax.swing.Timer clock = new javax.swing.Timer(500, e -> updateElapsed());
+        clock.setInitialDelay(0);
+        clock.start();
+        updateElapsed(); // don't leave the label blank for the first tick
 
         JPanel center = new JPanel(new BorderLayout(16, 0));
         center.setOpaque(false);
@@ -138,17 +153,27 @@ public final class ScanPanel extends JPanel implements ScanListener {
 
     @Override
     public void onModuleStart(CheckModule module) {
+        moduleStart.put(module.id(), System.currentTimeMillis());
         setStatus(module.id(), ModuleStatus.RUNNING);
     }
 
     @Override
     public void onModuleDone(CheckModule module, ModuleStatus status, int findingCount) {
+        Long began = moduleStart.get(module.id());
+        long tookMs = began == null ? -1 : System.currentTimeMillis() - began;
         SwingUtilities.invokeLater(() -> {
             applyStatus(module.id(), status);
             JLabel f = findLabels.get(module.id());
-            if (f != null && findingCount > 0) {
-                f.setText(findingCount + "⚑");
-                f.setForeground(MoonTheme.CHEAT);
+            if (f != null) {
+                StringBuilder s = new StringBuilder();
+                if (tookMs >= 0) {
+                    s.append(tookMs >= 1000 ? (tookMs / 1000) + "s" : tookMs + "ms");
+                }
+                if (findingCount > 0) {
+                    s.append("  ").append(findingCount).append("⚑");
+                }
+                f.setText(s.toString());
+                f.setForeground(findingCount > 0 ? MoonTheme.CHEAT : MoonTheme.MUTED);
             }
             int d = done.incrementAndGet();
             progress.setValue(d);
@@ -175,6 +200,11 @@ public final class ScanPanel extends JPanel implements ScanListener {
             progress.setValue(total);
             progress.setString(I18n.t("scan.done"));
         });
+    }
+
+    private void updateElapsed() {
+        long s = (System.currentTimeMillis() - startedAt) / 1000;
+        elapsed.setText(I18n.t("scan.elapsed", String.format("%d:%02d", s / 60, s % 60)));
     }
 
     private void setStatus(String id, ModuleStatus s) {
