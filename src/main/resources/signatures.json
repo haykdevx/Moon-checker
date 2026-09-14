@@ -1,174 +1,927 @@
 {
   "version": "2026.09.13b",
   "cheatNames": [
-    { "pattern": "neverlose",   "severity": "CRITICAL", "note": "Neverlose (CS2 paid cheat)" },
-    { "pattern": "xone",        "severity": "CRITICAL", "note": "Xone.fun cheat loader" },
-    { "pattern": "midnight",    "severity": "CRITICAL", "note": "Midnight.im cheat" },
-    { "pattern": "interium",    "severity": "CRITICAL", "note": "Interium cheat" },
-    { "pattern": "nixware",     "severity": "CRITICAL", "note": "Nixware CS2 cheat" },
-    { "pattern": "vredux",      "severity": "CRITICAL", "note": "Vredux cheat" },
-    { "pattern": "onetap",      "severity": "CRITICAL", "note": "Onetap cheat" },
-    { "pattern": "fatality",    "severity": "CRITICAL", "note": "Fatality.win cheat" },
-    { "pattern": "memesense",   "severity": "CRITICAL", "note": "Memesense cheat" },
-    { "pattern": "gamesense",   "severity": "CRITICAL", "note": "Gamesense cheat" },
-    { "pattern": "primordial",  "severity": "CRITICAL", "note": "Primordial cheat" },
-    { "pattern": "pandaware",   "severity": "CRITICAL", "note": "Pandaware cheat" },
-    { "pattern": "aimware",     "severity": "CRITICAL", "note": "Aimware cheat" },
-    { "pattern": "skeet",       "severity": "CRITICAL", "note": "Skeet.cc cheat" },
-    { "pattern": "legendware",  "severity": "CRITICAL", "note": "Legendware cheat" },
-    { "pattern": "plaguecheat", "severity": "CRITICAL", "note": "Plaguecheat" },
-    { "pattern": "sunone",      "severity": "CRITICAL", "note": "Sunone Aimbot (AI aim)" },
-    { "pattern": "aimstar",     "severity": "CRITICAL", "note": "Aimstar cheat" },
-    { "pattern": "calypso",     "severity": "CRITICAL", "note": "Calypso cheat" },
-    { "pattern": "monolith",    "severity": "CRITICAL", "note": "Monolith cheat" },
-    { "pattern": "hyperion",    "severity": "CRITICAL", "note": "Hyperion cheat" },
-    { "pattern": "tenscape",    "severity": "CRITICAL", "note": "Tenscape cheat" },
-    { "pattern": "wallhax",     "severity": "CRITICAL", "note": "Wallhax cheat" },
-    { "pattern": "colossus",    "severity": "CRITICAL", "note": "Colossus cheats" },
-    { "pattern": "faceit-bypass","severity": "CRITICAL", "note": "FACEIT anti-cheat bypass" },
-    { "pattern": "faceitbypass","severity": "CRITICAL", "note": "FACEIT anti-cheat bypass" },
-    { "pattern": "ac-bypass",   "severity": "CRITICAL", "note": "anti-cheat bypass" },
-    { "pattern": "spoofer",     "severity": "HIGH",     "note": "HWID spoofer" },
-    { "pattern": "hwid",        "severity": "MEDIUM",   "note": "HWID tool (verify)" },
-    { "pattern": "osiris",      "severity": "HIGH",     "note": "Osiris (open-source cheat)" },
-    { "pattern": "weave",       "severity": "HIGH",     "note": "Weave cheat" },
-    { "pattern": "predator",    "severity": "HIGH",     "note": "Predator cheat (also legit names — verify)" },
-    { "pattern": "cs2-dumper",  "severity": "HIGH",     "note": "cs2-dumper offsets tool" },
-    { "pattern": "cs2-external","severity": "HIGH",     "note": "Generic CS2 external" },
-    { "pattern": "cs2-internal","severity": "HIGH",     "note": "Generic CS2 internal" },
-    { "pattern": "cs2cheat",    "severity": "HIGH",     "note": "Generic CS2 cheat" },
-    { "pattern": "aimbot",      "severity": "HIGH",     "note": "generic aimbot" },
-    { "pattern": "triggerbot",  "severity": "HIGH",     "note": "generic triggerbot" },
-    { "pattern": "wallhack",    "severity": "HIGH",     "note": "generic wallhack" },
-    { "pattern": "spinbot",     "severity": "HIGH",     "note": "generic spinbot" },
-    { "pattern": "bhop",        "severity": "MEDIUM",   "note": "bunny-hop script" },
-    { "pattern": "no-recoil",   "severity": "MEDIUM",   "note": "no-recoil macro" },
-    { "pattern": "norecoil",    "severity": "MEDIUM",   "note": "no-recoil macro" },
-    { "pattern": "skinchanger", "severity": "MEDIUM",   "note": "skin changer" },
-    { "pattern": "glow_esp",    "severity": "HIGH",     "note": "glow ESP" },
-    { "pattern": "extreme injector", "severity": "HIGH", "note": "Extreme Injector" },
-    { "pattern": "gh injector", "severity": "HIGH",     "note": "GuidedHacking Injector" },
-    { "pattern": "xenos",       "severity": "MEDIUM",   "note": "Xenos injector" },
-    { "pattern": "injector",    "severity": "MEDIUM",   "note": "DLL injector (verify target)" },
-    { "pattern": "manualmap",   "severity": "HIGH",     "note": "manual mapper" },
-    { "pattern": "reclass",     "severity": "MEDIUM",   "note": "ReClass.NET (RE tool)" },
-    { "pattern": "cheat engine","severity": "HIGH",     "note": "Cheat Engine" },
-    { "pattern": "cheatengine", "severity": "HIGH",     "note": "Cheat Engine" },
-    { "pattern": "x64dbg",      "severity": "LOW",      "note": "x64dbg debugger (dual-use)" },
-    { "pattern": "processhacker","severity": "LOW",     "note": "Process Hacker (dual-use)" },
-    { "pattern": "scylla",      "severity": "MEDIUM",   "note": "Scylla dumper" },
-    { "pattern": "megadumper",  "severity": "MEDIUM",   "note": "MegaDumper" }
+    {
+      "pattern": "neverlose",
+      "severity": "CRITICAL",
+      "note": "Neverlose (CS2 paid cheat)",
+      "substring": true
+    },
+    {
+      "pattern": "xone",
+      "severity": "CRITICAL",
+      "note": "Xone.fun cheat loader"
+    },
+    {
+      "pattern": "midnight",
+      "severity": "CRITICAL",
+      "note": "Midnight.im cheat"
+    },
+    {
+      "pattern": "interium",
+      "severity": "CRITICAL",
+      "note": "Interium cheat",
+      "substring": true
+    },
+    {
+      "pattern": "nixware",
+      "severity": "CRITICAL",
+      "note": "Nixware CS2 cheat",
+      "substring": true
+    },
+    {
+      "pattern": "vredux",
+      "severity": "CRITICAL",
+      "note": "Vredux cheat",
+      "substring": true
+    },
+    {
+      "pattern": "onetap",
+      "severity": "CRITICAL",
+      "note": "Onetap cheat",
+      "substring": true
+    },
+    {
+      "pattern": "fatality",
+      "severity": "CRITICAL",
+      "note": "Fatality.win cheat",
+      "substring": true
+    },
+    {
+      "pattern": "memesense",
+      "severity": "CRITICAL",
+      "note": "Memesense cheat",
+      "substring": true
+    },
+    {
+      "pattern": "gamesense",
+      "severity": "CRITICAL",
+      "note": "Gamesense cheat",
+      "substring": true
+    },
+    {
+      "pattern": "primordial",
+      "severity": "CRITICAL",
+      "note": "Primordial cheat",
+      "substring": true
+    },
+    {
+      "pattern": "pandaware",
+      "severity": "CRITICAL",
+      "note": "Pandaware cheat",
+      "substring": true
+    },
+    {
+      "pattern": "aimware",
+      "severity": "CRITICAL",
+      "note": "Aimware cheat",
+      "substring": true
+    },
+    {
+      "pattern": "skeet",
+      "severity": "CRITICAL",
+      "note": "Skeet.cc cheat"
+    },
+    {
+      "pattern": "legendware",
+      "severity": "CRITICAL",
+      "note": "Legendware cheat",
+      "substring": true
+    },
+    {
+      "pattern": "plaguecheat",
+      "severity": "CRITICAL",
+      "note": "Plaguecheat",
+      "substring": true
+    },
+    {
+      "pattern": "sunone",
+      "severity": "CRITICAL",
+      "note": "Sunone Aimbot (AI aim)",
+      "substring": true
+    },
+    {
+      "pattern": "aimstar",
+      "severity": "CRITICAL",
+      "note": "Aimstar cheat",
+      "substring": true
+    },
+    {
+      "pattern": "calypso",
+      "severity": "CRITICAL",
+      "note": "Calypso cheat"
+    },
+    {
+      "pattern": "monolith",
+      "severity": "CRITICAL",
+      "note": "Monolith cheat"
+    },
+    {
+      "pattern": "hyperion",
+      "severity": "CRITICAL",
+      "note": "Hyperion cheat"
+    },
+    {
+      "pattern": "tenscape",
+      "severity": "CRITICAL",
+      "note": "Tenscape cheat",
+      "substring": true
+    },
+    {
+      "pattern": "wallhax",
+      "severity": "CRITICAL",
+      "note": "Wallhax cheat",
+      "substring": true
+    },
+    {
+      "pattern": "colossus",
+      "severity": "CRITICAL",
+      "note": "Colossus cheats",
+      "substring": true
+    },
+    {
+      "pattern": "faceit-bypass",
+      "severity": "CRITICAL",
+      "note": "FACEIT anti-cheat bypass"
+    },
+    {
+      "pattern": "faceitbypass",
+      "severity": "CRITICAL",
+      "note": "FACEIT anti-cheat bypass"
+    },
+    {
+      "pattern": "ac-bypass",
+      "severity": "CRITICAL",
+      "note": "anti-cheat bypass"
+    },
+    {
+      "pattern": "spoofer",
+      "severity": "HIGH",
+      "note": "HWID spoofer"
+    },
+    {
+      "pattern": "hwid",
+      "severity": "MEDIUM",
+      "note": "HWID tool (verify)"
+    },
+    {
+      "pattern": "osiris",
+      "severity": "HIGH",
+      "note": "Osiris (open-source cheat)"
+    },
+    {
+      "pattern": "weave",
+      "severity": "HIGH",
+      "note": "Weave cheat"
+    },
+    {
+      "pattern": "predator",
+      "severity": "HIGH",
+      "note": "Predator cheat (also legit names — verify)"
+    },
+    {
+      "pattern": "cs2-dumper",
+      "severity": "HIGH",
+      "note": "cs2-dumper offsets tool",
+      "substring": true
+    },
+    {
+      "pattern": "cs2-external",
+      "severity": "HIGH",
+      "note": "Generic CS2 external"
+    },
+    {
+      "pattern": "cs2-internal",
+      "severity": "HIGH",
+      "note": "Generic CS2 internal"
+    },
+    {
+      "pattern": "cs2cheat",
+      "severity": "HIGH",
+      "note": "Generic CS2 cheat"
+    },
+    {
+      "pattern": "aimbot",
+      "severity": "HIGH",
+      "note": "generic aimbot"
+    },
+    {
+      "pattern": "triggerbot",
+      "severity": "HIGH",
+      "note": "generic triggerbot"
+    },
+    {
+      "pattern": "wallhack",
+      "severity": "HIGH",
+      "note": "generic wallhack"
+    },
+    {
+      "pattern": "spinbot",
+      "severity": "HIGH",
+      "note": "generic spinbot"
+    },
+    {
+      "pattern": "bhop",
+      "severity": "MEDIUM",
+      "note": "bunny-hop script"
+    },
+    {
+      "pattern": "no-recoil",
+      "severity": "MEDIUM",
+      "note": "no-recoil macro"
+    },
+    {
+      "pattern": "norecoil",
+      "severity": "MEDIUM",
+      "note": "no-recoil macro"
+    },
+    {
+      "pattern": "skinchanger",
+      "severity": "MEDIUM",
+      "note": "skin changer"
+    },
+    {
+      "pattern": "glow_esp",
+      "severity": "HIGH",
+      "note": "glow ESP"
+    },
+    {
+      "pattern": "extreme injector",
+      "severity": "HIGH",
+      "note": "Extreme Injector"
+    },
+    {
+      "pattern": "gh injector",
+      "severity": "HIGH",
+      "note": "GuidedHacking Injector"
+    },
+    {
+      "pattern": "xenos",
+      "severity": "MEDIUM",
+      "note": "Xenos injector"
+    },
+    {
+      "pattern": "injector",
+      "severity": "MEDIUM",
+      "note": "DLL injector (verify target)"
+    },
+    {
+      "pattern": "manualmap",
+      "severity": "HIGH",
+      "note": "manual mapper"
+    },
+    {
+      "pattern": "reclass",
+      "severity": "MEDIUM",
+      "note": "ReClass.NET (RE tool)"
+    },
+    {
+      "pattern": "cheat engine",
+      "severity": "HIGH",
+      "note": "Cheat Engine"
+    },
+    {
+      "pattern": "cheatengine",
+      "severity": "HIGH",
+      "note": "Cheat Engine"
+    },
+    {
+      "pattern": "x64dbg",
+      "severity": "LOW",
+      "note": "x64dbg debugger (dual-use)"
+    },
+    {
+      "pattern": "processhacker",
+      "severity": "LOW",
+      "note": "Process Hacker (dual-use)"
+    },
+    {
+      "pattern": "scylla",
+      "severity": "MEDIUM",
+      "note": "Scylla dumper"
+    },
+    {
+      "pattern": "megadumper",
+      "severity": "MEDIUM",
+      "note": "MegaDumper"
+    }
   ],
   "domains": [
-    { "pattern": "neverlose.cc",   "severity": "HIGH", "note": "Neverlose store" },
-    { "pattern": "xone.fun",       "severity": "HIGH", "note": "Xone store" },
-    { "pattern": "midnight.im",    "severity": "HIGH", "note": "Midnight store" },
-    { "pattern": "interium.",      "severity": "HIGH", "note": "Interium store" },
-    { "pattern": "nixware.cc",     "severity": "HIGH", "note": "Nixware store" },
-    { "pattern": "vredux.com",     "severity": "HIGH", "note": "Vredux store" },
-    { "pattern": "onetap.com",     "severity": "HIGH", "note": "Onetap store" },
-    { "pattern": "fatality.win",   "severity": "HIGH", "note": "Fatality store" },
-    { "pattern": "gamesense.pub",  "severity": "HIGH", "note": "Gamesense store" },
-    { "pattern": "skeet.cc",       "severity": "HIGH", "note": "Skeet store" },
-    { "pattern": "legendware.net", "severity": "HIGH", "note": "Legendware store" },
-    { "pattern": "plaguecheat.cc", "severity": "HIGH", "note": "Plaguecheat store" },
-    { "pattern": "pandaware",      "severity": "HIGH", "note": "Pandaware store" },
-    { "pattern": "aimware.net",    "severity": "HIGH", "note": "Aimware store" },
-    { "pattern": "primordial.",    "severity": "HIGH", "note": "Primordial store" },
-    { "pattern": "memesense",      "severity": "HIGH", "note": "Memesense store" },
-    { "pattern": "sunone",         "severity": "HIGH", "note": "Sunone aimbot repo" },
-    { "pattern": "tenscape",       "severity": "HIGH", "note": "Tenscape store" },
-    { "pattern": "wallhax",        "severity": "HIGH", "note": "Wallhax store" },
-    { "pattern": "colossuscheats", "severity": "HIGH", "note": "Colossus store" },
-    { "pattern": "gamerfun",       "severity": "HIGH", "note": "Gamerfun cheat store" },
-    { "pattern": "unknowncheats",  "severity": "MEDIUM","note": "UnknownCheats forum" },
-    { "pattern": "guidedhacking",  "severity": "MEDIUM","note": "GuidedHacking forum" },
-    { "pattern": "elitepvpers",    "severity": "MEDIUM","note": "elitepvpers forum" },
-    { "pattern": "mpgh.net",       "severity": "MEDIUM","note": "MPGH forum" },
-    { "pattern": "oplata.info",    "severity": "MEDIUM","note": "Payment gateway used by RU cheat stores" },
-    { "pattern": "lolz.guru",      "severity": "LOW",   "note": "lolzteam marketplace" },
-    { "pattern": "lolz.live",      "severity": "LOW",   "note": "lolzteam marketplace" }
+    {
+      "pattern": "neverlose.cc",
+      "severity": "HIGH",
+      "note": "Neverlose store",
+      "substring": true
+    },
+    {
+      "pattern": "xone.fun",
+      "severity": "HIGH",
+      "note": "Xone store",
+      "substring": true
+    },
+    {
+      "pattern": "midnight.im",
+      "severity": "HIGH",
+      "note": "Midnight store",
+      "substring": true
+    },
+    {
+      "pattern": "interium.",
+      "severity": "HIGH",
+      "note": "Interium store",
+      "substring": true
+    },
+    {
+      "pattern": "nixware.cc",
+      "severity": "HIGH",
+      "note": "Nixware store",
+      "substring": true
+    },
+    {
+      "pattern": "vredux.com",
+      "severity": "HIGH",
+      "note": "Vredux store",
+      "substring": true
+    },
+    {
+      "pattern": "onetap.com",
+      "severity": "HIGH",
+      "note": "Onetap store",
+      "substring": true
+    },
+    {
+      "pattern": "fatality.win",
+      "severity": "HIGH",
+      "note": "Fatality store",
+      "substring": true
+    },
+    {
+      "pattern": "gamesense.pub",
+      "severity": "HIGH",
+      "note": "Gamesense store",
+      "substring": true
+    },
+    {
+      "pattern": "skeet.cc",
+      "severity": "HIGH",
+      "note": "Skeet store",
+      "substring": true
+    },
+    {
+      "pattern": "legendware.net",
+      "severity": "HIGH",
+      "note": "Legendware store",
+      "substring": true
+    },
+    {
+      "pattern": "plaguecheat.cc",
+      "severity": "HIGH",
+      "note": "Plaguecheat store",
+      "substring": true
+    },
+    {
+      "pattern": "pandaware",
+      "severity": "HIGH",
+      "note": "Pandaware store",
+      "substring": true
+    },
+    {
+      "pattern": "aimware.net",
+      "severity": "HIGH",
+      "note": "Aimware store",
+      "substring": true
+    },
+    {
+      "pattern": "primordial.",
+      "severity": "HIGH",
+      "note": "Primordial store",
+      "substring": true
+    },
+    {
+      "pattern": "memesense",
+      "severity": "HIGH",
+      "note": "Memesense store",
+      "substring": true
+    },
+    {
+      "pattern": "sunone",
+      "severity": "HIGH",
+      "note": "Sunone aimbot repo",
+      "substring": true
+    },
+    {
+      "pattern": "tenscape",
+      "severity": "HIGH",
+      "note": "Tenscape store",
+      "substring": true
+    },
+    {
+      "pattern": "wallhax",
+      "severity": "HIGH",
+      "note": "Wallhax store",
+      "substring": true
+    },
+    {
+      "pattern": "colossuscheats",
+      "severity": "HIGH",
+      "note": "Colossus store",
+      "substring": true
+    },
+    {
+      "pattern": "gamerfun",
+      "severity": "HIGH",
+      "note": "Gamerfun cheat store",
+      "substring": true
+    },
+    {
+      "pattern": "unknowncheats",
+      "severity": "MEDIUM",
+      "note": "UnknownCheats forum",
+      "substring": true
+    },
+    {
+      "pattern": "guidedhacking",
+      "severity": "MEDIUM",
+      "note": "GuidedHacking forum",
+      "substring": true
+    },
+    {
+      "pattern": "elitepvpers",
+      "severity": "MEDIUM",
+      "note": "elitepvpers forum",
+      "substring": true
+    },
+    {
+      "pattern": "mpgh.net",
+      "severity": "MEDIUM",
+      "note": "MPGH forum",
+      "substring": true
+    },
+    {
+      "pattern": "oplata.info",
+      "severity": "MEDIUM",
+      "note": "Payment gateway used by RU cheat stores",
+      "substring": true
+    },
+    {
+      "pattern": "lolz.guru",
+      "severity": "LOW",
+      "note": "lolzteam marketplace",
+      "substring": true
+    },
+    {
+      "pattern": "lolz.live",
+      "severity": "LOW",
+      "note": "lolzteam marketplace",
+      "substring": true
+    }
   ],
   "hashes": [],
   "offsetStrings": [
-    { "pattern": "dwEntityList",           "severity": "HIGH",   "note": "CS2 offset dwEntityList" },
-    { "pattern": "dwLocalPlayerPawn",      "severity": "HIGH",   "note": "CS2 offset dwLocalPlayerPawn" },
-    { "pattern": "dwLocalPlayerController","severity": "HIGH",   "note": "CS2 offset dwLocalPlayerController" },
-    { "pattern": "dwViewMatrix",           "severity": "HIGH",   "note": "CS2 offset dwViewMatrix" },
-    { "pattern": "dwViewAngles",           "severity": "HIGH",   "note": "CS2 offset dwViewAngles" },
-    { "pattern": "dwGameEntitySystem",     "severity": "HIGH",   "note": "CS2 offset dwGameEntitySystem" },
-    { "pattern": "dwGlobalVars",           "severity": "HIGH",   "note": "CS2 offset dwGlobalVars" },
-    { "pattern": "dwPlantedC4",            "severity": "HIGH",   "note": "CS2 offset dwPlantedC4" },
-    { "pattern": "dwForceJump",            "severity": "HIGH",   "note": "CS2 offset dwForceJump (bhop)" },
-    { "pattern": "dwForceAttack",          "severity": "HIGH",   "note": "CS2 offset dwForceAttack (trigger)" },
-    { "pattern": "m_iHealth",              "severity": "MEDIUM", "note": "CS2 netvar m_iHealth" },
-    { "pattern": "m_iTeamNum",             "severity": "MEDIUM", "note": "CS2 netvar m_iTeamNum" },
-    { "pattern": "m_lifeState",            "severity": "MEDIUM", "note": "CS2 netvar m_lifeState" },
-    { "pattern": "m_vecOrigin",            "severity": "MEDIUM", "note": "CS2 netvar m_vecOrigin" },
-    { "pattern": "m_pClippingWeapon",      "severity": "MEDIUM", "note": "CS2 netvar m_pClippingWeapon" },
-    { "pattern": "m_ArmorValue",           "severity": "MEDIUM", "note": "CS2 netvar m_ArmorValue" },
-    { "pattern": "m_iIDEntIndex",          "severity": "MEDIUM", "note": "CS2 netvar m_iIDEntIndex" },
-    { "pattern": "m_flFlashDuration",      "severity": "MEDIUM", "note": "CS2 netvar m_flFlashDuration" },
-    { "pattern": "m_bSpottedByMask",       "severity": "MEDIUM", "note": "CS2 netvar m_bSpottedByMask" },
-    { "pattern": "m_aimPunchAngle",        "severity": "MEDIUM", "note": "CS2 netvar m_aimPunchAngle" },
-    { "pattern": "m_pGameSceneNode",       "severity": "MEDIUM", "note": "CS2 netvar m_pGameSceneNode" },
-    { "pattern": "m_hPlayerPawn",          "severity": "MEDIUM", "note": "CS2 netvar m_hPlayerPawn" },
-    { "pattern": "m_bDormant",             "severity": "MEDIUM", "note": "CS2 netvar m_bDormant" },
-    { "pattern": "m_iszPlayerName",        "severity": "MEDIUM", "note": "CS2 netvar m_iszPlayerName" }
+    {
+      "pattern": "dwEntityList",
+      "severity": "HIGH",
+      "note": "CS2 offset dwEntityList",
+      "substring": true
+    },
+    {
+      "pattern": "dwLocalPlayerPawn",
+      "severity": "HIGH",
+      "note": "CS2 offset dwLocalPlayerPawn",
+      "substring": true
+    },
+    {
+      "pattern": "dwLocalPlayerController",
+      "severity": "HIGH",
+      "note": "CS2 offset dwLocalPlayerController",
+      "substring": true
+    },
+    {
+      "pattern": "dwViewMatrix",
+      "severity": "HIGH",
+      "note": "CS2 offset dwViewMatrix",
+      "substring": true
+    },
+    {
+      "pattern": "dwViewAngles",
+      "severity": "HIGH",
+      "note": "CS2 offset dwViewAngles",
+      "substring": true
+    },
+    {
+      "pattern": "dwGameEntitySystem",
+      "severity": "HIGH",
+      "note": "CS2 offset dwGameEntitySystem",
+      "substring": true
+    },
+    {
+      "pattern": "dwGlobalVars",
+      "severity": "HIGH",
+      "note": "CS2 offset dwGlobalVars",
+      "substring": true
+    },
+    {
+      "pattern": "dwPlantedC4",
+      "severity": "HIGH",
+      "note": "CS2 offset dwPlantedC4",
+      "substring": true
+    },
+    {
+      "pattern": "dwForceJump",
+      "severity": "HIGH",
+      "note": "CS2 offset dwForceJump (bhop)",
+      "substring": true
+    },
+    {
+      "pattern": "dwForceAttack",
+      "severity": "HIGH",
+      "note": "CS2 offset dwForceAttack (trigger)",
+      "substring": true
+    },
+    {
+      "pattern": "m_iHealth",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_iHealth",
+      "substring": true
+    },
+    {
+      "pattern": "m_iTeamNum",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_iTeamNum",
+      "substring": true
+    },
+    {
+      "pattern": "m_lifeState",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_lifeState",
+      "substring": true
+    },
+    {
+      "pattern": "m_vecOrigin",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_vecOrigin",
+      "substring": true
+    },
+    {
+      "pattern": "m_pClippingWeapon",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_pClippingWeapon",
+      "substring": true
+    },
+    {
+      "pattern": "m_ArmorValue",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_ArmorValue",
+      "substring": true
+    },
+    {
+      "pattern": "m_iIDEntIndex",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_iIDEntIndex",
+      "substring": true
+    },
+    {
+      "pattern": "m_flFlashDuration",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_flFlashDuration",
+      "substring": true
+    },
+    {
+      "pattern": "m_bSpottedByMask",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_bSpottedByMask",
+      "substring": true
+    },
+    {
+      "pattern": "m_aimPunchAngle",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_aimPunchAngle",
+      "substring": true
+    },
+    {
+      "pattern": "m_pGameSceneNode",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_pGameSceneNode",
+      "substring": true
+    },
+    {
+      "pattern": "m_hPlayerPawn",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_hPlayerPawn",
+      "substring": true
+    },
+    {
+      "pattern": "m_bDormant",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_bDormant",
+      "substring": true
+    },
+    {
+      "pattern": "m_iszPlayerName",
+      "severity": "MEDIUM",
+      "note": "CS2 netvar m_iszPlayerName",
+      "substring": true
+    }
   ],
   "vulnerableDrivers": [
-    { "pattern": "iqvw64e.sys",    "severity": "CRITICAL", "note": "Intel iqvw64e.sys (kdmapper)" },
-    { "pattern": "kdmapper",       "severity": "CRITICAL", "note": "kdmapper manual mapper" },
-    { "pattern": "rtcore64.sys",   "severity": "CRITICAL", "note": "RTCore64 (MSI Afterburner) BYOVD" },
-    { "pattern": "gdrv.sys",       "severity": "CRITICAL", "note": "Gigabyte gdrv.sys BYOVD" },
-    { "pattern": "gio.sys",        "severity": "HIGH",     "note": "Gigabyte gio.sys" },
-    { "pattern": "capcom.sys",     "severity": "CRITICAL", "note": "Capcom.sys BYOVD" },
-    { "pattern": "winring0",       "severity": "HIGH",     "note": "WinRing0 driver BYOVD" },
-    { "pattern": "dbutil_2_3.sys", "severity": "CRITICAL", "note": "Dell dbutil BYOVD" },
-    { "pattern": "dbutildrv2.sys", "severity": "CRITICAL", "note": "Dell dbutildrv2 BYOVD" },
-    { "pattern": "asio.sys",       "severity": "HIGH",     "note": "ASUS AsIO BYOVD" },
-    { "pattern": "asio64.sys",     "severity": "HIGH",     "note": "ASUS AsIO64 BYOVD" },
-    { "pattern": "phymemx64",      "severity": "HIGH",     "note": "physical memory driver" },
-    { "pattern": "physmem",        "severity": "HIGH",     "note": "physical memory driver" },
-    { "pattern": "echo_driver",    "severity": "CRITICAL", "note": "EchoDrv BYOVD" },
-    { "pattern": "mhyprot",        "severity": "CRITICAL", "note": "mhyprot2 (Genshin) abused driver" },
-    { "pattern": "atillk64.sys",   "severity": "HIGH",     "note": "ATI diagnostics BYOVD" },
-    { "pattern": "eneio",          "severity": "HIGH",     "note": "ENE IO BYOVD" },
-    { "pattern": "enetechio",      "severity": "HIGH",     "note": "ENE Tech IO BYOVD" },
-    { "pattern": "msio64.sys",     "severity": "HIGH",     "note": "MSIO64 BYOVD" },
-    { "pattern": "nvoclock.sys",   "severity": "HIGH",     "note": "NVIDIA overclock BYOVD" },
-    { "pattern": "speedfan.sys",   "severity": "HIGH",     "note": "SpeedFan BYOVD" },
-    { "pattern": "elrawdsk.sys",   "severity": "CRITICAL", "note": "ElRawDisk BYOVD" },
-    { "pattern": "procexp",        "severity": "LOW",      "note": "Process Explorer driver (dual-use)" },
-    { "pattern": "mapper",         "severity": "MEDIUM",   "note": "generic mapper driver name" }
+    {
+      "pattern": "iqvw64e.sys",
+      "severity": "CRITICAL",
+      "note": "Intel iqvw64e.sys (kdmapper)"
+    },
+    {
+      "pattern": "kdmapper",
+      "severity": "CRITICAL",
+      "note": "kdmapper manual mapper"
+    },
+    {
+      "pattern": "rtcore64.sys",
+      "severity": "CRITICAL",
+      "note": "RTCore64 (MSI Afterburner) BYOVD"
+    },
+    {
+      "pattern": "gdrv.sys",
+      "severity": "CRITICAL",
+      "note": "Gigabyte gdrv.sys BYOVD"
+    },
+    {
+      "pattern": "gio.sys",
+      "severity": "HIGH",
+      "note": "Gigabyte gio.sys"
+    },
+    {
+      "pattern": "capcom.sys",
+      "severity": "CRITICAL",
+      "note": "Capcom.sys BYOVD"
+    },
+    {
+      "pattern": "winring0",
+      "severity": "HIGH",
+      "note": "WinRing0 driver BYOVD"
+    },
+    {
+      "pattern": "dbutil_2_3.sys",
+      "severity": "CRITICAL",
+      "note": "Dell dbutil BYOVD"
+    },
+    {
+      "pattern": "dbutildrv2.sys",
+      "severity": "CRITICAL",
+      "note": "Dell dbutildrv2 BYOVD"
+    },
+    {
+      "pattern": "asio.sys",
+      "severity": "HIGH",
+      "note": "ASUS AsIO BYOVD"
+    },
+    {
+      "pattern": "asio64.sys",
+      "severity": "HIGH",
+      "note": "ASUS AsIO64 BYOVD"
+    },
+    {
+      "pattern": "phymemx64",
+      "severity": "HIGH",
+      "note": "physical memory driver"
+    },
+    {
+      "pattern": "physmem",
+      "severity": "HIGH",
+      "note": "physical memory driver"
+    },
+    {
+      "pattern": "echo_driver",
+      "severity": "CRITICAL",
+      "note": "EchoDrv BYOVD"
+    },
+    {
+      "pattern": "mhyprot",
+      "severity": "CRITICAL",
+      "note": "mhyprot2 (Genshin) abused driver"
+    },
+    {
+      "pattern": "atillk64.sys",
+      "severity": "HIGH",
+      "note": "ATI diagnostics BYOVD"
+    },
+    {
+      "pattern": "eneio",
+      "severity": "HIGH",
+      "note": "ENE IO BYOVD"
+    },
+    {
+      "pattern": "enetechio",
+      "severity": "HIGH",
+      "note": "ENE Tech IO BYOVD"
+    },
+    {
+      "pattern": "msio64.sys",
+      "severity": "HIGH",
+      "note": "MSIO64 BYOVD"
+    },
+    {
+      "pattern": "nvoclock.sys",
+      "severity": "HIGH",
+      "note": "NVIDIA overclock BYOVD"
+    },
+    {
+      "pattern": "speedfan.sys",
+      "severity": "HIGH",
+      "note": "SpeedFan BYOVD"
+    },
+    {
+      "pattern": "elrawdsk.sys",
+      "severity": "CRITICAL",
+      "note": "ElRawDisk BYOVD"
+    },
+    {
+      "pattern": "procexp",
+      "severity": "LOW",
+      "note": "Process Explorer driver (dual-use)"
+    },
+    {
+      "pattern": "mapper",
+      "severity": "MEDIUM",
+      "note": "generic mapper driver name"
+    }
   ],
   "cleaners": [
-    { "pattern": "ccleaner",      "severity": "MEDIUM", "note": "CCleaner" },
-    { "pattern": "ccenhancer",    "severity": "MEDIUM", "note": "CCEnhancer" },
-    { "pattern": "privazer",      "severity": "MEDIUM", "note": "PrivaZer" },
-    { "pattern": "bleachbit",     "severity": "MEDIUM", "note": "BleachBit" },
-    { "pattern": "wise disk",     "severity": "MEDIUM", "note": "Wise Disk Cleaner" },
-    { "pattern": "wise care",     "severity": "MEDIUM", "note": "Wise Care 365" },
-    { "pattern": "privacy eraser","severity": "MEDIUM", "note": "Privacy Eraser" },
-    { "pattern": "r-wipe",        "severity": "HIGH",   "note": "R-Wipe & Clean" },
-    { "pattern": "bcwipe",        "severity": "HIGH",   "note": "BCWipe secure wipe" },
-    { "pattern": "sdelete",       "severity": "HIGH",   "note": "SysInternals SDelete" },
-    { "pattern": "eraser",        "severity": "MEDIUM", "note": "Eraser secure delete" },
-    { "pattern": "wipefile",      "severity": "HIGH",   "note": "WipeFile" },
-    { "pattern": "disk wipe",     "severity": "HIGH",   "note": "Disk Wipe" },
-    { "pattern": "timestomp",     "severity": "HIGH",   "note": "timestamp tampering tool" }
+    {
+      "pattern": "ccleaner",
+      "severity": "MEDIUM",
+      "note": "CCleaner"
+    },
+    {
+      "pattern": "ccenhancer",
+      "severity": "MEDIUM",
+      "note": "CCEnhancer"
+    },
+    {
+      "pattern": "privazer",
+      "severity": "MEDIUM",
+      "note": "PrivaZer"
+    },
+    {
+      "pattern": "bleachbit",
+      "severity": "MEDIUM",
+      "note": "BleachBit"
+    },
+    {
+      "pattern": "wise disk",
+      "severity": "MEDIUM",
+      "note": "Wise Disk Cleaner"
+    },
+    {
+      "pattern": "wise care",
+      "severity": "MEDIUM",
+      "note": "Wise Care 365"
+    },
+    {
+      "pattern": "privacy eraser",
+      "severity": "MEDIUM",
+      "note": "Privacy Eraser"
+    },
+    {
+      "pattern": "r-wipe",
+      "severity": "HIGH",
+      "note": "R-Wipe & Clean"
+    },
+    {
+      "pattern": "bcwipe",
+      "severity": "HIGH",
+      "note": "BCWipe secure wipe"
+    },
+    {
+      "pattern": "sdelete",
+      "severity": "HIGH",
+      "note": "SysInternals SDelete"
+    },
+    {
+      "pattern": "eraser",
+      "severity": "MEDIUM",
+      "note": "Eraser secure delete"
+    },
+    {
+      "pattern": "wipefile",
+      "severity": "HIGH",
+      "note": "WipeFile"
+    },
+    {
+      "pattern": "disk wipe",
+      "severity": "HIGH",
+      "note": "Disk Wipe"
+    },
+    {
+      "pattern": "timestomp",
+      "severity": "HIGH",
+      "note": "timestamp tampering tool"
+    }
   ],
   "macroTools": [
-    { "pattern": "bloody",         "severity": "MEDIUM", "note": "Bloody mouse macro software" },
-    { "pattern": "x7",             "severity": "LOW",    "note": "A4Tech X7 Oscar macro" },
-    { "pattern": "oscar editor",   "severity": "MEDIUM", "note": "A4Tech Oscar macro editor" },
-    { "pattern": "macro recorder", "severity": "MEDIUM", "note": "Macro Recorder" },
-    { "pattern": "tinytask",       "severity": "MEDIUM", "note": "TinyTask auto-clicker" },
-    { "pattern": "autohotkey",     "severity": "LOW",    "note": "AutoHotkey" },
-    { "pattern": "mouse recorder", "severity": "MEDIUM", "note": "Mouse Recorder Pro" },
-    { "pattern": "auto clicker",   "severity": "MEDIUM", "note": "Auto clicker" },
-    { "pattern": "pulsar",         "severity": "LOW",    "note": "Pulsar macro" },
-    { "pattern": "kmbox",          "severity": "HIGH",   "note": "KMBox hardware mouse-macro/DMA input" },
-    { "pattern": "makcu",          "severity": "HIGH",   "note": "MAKCU hardware input device" }
-  ]
+    {
+      "pattern": "bloody",
+      "severity": "MEDIUM",
+      "note": "Bloody mouse macro software"
+    },
+    {
+      "pattern": "x7",
+      "severity": "LOW",
+      "note": "A4Tech X7 Oscar macro"
+    },
+    {
+      "pattern": "oscar editor",
+      "severity": "MEDIUM",
+      "note": "A4Tech Oscar macro editor"
+    },
+    {
+      "pattern": "macro recorder",
+      "severity": "MEDIUM",
+      "note": "Macro Recorder"
+    },
+    {
+      "pattern": "tinytask",
+      "severity": "MEDIUM",
+      "note": "TinyTask auto-clicker"
+    },
+    {
+      "pattern": "autohotkey",
+      "severity": "LOW",
+      "note": "AutoHotkey"
+    },
+    {
+      "pattern": "mouse recorder",
+      "severity": "MEDIUM",
+      "note": "Mouse Recorder Pro"
+    },
+    {
+      "pattern": "auto clicker",
+      "severity": "MEDIUM",
+      "note": "Auto clicker"
+    },
+    {
+      "pattern": "pulsar",
+      "severity": "LOW",
+      "note": "Pulsar macro"
+    },
+    {
+      "pattern": "kmbox",
+      "severity": "HIGH",
+      "note": "KMBox hardware mouse-macro/DMA input"
+    },
+    {
+      "pattern": "makcu",
+      "severity": "HIGH",
+      "note": "MAKCU hardware input device"
+    }
+  ],
+  "_comment_allowlist": "Trusted locations/signers. These suppress ONLY heuristic findings (offset strings, injection imports, entropy, disguised extension). Exact cheat-name and hash matches are always reported.",
+  "allowPaths": [
+    "\\windows\\system32\\",
+    "\\windows\\syswow64\\",
+    "\\windows\\winsxs\\",
+    "\\windows\\servicing\\",
+    "\\program files\\",
+    "\\program files (x86)\\",
+    "\\steam\\steamapps\\common\\",
+    "\\steamlibrary\\steamapps\\common\\",
+    "\\steam\\bin\\",
+    "\\steam\\steamui\\",
+    "\\nvidia corporation\\",
+    "\\amd\\",
+    "\\intel\\",
+    "\\windowsapps\\",
+    "\\microsoft\\edge\\",
+    "\\google\\chrome\\",
+    "\\mozilla firefox\\",
+    "\\discord\\",
+    "\\obs-studio\\",
+    "/usr/",
+    "/lib/",
+    "/lib64/",
+    "/bin/",
+    "/sbin/",
+    "/opt/",
+    "/.steam/",
+    "/steamapps/common/",
+    "compatibilitytools.d/",
+    "/proton",
+    "/wine/",
+    "/.local/share/steam/"
+  ],
+  "allowSigners": [
+    "microsoft corporation",
+    "microsoft windows",
+    "valve corp",
+    "nvidia corporation",
+    "advanced micro devices",
+    "intel corporation",
+    "google llc",
+    "mozilla corporation",
+    "discord inc",
+    "logitech",
+    "razer",
+    "realtek",
+    "steelseries"
+  ],
+  "allowHashes": []
 }

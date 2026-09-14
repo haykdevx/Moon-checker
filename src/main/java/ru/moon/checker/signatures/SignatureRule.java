@@ -8,24 +8,32 @@ import java.util.Locale;
 /**
  * A single detection rule from {@code signatures.json}.
  *
- * <p>Either {@code pattern} (a case-insensitive substring matched against
- * names, paths, domains, offset strings, driver names...) or {@code sha256}
- * (an exact file-hash match) is used, depending on the list the rule lives in.
+ * <p>Either {@code pattern} (matched against names, paths, domains, offset
+ * strings, driver names...) or {@code sha256} (an exact file-hash match) is
+ * used, depending on the list the rule lives in.
  *
- * @param pattern  substring to look for (nullable for hash rules)
- * @param sha256   lower-case hex sha-256 (nullable for pattern rules)
- * @param severity severity to assign when this rule matches (defaults MEDIUM)
- * @param note     human explanation shown to the admin
+ * <p>Matching is <b>word-boundary</b> by default: the pattern must not be
+ * flanked by letters or digits. Without this, short or common patterns produce
+ * bad false positives — {@code midnight} matched {@code midnightlib.json}, an
+ * unrelated Minecraft mod config, and reported it as a cheat. Set
+ * {@code "substring": true} on a rule whose name is distinctive enough that
+ * matching inside a longer word is desirable (e.g. {@code nixwareloader.exe}).
+ *
+ * @param pattern   text to look for (nullable for hash rules)
+ * @param sha256    lower-case hex sha-256 (nullable for pattern rules)
+ * @param severity  severity to assign when this rule matches (defaults MEDIUM)
+ * @param note      human explanation shown to the admin
+ * @param substring match anywhere, skipping the word-boundary requirement
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record SignatureRule(String pattern, String sha256, Severity severity, String note) {
+public record SignatureRule(String pattern, String sha256, Severity severity, String note,
+                            boolean substring) {
 
     public SignatureRule {
         if (severity == null) {
             severity = Severity.MEDIUM;
         }
         if (pattern != null) {
-            // store lowercase for fast case-insensitive matching
             pattern = pattern.toLowerCase(Locale.ROOT);
         }
         if (sha256 != null) {
@@ -33,8 +41,42 @@ public record SignatureRule(String pattern, String sha256, Severity severity, St
         }
     }
 
+    /** Convenience for tests / programmatic rules (word-boundary matching). */
+    public SignatureRule(String pattern, String sha256, Severity severity, String note) {
+        this(pattern, sha256, severity, note, false);
+    }
+
     public boolean matches(String haystackLower) {
-        return pattern != null && !pattern.isEmpty() && haystackLower.contains(pattern);
+        if (pattern == null || pattern.isEmpty() || haystackLower == null) {
+            return false;
+        }
+        if (substring) {
+            return haystackLower.contains(pattern);
+        }
+        int from = 0;
+        while (true) {
+            int i = haystackLower.indexOf(pattern, from);
+            if (i < 0) {
+                return false;
+            }
+            int end = i + pattern.length();
+            boolean leftOk = i == 0 || !isWordChar(haystackLower.charAt(i - 1));
+            boolean rightOk = end >= haystackLower.length() || !isWordChar(haystackLower.charAt(end));
+            if (leftOk && rightOk) {
+                return true;
+            }
+            from = i + 1;
+        }
+    }
+
+    /**
+     * Only letters break a match. Digits are allowed to flank it so
+     * version-numbered filenames like {@code CheatEngine77.exe} or
+     * {@code nixware2.dll} are still detected, while {@code midnightlib.json}
+     * is not.
+     */
+    private static boolean isWordChar(char c) {
+        return Character.isLetter(c);
     }
 
     public boolean matchesHash(String hashLower) {

@@ -117,9 +117,17 @@ public final class FileInspection {
             return;
         }
 
+        // Trusted location? Heuristics (ADS, disguise, offsets, imports, entropy)
+        // are suppressed for OS/Steam/vendor paths; exact name and hash matches
+        // above and below are never suppressed.
+        boolean trustedPath = ctx.signatures().isAllowedPath(pathLower);
+
         // 2. hidden Alternate Data Streams — a classic cheat-payload hiding spot
         for (ru.moon.checker.win.AlternateStreams.Stream st : ru.moon.checker.win.AlternateStreams.list(pathStr)) {
             var streamRule = ctx.signatures().matchCheatName(st.name());
+            if (trustedPath && streamRule.isEmpty()) {
+                continue; // Windows itself uses streams on system files
+            }
             Severity sev = streamRule.isPresent() ? Severity.CRITICAL : Severity.HIGH;
             ctx.emit(Finding.builder(category, sev,
                             "Скрытый поток данных (ADS) / Hidden alternate data stream")
@@ -138,14 +146,14 @@ public final class FileInspection {
         //    .cpl/.drv/.ocx/.tlb etc. are legitimately PE images.
         boolean binaryExt = isBinaryName(nameLower);
         boolean mz = !binaryExt && peekMz(file);
-        boolean disguised = mz && isNonExecutableName(nameLower);
+        boolean disguised = mz && isNonExecutableName(nameLower) && !trustedPath;
         if (disguised) {
             ctx.emit(Finding.builder(category, Severity.HIGH,
                             "Исполняемый файл под чужим расширением / Executable disguised by extension")
                     .module(module)
                     .detail("PE (MZ) content with a non-executable extension")
                     .evidence(pathStr)
-                    .source("content vs extension")
+                    .source("content vs extension · heuristic")
                     .openPath(parent(file))
                     .build());
         }
@@ -153,8 +161,10 @@ public final class FileInspection {
         // 4. exact hash match (streamed) — for binaries, disguised PEs, or when
         //    the signature DB actually contains hashes (to catch renamed cheats)
         boolean hashAll = !ctx.signatures().hashes().isEmpty();
+        String fileHash = null;
         if ((binaryExt || mz || hashAll) && size <= HASH_MAX) {
             String hash = Hashing.sha256File(file);
+            fileHash = hash;
             if (hash != null) {
                 final String h = hash;
                 ctx.signatures().matchHash(hash).ifPresent(rule ->
@@ -180,6 +190,12 @@ public final class FileInspection {
             return;
         }
 
+        // Full trust decision for the content heuristics: trusted path, an
+        // explicitly allowlisted hash, or a valid signature from a known vendor.
+        if (trustedPath || isTrusted(file, fileHash, ctx)) {
+            return; // exact name/hash matches already reported above
+        }
+
         List<String> strings = BinStrings.all(data, MIN_STRING);
         int offsetHits = 0;
         StringBuilder matched = new StringBuilder();
@@ -201,7 +217,7 @@ public final class FileInspection {
                     .module(module)
                     .detail(offsetHits + " match(es): " + trimTail(matched.toString()))
                     .evidence(pathStr)
-                    .source("binary strings")
+                    .source("binary strings · heuristic")
                     .openPath(parent(file))
                     .weight(sev == Severity.HIGH ? 40 : 12)
                     .build());
@@ -217,7 +233,7 @@ public final class FileInspection {
                     .detail("Imports remote-injection APIs" + (pe.signed() ? "" : ", unsigned")
                             + (isSuspiciousLocation(pathLower) ? ", suspicious location" : ""))
                     .evidence(pathStr)
-                    .source("PE imports")
+                    .source("PE imports · heuristic")
                     .openPath(parent(file))
                     .build());
         }
@@ -231,12 +247,29 @@ public final class FileInspection {
                         .module(module)
                         .detail(String.format(Locale.ROOT, "entropy %.2f/8.0 in a user-writable location", entropy))
                         .evidence(pathStr)
-                        .source("entropy")
+                        .source("entropy · heuristic")
                         .openPath(parent(file))
                         .weight(6)
                         .build());
             }
         }
+    }
+
+    /**
+     * Whether heuristic findings should be suppressed for this file: an
+     * explicitly allowlisted hash, or (Windows) a valid Authenticode signature
+     * from a trusted vendor. Exact cheat-name / cheat-hash matches are reported
+     * before this is consulted, so a signed cheat is still caught.
+     */
+    private static boolean isTrusted(Path file, String fileHash, ScanContext ctx) {
+        if (fileHash != null && ctx.signatures().isAllowedHash(fileHash)) {
+            return true;
+        }
+        if (ru.moon.checker.core.Platform.isWindows()) {
+            var sig = ru.moon.checker.win.Authenticode.verify(file);
+            return sig.valid() && ctx.signatures().isAllowedSigner(sig.signer());
+        }
+        return false;
     }
 
     private static boolean peekMz(Path file) {

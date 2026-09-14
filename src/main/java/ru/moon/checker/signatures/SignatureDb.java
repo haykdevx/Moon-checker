@@ -31,7 +31,10 @@ public record SignatureDb(
         List<SignatureRule> offsetStrings,
         List<SignatureRule> vulnerableDrivers,
         List<SignatureRule> cleaners,
-        List<SignatureRule> macroTools
+        List<SignatureRule> macroTools,
+        List<String> allowPaths,
+        List<String> allowSigners,
+        List<String> allowHashes
 ) {
     public SignatureDb {
         version = version == null ? "unknown" : version;
@@ -42,6 +45,22 @@ public record SignatureDb(
         vulnerableDrivers = nullToEmpty(vulnerableDrivers);
         cleaners = nullToEmpty(cleaners);
         macroTools = nullToEmpty(macroTools);
+        allowPaths = lowerAll(allowPaths);
+        allowSigners = lowerAll(allowSigners);
+        allowHashes = lowerAll(allowHashes);
+    }
+
+    private static List<String> lowerAll(List<String> in) {
+        if (in == null) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>(in.size());
+        for (String s : in) {
+            if (s != null && !s.isBlank()) {
+                out.add(s.toLowerCase(Locale.ROOT));
+            }
+        }
+        return List.copyOf(out);
     }
 
     private static List<SignatureRule> nullToEmpty(List<SignatureRule> in) {
@@ -49,7 +68,46 @@ public record SignatureDb(
     }
 
     public static SignatureDb empty() {
-        return new SignatureDb("empty", null, null, null, null, null, null, null);
+        return new SignatureDb("empty", null, null, null, null, null, null, null, null, null, null);
+    }
+
+    // ---- allowlist (false-positive suppression) --------------------------
+
+    /**
+     * True when the path lives in a trusted location (OS directories, Steam,
+     * Proton/Wine, vendor installs). Heuristic findings — offset strings,
+     * injection imports, entropy, disguised extension — are suppressed for
+     * these, because legitimate system and game binaries trip them. Exact
+     * cheat-name and hash matches are NEVER suppressed.
+     */
+    public boolean isAllowedPath(String pathLower) {
+        if (pathLower == null) {
+            return false;
+        }
+        for (String p : allowPaths) {
+            if (pathLower.contains(p)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when a code-signing subject is a trusted vendor. */
+    public boolean isAllowedSigner(String signerLower) {
+        if (signerLower == null) {
+            return false;
+        }
+        for (String s : allowSigners) {
+            if (signerLower.contains(s)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when this exact file hash is explicitly known-good. */
+    public boolean isAllowedHash(String sha256Lower) {
+        return sha256Lower != null && allowHashes.contains(sha256Lower);
     }
 
     /** Total rule count across every list — shown in the UI/report footer. */
