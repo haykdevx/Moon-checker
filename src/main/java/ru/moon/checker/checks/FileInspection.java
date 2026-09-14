@@ -26,8 +26,29 @@ import java.util.function.Consumer;
  */
 public final class FileInspection {
 
-    /** Extensions worth a deep inspection. */
-    private static final String[] BINARY_EXT = {".exe", ".dll", ".sys", ".bin", ".dat", ".scr"};
+    /**
+     * Extensions that are legitimately PE/binary on Windows. These are deep
+     * scanned but never reported as "disguised" — System32 is full of .cpl,
+     * .drv, .ocx, .ax and .tlb files that are perfectly normal PE images.
+     */
+    private static final String[] BINARY_EXT = {
+            ".exe", ".dll", ".sys", ".bin", ".dat", ".scr", ".com",
+            ".cpl", ".drv", ".ocx", ".ax", ".tlb", ".acm", ".msstyles",
+            ".node", ".efi", ".mui", ".so", ".elf"
+    };
+
+    /**
+     * Document / media / archive extensions. A PE header under one of THESE is
+     * genuinely suspicious (a cheat renamed to {@code screenshot.png}).
+     */
+    private static final String[] NON_EXECUTABLE_EXT = {
+            ".txt", ".log", ".ini", ".cfg", ".conf", ".json", ".xml", ".csv", ".md",
+            ".html", ".htm", ".rtf", ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+            ".ppt", ".pptx", ".odt", ".jpg", ".jpeg", ".png", ".gif", ".bmp",
+            ".webp", ".ico", ".svg", ".mp3", ".mp4", ".avi", ".mkv", ".mov",
+            ".wav", ".flac", ".ogg", ".zip", ".rar", ".7z", ".tar", ".gz",
+            ".iso", ".vdf", ".lua", ".py", ".js", ".css"
+    };
     private static final long STRING_SCAN_MAX = 48L * 1024 * 1024;  // 48 MiB deep-scan cap
     private static final long HASH_MAX = 512L * 1024 * 1024;        // 512 MiB hashing cap
     private static final int MIN_STRING = 4;
@@ -38,9 +59,17 @@ public final class FileInspection {
     }
 
     public static boolean isBinaryName(String name) {
-        String l = name.toLowerCase(Locale.ROOT);
-        for (String e : BINARY_EXT) {
-            if (l.endsWith(e)) {
+        return endsWithAny(name.toLowerCase(Locale.ROOT), BINARY_EXT);
+    }
+
+    /** True for document/media/archive extensions that should never be a PE. */
+    public static boolean isNonExecutableName(String name) {
+        return endsWithAny(name.toLowerCase(Locale.ROOT), NON_EXECUTABLE_EXT);
+    }
+
+    private static boolean endsWithAny(String lower, String[] exts) {
+        for (String e : exts) {
+            if (lower.endsWith(e)) {
                 return true;
             }
         }
@@ -103,9 +132,13 @@ public final class FileInspection {
                     .build());
         }
 
-        // 3. executable disguised under a non-executable extension (MZ header)
+        // 3. executable disguised under a document/media extension (MZ header).
+        //    Only probe files whose extension isn't already a known binary one,
+        //    and only raise the finding for genuinely non-executable extensions —
+        //    .cpl/.drv/.ocx/.tlb etc. are legitimately PE images.
         boolean binaryExt = isBinaryName(nameLower);
-        boolean disguised = !binaryExt && peekMz(file);
+        boolean mz = !binaryExt && peekMz(file);
+        boolean disguised = mz && isNonExecutableName(nameLower);
         if (disguised) {
             ctx.emit(Finding.builder(category, Severity.HIGH,
                             "Исполняемый файл под чужим расширением / Executable disguised by extension")
@@ -120,7 +153,7 @@ public final class FileInspection {
         // 4. exact hash match (streamed) — for binaries, disguised PEs, or when
         //    the signature DB actually contains hashes (to catch renamed cheats)
         boolean hashAll = !ctx.signatures().hashes().isEmpty();
-        if ((binaryExt || disguised || hashAll) && size <= HASH_MAX) {
+        if ((binaryExt || mz || hashAll) && size <= HASH_MAX) {
             String hash = Hashing.sha256File(file);
             if (hash != null) {
                 final String h = hash;
@@ -137,7 +170,7 @@ public final class FileInspection {
         }
 
         // 5. deep content scan for reasonably-sized binaries (or disguised PEs)
-        if (size > STRING_SCAN_MAX || !(binaryExt || disguised)) {
+        if (size > STRING_SCAN_MAX || !(binaryExt || mz)) {
             return;
         }
         byte[] data;

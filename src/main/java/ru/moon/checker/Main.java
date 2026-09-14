@@ -32,6 +32,11 @@ public final class Main {
         Thread.setDefaultUncaughtExceptionHandler((t, e) ->
                 ru.moon.checker.core.Log.error("uncaught in " + t.getName(), e));
 
+        // headless modes: --cli / --selftest / --version / --help
+        if (ru.moon.checker.cli.Cli.handles(args)) {
+            System.exit(ru.moon.checker.cli.Cli.run(args, appVersion()));
+        }
+
         boolean elevated = ru.moon.checker.core.Platform.isWindows()
                 ? WinInfo.isElevated()
                 : ru.moon.checker.linux.LinuxInfo.isRoot();
