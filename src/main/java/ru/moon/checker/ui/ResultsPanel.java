@@ -1,29 +1,32 @@
 package ru.moon.checker.ui;
 
+import ru.moon.checker.core.Analysis;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.ScanResult;
 import ru.moon.checker.core.Severity;
 import ru.moon.checker.core.Verdict;
 import ru.moon.checker.report.HtmlReport;
+import ru.moon.checker.report.JsonReport;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
-import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -31,20 +34,21 @@ import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Final screen for the admin: the verdict and score, severity counts, and a
- * filterable table of every finding with a detail pane and quick actions
- * (reveal in Explorer, copy evidence, save the HTML report, start a new check).
- * The verdict and evidence are for the admin — the player only ever saw a
- * neutral "check complete" state.
+ * The admin's screen: verdict, score, and every piece of evidence — as a
+ * filterable card list, a correlated summary, and a timeline.
  */
 public final class ResultsPanel extends JPanel {
 
@@ -56,120 +60,230 @@ public final class ResultsPanel extends JPanel {
     private final FindingTableModel model;
     private final JTable table;
     private final JTextArea detail = new JTextArea();
+    private JComboBox<String> moduleCombo;
+    private JTextField search;
 
     public ResultsPanel(ScanResult result, Actions actions) {
         this.result = result;
         this.model = new FindingTableModel(result.findings());
         this.table = new JTable(model);
-        setBackground(MoonTheme.BG);
-        setLayout(new BorderLayout(0, 12));
-        setBorder(BorderFactory.createEmptyBorder(18, 22, 18, 22));
+        setOpaque(true);
+        setLayout(new BorderLayout(0, 0));
+        setBorder(BorderFactory.createEmptyBorder(16, 22, 14, 22));
 
-        add(verdictHeader(), BorderLayout.NORTH);
-        add(centerSplit(), BorderLayout.CENTER);
-        add(buttons(actions), BorderLayout.SOUTH);
-
-        // With nothing selected the detail pane would sit empty; show the
-        // verdict explanation there instead so the admin reads *why* first.
+        add(verdictHero(), BorderLayout.NORTH);
+        add(centre(), BorderLayout.CENTER);
+        add(actionBar(actions), BorderLayout.SOUTH);
         showDetail();
     }
 
-    private JPanel verdictHeader() {
-        JPanel p = new JPanel(new BorderLayout(20, 0));
-        p.setBackground(MoonTheme.PANEL);
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        MoonBackground.paintQuiet(g2, getWidth(), getHeight());
+        g2.dispose();
+    }
+
+    // ---- verdict ---------------------------------------------------------
+
+    private JComponent verdictHero() {
         Color vc = verdictColor(result.verdict());
-        p.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 4, 0, 0, vc),
-                BorderFactory.createEmptyBorder(16, 20, 16, 20)));
 
-        JLabel label = new JLabel(verdictText(result.verdict()));
-        label.setFont(MoonTheme.font(Font.BOLD, 24)); // body font: verdict is bilingual (Cyrillic)
-        label.setForeground(vc);
+        JPanel hero = new JPanel(new BorderLayout(24, 0));
+        hero.setOpaque(false);
+        hero.setBorder(BorderFactory.createEmptyBorder(6, 0, 16, 0));
 
-        JLabel score = new JLabel(result.score() + " / 100");
-        score.setFont(MoonTheme.display(Font.BOLD, 26)); // digits only: Orbitron is fine
-        score.setForeground(MoonTheme.TEXT);
-
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        // left: glow bar + verdict + reason + chips
+        JPanel left = new JPanel();
         left.setOpaque(false);
-        left.add(label);
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
 
-        p.add(left, BorderLayout.WEST);
-        p.add(chips(), BorderLayout.CENTER);
-        p.add(score, BorderLayout.EAST);
-        return p;
+        JPanel titleRow = new JPanel(new BorderLayout(14, 0));
+        titleRow.setOpaque(false);
+        titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleRow.add(new GlowBar(vc), BorderLayout.WEST);
+
+        JPanel titleText = new JPanel();
+        titleText.setOpaque(false);
+        titleText.setLayout(new BoxLayout(titleText, BoxLayout.Y_AXIS));
+        JLabel verdict = new JLabel(verdictText(result.verdict()));
+        verdict.setFont(MoonTheme.font(Font.BOLD, 30));
+        verdict.setForeground(vc);
+        verdict.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel sub = new JLabel(verdictLatin(result.verdict()));
+        sub.setFont(MoonTheme.display(Font.PLAIN, 11));
+        sub.setForeground(MoonTheme.MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleText.add(verdict);
+        titleText.add(Box.createVerticalStrut(4));
+        titleText.add(sub);
+        titleRow.add(titleText, BorderLayout.CENTER);
+
+        left.add(titleRow);
+        left.add(Box.createVerticalStrut(10));
+        left.add(chips());
+
+        hero.add(left, BorderLayout.CENTER);
+
+        ArcGauge gauge = new ArcGauge(132, 10,
+                vc, vc == MoonTheme.CHEAT ? MoonTheme.HIGH : vc,
+                result.score(), 100, "/ 100");
+        JPanel gaugeWrap = new JPanel(new BorderLayout());
+        gaugeWrap.setOpaque(false);
+        gaugeWrap.add(gauge, BorderLayout.CENTER);
+        gaugeWrap.setPreferredSize(new Dimension(140, 132));
+        hero.add(gaugeWrap, BorderLayout.EAST);
+        return hero;
     }
 
-    private JPanel chips() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        p.setOpaque(false);
-        for (Severity s : new Severity[]{Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO}) {
-            long n = result.countBySeverity(s);
-            JLabel chip = new JLabel(n + " " + s.name());
-            chip.setOpaque(true);
-            chip.setBackground(MoonTheme.PANEL2);
-            chip.setForeground(MoonTheme.severityColor(s.name()));
-            chip.setFont(MoonTheme.font(Font.BOLD, 12));
-            chip.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(MoonTheme.LINE),
-                    BorderFactory.createEmptyBorder(5, 10, 5, 10)));
-            p.add(chip);
+    /** The glowing severity bar beside the verdict. */
+    private static final class GlowBar extends JComponent {
+        private final Color color;
+
+        GlowBar(Color color) {
+            this.color = color;
+            setPreferredSize(new Dimension(5, 52));
         }
-        return p;
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            for (int i = 6; i >= 1; i--) {
+                g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 14));
+                g2.fillRoundRect(-i, 2 - i, 4 + i * 2, getHeight() - 4 + i * 2, 6, 6);
+            }
+            g2.setColor(color);
+            g2.fillRoundRect(0, 2, 4, getHeight() - 4, 3, 3);
+            g2.dispose();
+        }
     }
 
-    private JPanel centerSplit() {
-        JPanel p = new JPanel(new BorderLayout(0, 10));
-        p.setOpaque(false);
-        p.add(filterBar(), BorderLayout.NORTH);
+    private JComponent chips() {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        for (Severity s : new Severity[]{Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM,
+                Severity.LOW, Severity.INFO}) {
+            row.add(new Chip(s.name(), result.countBySeverity(s)));
+        }
+        return row;
+    }
 
-        table.setRowHeight(26);
+    /** Count + label pill, tinted when non-zero. */
+    private static final class Chip extends JComponent {
+        private final String label;
+        private final long count;
+
+        Chip(String label, long count) {
+            this.label = label;
+            this.count = count;
+            setPreferredSize(new Dimension(label.length() * 7 + 46, 28));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            Color c = MoonTheme.severityColor(label);
+            boolean on = count > 0;
+            g2.setColor(on ? MoonTheme.severityWash(label, 28) : new Color(0xff, 0xff, 0xff, 8));
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 9, 9);
+            g2.setColor(on ? MoonTheme.severityWash(label, 88) : MoonTheme.LINE2);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 9, 9);
+
+            g2.setFont(MoonTheme.font(Font.BOLD, 13));
+            g2.setColor(on ? c : MoonTheme.FAINT);
+            g2.drawString(String.valueOf(count), 11, 19);
+            int numW = g2.getFontMetrics().stringWidth(String.valueOf(count));
+            g2.setFont(MoonTheme.font(Font.PLAIN, 10));
+            g2.setColor(on ? c.brighter() : MoonTheme.FAINT);
+            g2.drawString(label, 11 + numW + 6, 18);
+            g2.dispose();
+        }
+    }
+
+    // ---- centre ----------------------------------------------------------
+
+    private JComponent centre() {
+        table.setModel(model);
+        table.setRowHeight(46);
+        table.setShowGrid(false);
+        table.setIntercellSpacing(new Dimension(0, 5));
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.getTableHeader().setReorderingAllowed(false);
-        table.setAutoCreateRowSorter(true); // click a header to sort
-        table.getColumnModel().getColumn(0).setPreferredWidth(90);
-        table.getColumnModel().getColumn(1).setPreferredWidth(120);
-        table.getColumnModel().getColumn(2).setPreferredWidth(420);
-        table.setDefaultRenderer(Object.class, new SeverityRowRenderer());
-        table.getColumnModel().getColumn(0).setCellRenderer(new SeverityRenderer());
+        table.setTableHeader(null); // the cards carry their own structure
+        table.setOpaque(false);
+        table.setBackground(new Color(0, 0, 0, 0));
+        table.getColumnModel().getColumn(0).setCellRenderer(new FindingRowRenderer(model));
         table.getSelectionModel().addListSelectionListener(e -> showDetail());
 
-        JScrollPane tsp = new JScrollPane(table);
-        tsp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
+        JScrollPane list = transparentScroll(table);
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab(I18n.t("tab.findings") + "  (" + result.findings().size() + ")", tsp);
+        tabs.setOpaque(false);
+        tabs.addTab(I18n.t("tab.findings") + "  " + result.findings().size(), list);
         tabs.addTab(I18n.t("tab.summary"), buildSummary());
-        var timeline = ru.moon.checker.core.Analysis.timeline(result.findings());
-        tabs.addTab(I18n.t("tab.timeline") + "  (" + timeline.size() + ")", buildTimeline(timeline));
+        List<Finding> timeline = Analysis.timeline(result.findings());
+        tabs.addTab(I18n.t("tab.timeline") + "  " + timeline.size(), buildTimeline(timeline));
 
         detail.setEditable(false);
         detail.setLineWrap(true);
         detail.setWrapStyleWord(true);
-        detail.setBackground(MoonTheme.PANEL2);
-        detail.setForeground(MoonTheme.TEXT);
-        detail.setFont(new Font("Consolas", Font.PLAIN, 12));
-        detail.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        JScrollPane dsp = new JScrollPane(detail);
-        dsp.setPreferredSize(new Dimension(0, 130));
-        dsp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
+        detail.setOpaque(false);
+        detail.setForeground(MoonTheme.TEXT2);
+        detail.setFont(MoonTheme.font(Font.PLAIN, 12));
+        detail.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        JScrollPane detailScroll = transparentScroll(detail);
+        detailScroll.setPreferredSize(new Dimension(0, 116));
+
+        JPanel detailCard = new CardPanel();
+        detailCard.setLayout(new BorderLayout());
+        detailCard.add(detailScroll, BorderLayout.CENTER);
+        detailCard.setPreferredSize(new Dimension(0, 116));
 
         JPanel stack = new JPanel(new BorderLayout(0, 10));
         stack.setOpaque(false);
+        stack.add(filterBar(), BorderLayout.NORTH);
         stack.add(tabs, BorderLayout.CENTER);
-        stack.add(dsp, BorderLayout.SOUTH);
-        p.add(stack, BorderLayout.CENTER);
-        return p;
+        stack.add(detailCard, BorderLayout.SOUTH);
+        return stack;
     }
 
-    private JPanel filterBar() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+    /** Rounded translucent container used for panes and cards. */
+    private static class CardPanel extends JPanel {
+        CardPanel() {
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(new Color(0x14, 0x17, 0x22, 210));
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 13, 13);
+            g2.setColor(MoonTheme.LINE);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 13, 13);
+            g2.dispose();
+        }
+    }
+
+    private static JScrollPane transparentScroll(Component view) {
+        JScrollPane sp = new JScrollPane(view);
+        sp.setOpaque(false);
+        sp.getViewport().setOpaque(false);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getVerticalScrollBar().setUnitIncrement(18);
+        return sp;
+    }
+
+    private JComponent filterBar() {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         p.setOpaque(false);
 
         JComboBox<String> sev = new JComboBox<>(new String[]{
                 I18n.t("filter.all"), "INFO+", "LOW+", "MEDIUM+", "HIGH+", "CRITICAL"});
-        sev.addActionListener(e -> refilter(sev, moduleCombo, search));
 
         Set<String> modules = new LinkedHashSet<>();
         modules.add(I18n.t("filter.all"));
@@ -177,133 +291,206 @@ public final class ResultsPanel extends JPanel {
             modules.add(f.module());
         }
         moduleCombo = new JComboBox<>(new DefaultComboBoxModel<>(modules.toArray(new String[0])));
-        moduleCombo.addActionListener(e -> refilter(sev, moduleCombo, search));
 
-        search = new JTextField(22);
+        search = new JTextField(20);
+        search.putClientProperty("JTextField.placeholderText", I18n.t("filter.searchHint"));
+
+        JComboBox<FindingTableModel.Sort> sortBox =
+                new JComboBox<>(FindingTableModel.Sort.values());
+        sortBox.addActionListener(e ->
+                model.setSort((FindingTableModel.Sort) sortBox.getSelectedItem()));
+
+        Runnable refilter = () -> {
+            Severity min = switch (sev.getSelectedIndex()) {
+                case 1 -> Severity.INFO;
+                case 2 -> Severity.LOW;
+                case 3 -> Severity.MEDIUM;
+                case 4 -> Severity.HIGH;
+                case 5 -> Severity.CRITICAL;
+                default -> null;
+            };
+            String module = moduleCombo.getSelectedIndex() == 0 ? null
+                    : (String) moduleCombo.getSelectedItem();
+            model.setFilter(min, module, search.getText());
+        };
+        sev.addActionListener(e -> refilter.run());
+        moduleCombo.addActionListener(e -> refilter.run());
         search.getDocument().addDocumentListener(new DocumentListener() {
-            public void insertUpdate(DocumentEvent e) { refilter(sev, moduleCombo, search); }
-            public void removeUpdate(DocumentEvent e) { refilter(sev, moduleCombo, search); }
-            public void changedUpdate(DocumentEvent e) { refilter(sev, moduleCombo, search); }
+            public void insertUpdate(DocumentEvent e) { refilter.run(); }
+            public void removeUpdate(DocumentEvent e) { refilter.run(); }
+            public void changedUpdate(DocumentEvent e) { refilter.run(); }
         });
 
-        p.add(label(I18n.t("filter.severity")));
+        p.add(muted(I18n.t("filter.severity")));
         p.add(sev);
-        p.add(label(I18n.t("filter.module")));
+        p.add(muted(I18n.t("filter.module")));
         p.add(moduleCombo);
-        p.add(label(I18n.t("filter.search")));
+        p.add(muted(I18n.t("filter.sort")));
+        p.add(sortBox);
+        p.add(muted(I18n.t("filter.search")));
         p.add(search);
         return p;
     }
 
-    private JComboBox<String> moduleCombo;
-    private JTextField search;
-
-    private void refilter(JComboBox<String> sev, JComboBox<String> mod, JTextField text) {
-        Severity min = switch (sev.getSelectedIndex()) {
-            case 1 -> Severity.INFO;
-            case 2 -> Severity.LOW;
-            case 3 -> Severity.MEDIUM;
-            case 4 -> Severity.HIGH;
-            case 5 -> Severity.CRITICAL;
-            default -> null;
-        };
-        String module = mod.getSelectedIndex() == 0 ? null : (String) mod.getSelectedItem();
-        model.setFilter(min, module, text.getText());
-    }
-
-    private JLabel label(String t) {
+    private JLabel muted(String t) {
         JLabel l = new JLabel(t);
         l.setForeground(MoonTheme.MUTED);
+        l.setFont(MoonTheme.font(Font.PLAIN, 12));
         return l;
     }
 
-    /** Correlated evidence: one card per subject (usually one cheat). */
+    // ---- summary + timeline ---------------------------------------------
+
     private JScrollPane buildSummary() {
         JPanel list = new JPanel();
-        list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
-        list.setBackground(MoonTheme.PANEL);
-        list.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+        list.setOpaque(false);
+        list.setBorder(BorderFactory.createEmptyBorder(8, 2, 8, 2));
 
-        var groups = ru.moon.checker.core.Analysis.group(result.findings());
+        List<Analysis.Group> groups = Analysis.group(result.findings());
         if (groups.isEmpty()) {
             JLabel none = new JLabel(I18n.t("summary.none"));
             none.setForeground(MoonTheme.MUTED);
             list.add(none);
         }
-        for (var g : groups) {
-            JPanel card = new JPanel(new BorderLayout(12, 0));
-            card.setBackground(MoonTheme.PANEL2);
-            card.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 3, 0, 0,
-                            MoonTheme.severityColor(g.topSeverity().name())),
-                    BorderFactory.createEmptyBorder(10, 12, 10, 12)));
-            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
+        for (Analysis.Group g : groups) {
+            list.add(new GroupCard(g));
+            list.add(Box.createVerticalStrut(8));
+        }
+        return transparentScroll(list);
+    }
 
-            JLabel subject = new JLabel(g.subject());
-            subject.setForeground(MoonTheme.TEXT);
-            subject.setFont(MoonTheme.font(Font.BOLD, 13));
+    /** One correlated case: subject, severity spine, counts and modules. */
+    private static final class GroupCard extends JPanel {
+        private final Analysis.Group group;
 
-            JLabel meta = new JLabel(I18n.t("summary.meta",
-                    g.count(), g.weight(), String.join(", ", g.modules())));
-            meta.setForeground(MoonTheme.MUTED);
-            meta.setFont(MoonTheme.font(Font.PLAIN, 11));
+        GroupCard(Analysis.Group group) {
+            this.group = group;
+            setOpaque(false);
+            setLayout(new BorderLayout(12, 0));
+            setBorder(BorderFactory.createEmptyBorder(11, 15, 11, 15));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
 
             JPanel text = new JPanel();
             text.setOpaque(false);
-            text.setLayout(new javax.swing.BoxLayout(text, javax.swing.BoxLayout.Y_AXIS));
+            text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+            JLabel subject = new JLabel(group.subject());
+            subject.setFont(MoonTheme.font(Font.BOLD, 14));
+            subject.setForeground(MoonTheme.TEXT);
             subject.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel meta = new JLabel(I18n.t("summary.meta",
+                    group.count(), group.weight(), String.join(", ", group.modules())));
+            meta.setFont(MoonTheme.font(Font.PLAIN, 11));
+            meta.setForeground(MoonTheme.MUTED);
             meta.setAlignmentX(Component.LEFT_ALIGNMENT);
             text.add(subject);
+            text.add(Box.createVerticalStrut(3));
             text.add(meta);
 
-            JLabel sev = new JLabel(g.topSeverity().name());
-            sev.setForeground(MoonTheme.severityColor(g.topSeverity().name()));
-            sev.setFont(MoonTheme.font(Font.BOLD, 12));
+            JLabel sev = new JLabel(group.topSeverity().name());
+            sev.setFont(MoonTheme.display(Font.BOLD, 10));
+            sev.setForeground(MoonTheme.severityColor(group.topSeverity().name()));
 
-            card.add(text, BorderLayout.CENTER);
-            card.add(sev, BorderLayout.EAST);
-            list.add(card);
-            list.add(javax.swing.Box.createVerticalStrut(8));
+            add(text, BorderLayout.CENTER);
+            add(sev, BorderLayout.EAST);
         }
-        JScrollPane sp = new JScrollPane(list);
-        sp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
-        sp.getVerticalScrollBar().setUnitIncrement(16);
-        return sp;
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            String sev = group.topSeverity().name();
+            boolean strong = sev.equals("CRITICAL") || sev.equals("HIGH");
+            g2.setColor(strong ? MoonTheme.severityWash(sev, 26) : new Color(0xff, 0xff, 0xff, 7));
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 13, 13);
+            g2.setColor(strong ? MoonTheme.severityWash(sev, 70) : MoonTheme.LINE);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 13, 13);
+            g2.setColor(MoonTheme.severityColor(sev));
+            g2.fillRoundRect(0, 12, 3, getHeight() - 24, 2, 2);
+            g2.dispose();
+        }
     }
 
-    /** Chronological view — what happened and when, most recent first. */
-    private JScrollPane buildTimeline(java.util.List<Finding> timeline) {
-        String[] cols = {I18n.t("col.time"), I18n.t("col.severity"), I18n.t("col.finding"), I18n.t("col.source")};
-        Object[][] rows = new Object[timeline.size()][4];
-        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    private JScrollPane buildTimeline(List<Finding> timeline) {
+        JPanel list = new JPanel();
+        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+        list.setOpaque(false);
+        list.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("dd MMM · HH:mm:ss")
                 .withZone(java.time.ZoneId.systemDefault());
-        for (int i = 0; i < timeline.size(); i++) {
-            Finding f = timeline.get(i);
-            rows[i] = new Object[]{fmt.format(f.when()), f.severity().name(), f.title(),
-                    f.source() == null ? "" : f.source()};
+
+        if (timeline.isEmpty()) {
+            JLabel none = new JLabel(I18n.t("summary.none"));
+            none.setForeground(MoonTheme.MUTED);
+            list.add(none);
         }
-        JTable t = new JTable(new javax.swing.table.DefaultTableModel(rows, cols) {
-            @Override
-            public boolean isCellEditable(int r, int c) {
-                return false;
-            }
-        });
-        t.setRowHeight(24);
-        t.setFillsViewportHeight(true);
-        t.getTableHeader().setReorderingAllowed(false);
-        t.setDefaultRenderer(Object.class, new SeverityRowRenderer());
-        t.getColumnModel().getColumn(0).setPreferredWidth(150);
-        t.getColumnModel().getColumn(1).setPreferredWidth(80);
-        t.getColumnModel().getColumn(2).setPreferredWidth(430);
-        JScrollPane sp = new JScrollPane(t);
-        sp.setBorder(BorderFactory.createLineBorder(MoonTheme.LINE));
-        return sp;
+        for (int i = 0; i < timeline.size(); i++) {
+            list.add(new TimelineRow(timeline.get(i), fmt.format(timeline.get(i).when()),
+                    i < timeline.size() - 1));
+        }
+        return transparentScroll(list);
     }
+
+    /** A dot on a connecting line, with the time, what happened and where. */
+    private static final class TimelineRow extends JPanel {
+        private final Severity severity;
+        private final boolean connect;
+
+        TimelineRow(Finding f, String time, boolean connect) {
+            this.severity = f.severity();
+            this.connect = connect;
+            setOpaque(false);
+            setLayout(new BorderLayout());
+            setBorder(BorderFactory.createEmptyBorder(4, 34, 14, 6));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+
+            JPanel text = new JPanel();
+            text.setOpaque(false);
+            text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+            JLabel t = new JLabel(time);
+            t.setFont(MoonTheme.mono(Font.PLAIN, 11));
+            t.setForeground(MoonTheme.ACCENT2);
+            t.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel title = new JLabel(f.title());
+            title.setFont(MoonTheme.font(Font.BOLD, 13));
+            title.setForeground(MoonTheme.TEXT);
+            title.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel where = new JLabel(f.evidence() != null ? f.evidence()
+                    : (f.source() == null ? "" : f.source()));
+            where.setFont(MoonTheme.font(Font.PLAIN, 11));
+            where.setForeground(MoonTheme.MUTED2);
+            where.setAlignmentX(Component.LEFT_ALIGNMENT);
+            text.add(t);
+            text.add(title);
+            text.add(where);
+            add(text, BorderLayout.CENTER);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color c = MoonTheme.severityColor(severity.name());
+            int x = 14;
+            int y = 10;
+            if (connect) {
+                g2.setColor(MoonTheme.LINE2);
+                g2.fillRect(x + 4, y + 12, 2, getHeight());
+            }
+            g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 46));
+            g2.fillOval(x - 3, y - 3, 17, 17);
+            g2.setColor(c);
+            g2.fillOval(x, y, 11, 11);
+            g2.dispose();
+        }
+    }
+
+    // ---- detail + actions -------------------------------------------------
 
     private void showDetail() {
         Finding f = model.at(table.getSelectedRow());
         if (f == null) {
-            detail.setText(ru.moon.checker.core.Analysis.explain(result));
+            detail.setText(Analysis.explain(result));
             detail.setCaretPosition(0);
             return;
         }
@@ -318,37 +505,37 @@ public final class ResultsPanel extends JPanel {
         detail.setCaretPosition(0);
     }
 
-    private JPanel buttons(Actions actions) {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setOpaque(false);
+    private JComponent actionBar(Actions actions) {
+        JPanel bar = new JPanel(new BorderLayout());
+        bar.setOpaque(false);
+        bar.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
 
-        JLabel code = new JLabel("🔒 " + ru.moon.checker.report.JsonReport.verificationCode(result));
-        code.setForeground(MoonTheme.MUTED);
-        code.setFont(new Font("Consolas", Font.PLAIN, 12));
-        code.setToolTipText("Verification code — must match the saved report / server");
-        p.add(code, BorderLayout.WEST);
+        JLabel code = new JLabel("●  " + JsonReport.verificationCode(result)
+                + "   " + I18n.t("verify.label"));
+        code.setFont(MoonTheme.mono(Font.PLAIN, 11));
+        code.setForeground(MoonTheme.ACCENT2);
+        bar.add(code, BorderLayout.WEST);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
-
-        JButton reveal = new JButton(I18n.t("btn.reveal"));
+        MoonButton reveal = new MoonButton(I18n.t("btn.reveal"), false);
         reveal.addActionListener(e -> revealSelected());
-        JButton copy = new JButton(I18n.t("btn.copy"));
+        MoonButton copy = new MoonButton(I18n.t("btn.copy"), false);
         copy.addActionListener(e -> copySelected());
-        JButton save = new JButton(I18n.t("btn.save"));
-        save.addActionListener(e -> saveReport());
-        JButton json = new JButton(I18n.t("btn.savejson"));
-        json.addActionListener(e -> saveEvidence());
-        JButton neu = new JButton(I18n.t("btn.newcheck"));
+        MoonButton html = new MoonButton(I18n.t("btn.save"), false);
+        html.addActionListener(e -> saveReport());
+        MoonButton neu = new MoonButton(I18n.t("btn.newcheck"), false);
         neu.addActionListener(e -> actions.onNewCheck());
+        MoonButton json = new MoonButton(I18n.t("btn.savejson"), true);
+        json.addActionListener(e -> saveEvidence());
 
         right.add(reveal);
         right.add(copy);
-        right.add(save);
-        right.add(json);
+        right.add(html);
         right.add(neu);
-        p.add(right, BorderLayout.EAST);
-        return p;
+        right.add(json);
+        bar.add(right, BorderLayout.EAST);
+        return bar;
     }
 
     private void revealSelected() {
@@ -356,8 +543,6 @@ public final class ResultsPanel extends JPanel {
         if (f == null) {
             return;
         }
-        // Prefer the evidence itself (the actual file) over openPath (its
-        // parent), so Explorer highlights the file rather than its folder.
         File file = null;
         if (f.evidence() != null && new File(f.evidence()).exists()) {
             file = new File(f.evidence());
@@ -370,8 +555,7 @@ public final class ResultsPanel extends JPanel {
         }
         try {
             if (ru.moon.checker.core.Platform.isWindows() && !file.isDirectory()) {
-                // "/select," and the path MUST be one argument — passing them
-                // separately makes Explorer ignore the path entirely.
+                // "/select," and the path MUST be one argument
                 new ProcessBuilder("explorer.exe", "/select," + file.getAbsolutePath()).start();
             } else {
                 File dir = file.isDirectory() ? file : file.getParentFile();
@@ -386,10 +570,8 @@ public final class ResultsPanel extends JPanel {
 
     private void copySelected() {
         Finding f = model.at(table.getSelectedRow());
-        if (f == null) {
-            return;
-        }
-        String text = f.title() + "\n" + (f.detail() == null ? "" : f.detail() + "\n")
+        String text = f == null ? Analysis.explain(result)
+                : f.title() + "\n" + (f.detail() == null ? "" : f.detail() + "\n")
                 + (f.evidence() == null ? "" : f.evidence());
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
     }
@@ -418,8 +600,7 @@ public final class ResultsPanel extends JPanel {
             return;
         }
         try {
-            File out = fc.getSelectedFile();
-            Files.write(out.toPath(), ru.moon.checker.report.JsonReport.renderBytes(result));
+            Files.write(fc.getSelectedFile().toPath(), JsonReport.renderBytes(result));
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage());
         }
@@ -434,6 +615,16 @@ public final class ResultsPanel extends JPanel {
         };
     }
 
+    /** Latin sub-line under the verdict (Orbitron has no Cyrillic). */
+    private static String verdictLatin(Verdict v) {
+        return switch (v) {
+            case CLEAN -> "CLEAN";
+            case SUSPICIOUS -> "SUSPICIOUS";
+            case CHEAT -> "CHEAT DETECTED";
+            case INCONCLUSIVE -> "INCONCLUSIVE";
+        };
+    }
+
     private static Color verdictColor(Verdict v) {
         return switch (v) {
             case CLEAN -> MoonTheme.CLEAN;
@@ -441,54 +632,5 @@ public final class ResultsPanel extends JPanel {
             case CHEAT -> MoonTheme.CHEAT;
             case INCONCLUSIVE -> MoonTheme.INFO;
         };
-    }
-
-    /** Tints whole rows by severity so CRITICAL/HIGH stand out at a glance. */
-    private static final class SeverityRowRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object value, boolean sel,
-                                                       boolean focus, int row, int col) {
-            Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
-            String severity = severityOfRow(t, row);
-            if (!sel) {
-                c.setBackground(switch (severity) {
-                    case "CRITICAL" -> new Color(0x3a, 0x1f, 0x27);
-                    case "HIGH" -> new Color(0x36, 0x25, 0x1f);
-                    case "MEDIUM" -> new Color(0x31, 0x2c, 0x1e);
-                    default -> MoonTheme.PANEL;
-                });
-                c.setForeground(MoonTheme.TEXT);
-            }
-            return c;
-        }
-
-        /** Severity lives in column 0 (findings table) or 1 (timeline table). */
-        private String severityOfRow(JTable t, int row) {
-            for (int col : new int[]{0, 1}) {
-                if (col < t.getColumnCount()) {
-                    Object v = t.getValueAt(row, col);
-                    if (v != null) {
-                        String s = v.toString();
-                        if (s.equals("CRITICAL") || s.equals("HIGH") || s.equals("MEDIUM")
-                                || s.equals("LOW") || s.equals("INFO")) {
-                            return s;
-                        }
-                    }
-                }
-            }
-            return "";
-        }
-    }
-
-    /** Colours the severity column by level. */
-    private static final class SeverityRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object value, boolean sel,
-                                                       boolean focus, int row, int col) {
-            Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
-            c.setForeground(MoonTheme.severityColor(String.valueOf(value)));
-            c.setFont(MoonTheme.font(Font.BOLD, 12));
-            return c;
-        }
     }
 }
