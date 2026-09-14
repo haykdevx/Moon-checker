@@ -25,6 +25,17 @@ public final class AmCache {
     public record Entry(String path, String sha1, String name) {
     }
 
+    /** A driver binary Windows has seen ({@code Root\InventoryDriverBinary}). */
+    public record Driver(String path, String signed) {
+    }
+
+    /** Everything read from one mount of the hive. */
+    public record Snapshot(List<Entry> files, List<Driver> drivers) {
+        static Snapshot empty() {
+            return new Snapshot(List.of(), List.of());
+        }
+    }
+
     /**
      * AmCache {@code FileId} is the SHA-1 prefixed with "0000". Normalise it to
      * a bare 40-char lowercase SHA-1, or null if it doesn't look like one.
@@ -40,14 +51,21 @@ public final class AmCache {
         return s.matches("[0-9a-f]{40}") ? s : null;
     }
 
+    /** Back-compat: just the executable entries. */
     public static List<Entry> read() {
-        List<Entry> out = new ArrayList<>();
+        return readAll().files();
+    }
+
+    /** Mount the hive once and read both application files and driver binaries. */
+    public static Snapshot readAll() {
+        List<Entry> files = new ArrayList<>();
+        List<Driver> drivers = new ArrayList<>();
         if (!Platform.isWindows()) {
-            return out;
+            return Snapshot.empty();
         }
         Path hive = Platform.windowsDir().resolve("AppCompat").resolve("Programs").resolve("Amcache.hve");
         if (!Files.isRegularFile(hive)) {
-            return out;
+            return Snapshot.empty();
         }
         String tempKey = "MoonAmcache";
         boolean loaded = false;
@@ -56,7 +74,7 @@ public final class AmCache {
                     .redirectErrorStream(true).start();
             loaded = p.waitFor(30, TimeUnit.SECONDS) && p.exitValue() == 0;
             if (!loaded) {
-                return out;
+                return Snapshot.empty();
             }
             String base = tempKey + "\\Root\\InventoryApplicationFile";
             for (String sub : Registry.subKeys(Registry.HKLM, base)) {
@@ -65,8 +83,15 @@ public final class AmCache {
                 String fileId = Registry.getString(Registry.HKLM, keyPath, "FileId");
                 String name = Registry.getString(Registry.HKLM, keyPath, "Name");
                 if (path != null || name != null) {
-                    out.add(new Entry(path, normalizeFileId(fileId), name));
+                    files.add(new Entry(path, normalizeFileId(fileId), name));
                 }
+            }
+            String drvBase = tempKey + "\\Root\\InventoryDriverBinary";
+            for (String sub : Registry.subKeys(Registry.HKLM, drvBase)) {
+                String keyPath = drvBase + "\\" + sub;
+                String path = Registry.getString(Registry.HKLM, keyPath, "DriverName");
+                String signed = Registry.getString(Registry.HKLM, keyPath, "DriverSigned");
+                drivers.add(new Driver(path != null ? path : sub, signed));
             }
         } catch (Exception e) {
             Log.warn("AmCache read failed", e);
@@ -80,6 +105,6 @@ public final class AmCache {
                 }
             }
         }
-        return out;
+        return new Snapshot(files, drivers);
     }
 }

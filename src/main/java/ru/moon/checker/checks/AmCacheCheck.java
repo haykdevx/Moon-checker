@@ -37,7 +37,9 @@ public final class AmCacheCheck implements CheckModule {
     @Override
     public void run(ScanContext ctx) {
         ctx.log(I18n.t("log.amcache"));
-        for (AmCache.Entry e : AmCache.read()) {
+        AmCache.Snapshot snapshot = AmCache.readAll();
+        drivers(ctx, snapshot);
+        for (AmCache.Entry e : snapshot.files()) {
             if (ctx.isCancelled()) {
                 return;
             }
@@ -51,6 +53,40 @@ public final class AmCacheCheck implements CheckModule {
                                     + (e.sha1() != null ? "  [sha1=" + e.sha1() + "]" : ""))
                             .evidence(e.path() != null ? e.path() : e.name())
                             .source("AmCache")
+                            .build()));
+        }
+    }
+
+    /**
+     * Driver binaries Windows has recorded. Catches a vulnerable/mapper driver
+     * (BYOVD) that was loaded once and then deleted from disk.
+     */
+    private void drivers(ScanContext ctx, AmCache.Snapshot snapshot) {
+        for (AmCache.Driver d : snapshot.drivers()) {
+            if (ctx.isCancelled()) {
+                return;
+            }
+            if (d.path() == null) {
+                continue;
+            }
+            String low = d.path().toLowerCase(Locale.ROOT);
+            ctx.signatures().matchDriver(low).ifPresent(rule ->
+                    ctx.emit(Finding.builder(ru.moon.checker.core.Category.KERNEL, rule.severity(),
+                                    "Уязвимый драйвер в AmCache / Vulnerable driver recorded in AmCache")
+                            .module(ID)
+                            .detail(rule.label()
+                                    + (d.signed() != null ? "  [signed=" + d.signed() + "]" : ""))
+                            .evidence(d.path())
+                            .source("AmCache (drivers)")
+                            .build()));
+            ctx.signatures().matchCheatName(low).ifPresent(rule ->
+                    ctx.emit(Finding.builder(ru.moon.checker.core.Category.KERNEL,
+                                    ru.moon.checker.core.Severity.CRITICAL,
+                                    "Драйвер чита в AmCache / Cheat driver recorded in AmCache")
+                            .module(ID)
+                            .detail(rule.label())
+                            .evidence(d.path())
+                            .source("AmCache (drivers)")
                             .build()));
         }
     }

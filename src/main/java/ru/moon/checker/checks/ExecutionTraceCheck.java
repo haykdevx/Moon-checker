@@ -9,6 +9,7 @@ import ru.moon.checker.core.ScanContext;
 import ru.moon.checker.core.Severity;
 import ru.moon.checker.parse.Lnk;
 import ru.moon.checker.parse.Prefetch;
+import ru.moon.checker.parse.PrefetchBody;
 import ru.moon.checker.parse.UserAssist;
 import ru.moon.checker.win.Registry;
 
@@ -80,6 +81,7 @@ public final class ExecutionTraceCheck implements CheckModule {
             return;
         }
         ctx.log(I18n.t("log.prefetch"));
+        java.util.Set<String> seen = new java.util.HashSet<>();
         FileInspection.walk(dir, 5000, 1, f -> {
             Prefetch.Info info = Prefetch.fromFileName(f.getFileName().toString());
             if (info == null) {
@@ -90,8 +92,69 @@ public final class ExecutionTraceCheck implements CheckModule {
                 when = Files.getLastModifiedTime(f).toInstant();
             } catch (Exception ignored) {
             }
+            // Decompress and parse the .pf body: real run times + every module
+            // the program loaded at startup.
+            PrefetchBody.Body body = readBody(f);
+            if (body != null && body.lastRun() != null) {
+                when = body.lastRun();
+            }
             report(ctx, info.exeName(), f.toString(), "Prefetch", when);
+            if (body != null) {
+                loadedModules(ctx, info.exeName(), body, when, seen);
+            }
         }, ctx);
+    }
+
+    private PrefetchBody.Body readBody(Path f) {
+        try {
+            if (Files.size(f) > 8L * 1024 * 1024) {
+                return null;
+            }
+            return PrefetchBody.parse(Files.readAllBytes(f));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * A cheat DLL in a program's Prefetch module list proves it was loaded into
+     * that process — evidence that survives deleting the DLL itself.
+     */
+    private void loadedModules(ScanContext ctx, String exeName, PrefetchBody.Body body,
+                               Instant when, java.util.Set<String> seen) {
+        boolean game = isGame(exeName);
+        for (String path : body.loadedFiles()) {
+            if (path == null || path.isBlank()) {
+                continue;
+            }
+            String lower = path.toLowerCase(Locale.ROOT);
+            ctx.signatures().matchCheatName(lower).ifPresent(rule -> {
+                if (!seen.add(exeName + "|" + rule.label() + "|" + baseName(path))) {
+                    return;
+                }
+                Severity sev = game ? Severity.CRITICAL : escalate(rule.severity());
+                ctx.emit(Finding.builder(Category.EXECUTION, sev,
+                                "Чит-модуль загружен процессом / Cheat module loaded by a process")
+                        .module(ID)
+                        .detail(rule.label() + " — загружен " + exeName)
+                        .evidence(path)
+                        .source("Prefetch (loaded modules)")
+                        .when(when)
+                        .build());
+            });
+        }
+    }
+
+    private boolean isGame(String exeName) {
+        if (exeName == null) {
+            return false;
+        }
+        String l = exeName.toLowerCase(Locale.ROOT);
+        return l.startsWith("cs2") || l.startsWith("csgo") || l.contains("counter");
+    }
+
+    private Severity escalate(Severity s) {
+        return s == Severity.HIGH ? Severity.CRITICAL : s;
     }
 
     private void bam(ScanContext ctx) {
