@@ -47,7 +47,8 @@ public final class Cli {
 
     public static boolean handles(String[] args) {
         for (String a : args) {
-            if ("--cli".equals(a) || "--selftest".equals(a) || "--version".equals(a) || "--help".equals(a)) {
+            if ("--cli".equals(a) || "--selftest".equals(a) || "--version".equals(a)
+                    || "--help".equals(a) || "--verify".equals(a)) {
                 return true;
             }
         }
@@ -59,6 +60,10 @@ public final class Cli {
         if (has(args, "--help")) {
             printHelp();
             return 0;
+        }
+        String verifyPath = valueOf(args, "--verify");
+        if (verifyPath != null) {
+            return verifyBundle(verifyPath);
         }
         if (has(args, "--version")) {
             System.out.println("Moon Checker " + appVersion + " (" + Platform.osName() + ")");
@@ -97,6 +102,13 @@ public final class Cli {
 
         if (!selftest) {
             writeReports(result, outDir(args));
+            String upload = valueOf(args, "--upload");
+            if (upload != null) {
+                var outcome = ru.moon.checker.report.Uploader.upload(
+                        java.net.URI.create(upload), result);
+                System.out.println("Upload: " + (outcome.ok() ? "accepted" : "FAILED")
+                        + " (HTTP " + outcome.status() + ")");
+            }
         }
         return selftest ? selftestExit(result) : 0;
     }
@@ -172,6 +184,33 @@ public final class Cli {
         return Path.of(".");
     }
 
+    /** Verify a previously saved evidence bundle (offline, no server needed). */
+    private static int verifyBundle(String path) {
+        try {
+            byte[] data = Files.readAllBytes(Path.of(path));
+            var r = ru.moon.checker.report.EvidenceVerifier.verify(data);
+            System.out.println("Evidence: " + path);
+            System.out.println("  well-formed : " + r.wellFormed());
+            System.out.println("  sha-256     : " + (r.hashOk() ? "OK" : "MISMATCH"));
+            System.out.println("  hmac        : " + (r.hmacOk() ? "OK" : "MISMATCH"));
+            System.out.println("  code        : " + r.code());
+            System.out.println("  => " + r.detail());
+            return r.authentic() ? 0 : 1;
+        } catch (Exception e) {
+            System.err.println("cannot read " + path + ": " + e.getMessage());
+            return 1;
+        }
+    }
+
+    private static String valueOf(String[] args, String flag) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if (flag.equals(args[i])) {
+                return args[i + 1];
+            }
+        }
+        return null;
+    }
+
     private static boolean has(String[] args, String flag) {
         for (String a : args) {
             if (flag.equals(a)) {
@@ -190,6 +229,11 @@ public final class Cli {
                                      the HTML report and JSON evidence bundle
                   --selftest         run every module with short time budgets and
                                      print a per-module status table (used by CI)
+                  --verify FILE.json verify a saved evidence bundle (offline):
+                                     recomputes its hash + HMAC and reports
+                                     whether it was modified
+                  --upload URL       with --cli, also POST the evidence bundle
+                                     to a collection endpoint (never automatic)
                   --version          print version and exit
                   --help             this text
 
