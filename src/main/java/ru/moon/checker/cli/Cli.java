@@ -12,6 +12,12 @@ import ru.moon.checker.core.ScanEngine;
 import ru.moon.checker.core.ScanListener;
 import ru.moon.checker.core.ScanResult;
 import ru.moon.checker.core.Severity;
+import ru.moon.checker.net.ApiException;
+import ru.moon.checker.net.MoonApi;
+import ru.moon.checker.net.ProgressReporter;
+import ru.moon.checker.net.ReportUploader;
+import ru.moon.checker.net.ServerConfig;
+import ru.moon.checker.net.SessionLink;
 import ru.moon.checker.report.HtmlReport;
 import ru.moon.checker.report.JsonReport;
 import ru.moon.checker.signatures.SignatureDb;
@@ -37,10 +43,18 @@ import java.util.Map;
  *       ADS, kernel services) are actually exercised on every push.</li>
  * </ul>
  *
+ * With {@code --cli --code XXXX-XXXX} the headless run connects to the Moon panel
+ * like the GUI does: it streams progress and uploads the evidence to the admin who
+ * issued the code.
+ *
  * Exit codes: 0 = the engine produced a result; 1 = the engine itself failed, or
- * (selftest) every module failed, which means the platform layer is broken.
+ * (selftest) every module failed, which means the platform layer is broken;
+ * 2 = bad arguments; 5 = the results could not be delivered to the panel.
  */
 public final class Cli {
+
+    public static final int EXIT_USAGE = 2;
+    public static final int EXIT_NOT_DELIVERED = 5;
 
     private Cli() {
     }
@@ -84,10 +98,42 @@ public final class Cli {
                 + " v" + db.version() + " (" + db.ruleCount() + " rules)");
         System.out.println();
 
-        java.util.List<CheckModule> modules = ModuleRegistry.forCurrentOs();
+        java.util.List<CheckModule> modules = selectModules(ModuleRegistry.forCurrentOs(), valueOf(args, "--modules"));
+        if (modules == null) {
+            return EXIT_USAGE;
+        }
+
+        // optional link to the Moon panel: --code (+ --server) connects before scanning
+        String code = selftest ? null : valueOf(args, "--code");
+        MoonApi api = null;
+        SessionLink link = null;
+        if (code != null) {
+            ServerConfig server = ServerConfig.resolve(valueOf(args, "--server"), false,
+                    ru.moon.checker.Main.exeDir());
+            if (!server.online()) {
+                System.err.println("no usable Moon panel URL: " + server.error());
+                return EXIT_USAGE;
+            }
+            api = new MoonApi(server.base(), appVersion);
+            try {
+                link = api.claim(code, env);
+            } catch (ApiException e) {
+                System.err.println("panel refused the code: " + e.describe(server.host()));
+                return EXIT_NOT_DELIVERED;
+            }
+            System.out.println("Connected to " + server.host() + " — admin " + link.adminAlias()
+                    + (link.playerName().isBlank() ? "" : ", player " + link.playerName()));
+            System.out.println();
+        }
+        ProgressReporter reporter = link == null ? null : new ProgressReporter(api, link, null);
+        ScanListener listener = reporter == null ? progress() : both(progress(), reporter);
+
         ScanEngine engine = selftest
-                ? new ScanEngine(modules, progress(), Duration.ofSeconds(90), Duration.ofMinutes(5))
-                : new ScanEngine(modules, progress());
+                ? new ScanEngine(modules, listener, Duration.ofSeconds(90), Duration.ofMinutes(5))
+                : new ScanEngine(modules, listener);
+        if (reporter != null) {
+            reporter.start(modules.size());
+        }
 
         ScanResult result;
         try {
@@ -96,6 +142,10 @@ public final class Cli {
             System.err.println("ENGINE FAILED: " + t);
             t.printStackTrace();
             return 1;
+        } finally {
+            if (reporter != null) {
+                reporter.stop();
+            }
         }
 
         printSummary(result);
@@ -109,8 +159,46 @@ public final class Cli {
                 System.out.println("Upload: " + (outcome.ok() ? "accepted" : "FAILED")
                         + " (HTTP " + outcome.status() + ")");
             }
+            if (link != null) {
+                ReportUploader.Status st = ReportUploader.upload(api, link, result,
+                        s -> System.out.println("Panel: " + s.text()));
+                if (st.state() != ReportUploader.State.DELIVERED && st.state() != ReportUploader.State.MISMATCH) {
+                    return EXIT_NOT_DELIVERED;
+                }
+            }
         }
         return selftest ? selftestExit(result) : 0;
+    }
+
+    /** Modules for this OS, narrowed to a comma-separated id list; null (after a message) if an id is unknown. */
+    static java.util.List<CheckModule> selectModules(java.util.List<CheckModule> available, String only) {
+        if (only == null || only.isBlank()) {
+            return available;
+        }
+        java.util.List<String> ids = java.util.Arrays.stream(only.split(",")).map(String::trim)
+                .filter(x -> !x.isEmpty()).toList();
+        java.util.List<String> known = available.stream().map(CheckModule::id).toList();
+        for (String id : ids) {
+            if (!known.contains(id)) {
+                System.err.println("unknown module id '" + id + "'; available: " + String.join(",", known));
+                return null;
+            }
+        }
+        return available.stream().filter(m -> ids.contains(m.id())).toList();
+    }
+
+    private static ScanListener both(ScanListener a, ScanListener b) {
+        return new ScanListener() {
+            @Override public void onScanStart(int t) { a.onScanStart(t); b.onScanStart(t); }
+            @Override public void onModuleStart(CheckModule m) { a.onModuleStart(m); b.onModuleStart(m); }
+            @Override public void onModuleDone(CheckModule m, ModuleStatus s, int n) {
+                a.onModuleDone(m, s, n);
+                b.onModuleDone(m, s, n);
+            }
+            @Override public void onFinding(Finding f) { a.onFinding(f); b.onFinding(f); }
+            @Override public void onLog(String l) { a.onLog(l); b.onLog(l); }
+            @Override public void onComplete(ScanResult r) { a.onComplete(r); b.onComplete(r); }
+        };
     }
 
     private static ScanListener progress() {
@@ -234,6 +322,13 @@ public final class Cli {
                                      whether it was modified
                   --upload URL       with --cli, also POST the evidence bundle
                                      to a collection endpoint (never automatic)
+                  --code XXXX-XXXX   with --cli, connect to the Moon panel with the
+                                     admin's check code, stream progress and deliver
+                                     the results to that admin (exit 5 if not delivered)
+                  --server URL       Moon panel URL (default: bundled, or server.url
+                                     in moon.properties next to the exe)
+                  --modules a,b      with --cli / --selftest: only these module ids
+                  --offline          GUI: never contact the Moon panel
                   --version          print version and exit
                   --help             this text
 

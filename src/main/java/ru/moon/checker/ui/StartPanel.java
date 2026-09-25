@@ -2,6 +2,7 @@ package ru.moon.checker.ui;
 
 import ru.moon.checker.core.EnvironmentInfo;
 import ru.moon.checker.core.I18n;
+import ru.moon.checker.net.SessionLink;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -9,6 +10,11 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -23,6 +29,10 @@ import java.awt.RenderingHints;
  * First screen: what the check will do, the elevation state, and the button
  * that starts it. Laid out over the full space backdrop with the moon, so the
  * player sees the server's identity before anything else happens.
+ *
+ * <p>With a Moon panel configured the player must first enter the admin's check
+ * code; once the panel accepts it the screen shows that admin's alias, so the
+ * player knows exactly who receives the results, and only then enables Start.
  */
 public final class StartPanel extends JPanel {
 
@@ -30,10 +40,15 @@ public final class StartPanel extends JPanel {
         void onStart();
 
         void onRelaunchElevated();
+
+        void onConnect(String code);
     }
+
+    private enum LinkState { OFFLINE, IDLE, CONNECTING, CONNECTED, FAILED }
 
     private final EnvironmentInfo env;
     private final Actions actions;
+    private final boolean online;
 
     private final JLabel eyebrow = new JLabel();
     private final JLabel title = new JLabel();
@@ -44,10 +59,20 @@ public final class StartPanel extends JPanel {
     private final MoonButton start = new MoonButton("", true);
     private final MoonButton relaunch = new MoonButton("", false);
     private final JLabel hint = new JLabel();
+    private final JLabel codeLabel = new JLabel();
+    private final JTextField codeField = new JTextField(10);
+    private final MoonButton connect = new MoonButton("", false);
+    private final JLabel linkStatus = new JLabel();
 
-    public StartPanel(EnvironmentInfo env, Actions actions) {
+    private LinkState state;
+    private SessionLink link;
+    private String failure;
+
+    public StartPanel(EnvironmentInfo env, boolean online, Actions actions) {
         this.env = env;
+        this.online = online;
         this.actions = actions;
+        this.state = online ? LinkState.IDLE : LinkState.OFFLINE;
         setOpaque(true);
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(0, 40, 0, 40));
@@ -91,10 +116,31 @@ public final class StartPanel extends JPanel {
         hint.setFont(MoonTheme.font(Font.PLAIN, 11));
         hint.setForeground(MoonTheme.FAINT);
 
-        start.addActionListener(e -> actions.onStart());
+        start.addActionListener(e -> {
+            if (state == LinkState.CONNECTED || state == LinkState.OFFLINE) {
+                start.setEnabled(false);
+                actions.onStart();
+            }
+        });
         relaunch.addActionListener(e -> actions.onRelaunchElevated());
 
-        for (JComponent c : new JComponent[]{eyebrow, title, intro, checklist, privacy, adminWarn}) {
+        codeLabel.setFont(MoonTheme.font(Font.BOLD, 12));
+        codeLabel.setForeground(MoonTheme.TEXT2);
+        codeField.setFont(MoonTheme.mono(Font.BOLD, 20));
+        codeField.setHorizontalAlignment(JTextField.CENTER);
+        codeField.setBackground(MoonTheme.PANEL2);
+        codeField.setForeground(MoonTheme.TEXT);
+        codeField.setCaretColor(MoonTheme.ACCENT2);
+        codeField.setPreferredSize(new Dimension(190, 40));
+        codeField.setMaximumSize(new Dimension(190, 40));
+        codeField.putClientProperty("JTextField.placeholderText", "XXXX-XXXX");
+        ((AbstractDocument) codeField.getDocument()).setDocumentFilter(new CodeFilter());
+        codeField.addActionListener(e -> requestConnect());
+        connect.addActionListener(e -> requestConnect());
+        linkStatus.setFont(MoonTheme.font(Font.BOLD, 12));
+
+        for (JComponent c : new JComponent[]{eyebrow, title, intro, checklist, privacy, adminWarn, codeLabel,
+                linkStatus}) {
             c.setAlignmentX(Component.LEFT_ALIGNMENT);
         }
 
@@ -112,6 +158,14 @@ public final class StartPanel extends JPanel {
         col.add(adminWarn);
         col.add(relaunchRow());
         col.add(Box.createVerticalStrut(6));
+        if (online) {
+            col.add(codeLabel);
+            col.add(Box.createVerticalStrut(6));
+            col.add(codeRow());
+        }
+        col.add(Box.createVerticalStrut(6));
+        col.add(linkStatus);
+        col.add(Box.createVerticalStrut(10));
         col.add(ctaRow());
         col.add(Box.createVerticalStrut(18));
         col.add(credit());
@@ -147,6 +201,50 @@ public final class StartPanel extends JPanel {
         row.setMaximumSize(new Dimension(600, 40));
         row.add(relaunch);
         return row;
+    }
+
+    private JComponent codeRow() {
+        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(600, 44));
+        row.add(codeField);
+        row.add(Box.createHorizontalStrut(10));
+        row.add(connect);
+        return row;
+    }
+
+    private void requestConnect() {
+        if (state != LinkState.IDLE && state != LinkState.FAILED) {
+            return;
+        }
+        if (codeField.getText().replace("-", "").length() != 8) {
+            failure = I18n.t("start.needcode");
+            state = LinkState.FAILED;
+            refreshTexts();
+            codeField.requestFocusInWindow();
+            return;
+        }
+        state = LinkState.CONNECTING;
+        refreshTexts();
+        actions.onConnect(codeField.getText());
+    }
+
+    /** Called on the EDT once the panel accepted the code. */
+    public void setConnected(SessionLink l) {
+        this.link = l;
+        this.state = LinkState.CONNECTED;
+        refreshTexts();
+        start.requestFocusInWindow();
+    }
+
+    /** Called on the EDT when the code was refused or the panel was unreachable. */
+    public void setConnectFailed(String message) {
+        this.failure = message;
+        this.state = LinkState.FAILED;
+        refreshTexts();
+        codeField.requestFocusInWindow();
+        codeField.selectAll();
     }
 
     private JComponent ctaRow() {
@@ -234,7 +332,9 @@ public final class StartPanel extends JPanel {
         eyebrow.setText(I18n.t("start.eyebrow"));
         title.setText(I18n.t("start.title"));
         intro.setText(html(I18n.t("start.intro"), 520));
-        privacy.setText(html(I18n.t("start.privacy"), 490));
+        privacy.setText(html(I18n.t(online ? "start.privacy.online" : "start.privacy"), 490));
+        codeLabel.setText(I18n.t("start.code.label"));
+        codeField.setToolTipText(I18n.t("start.code.hint"));
         start.setText(I18n.t("start.button"));
         relaunch.setText(I18n.t("start.relaunch"));
         hint.setText(html(I18n.t("start.hint"), 200));
@@ -255,11 +355,74 @@ public final class StartPanel extends JPanel {
         if (!elevated) {
             adminWarn.setText("⚠  " + I18n.t("start.noadmin"));
         }
+
+        boolean editable = state == LinkState.IDLE || state == LinkState.FAILED;
+        codeField.setEditable(editable);
+        connect.setEnabled(editable);
+        connect.setText(I18n.t(state == LinkState.CONNECTING ? "start.connecting" : "start.connect"));
+        start.setEnabled(state == LinkState.CONNECTED || state == LinkState.OFFLINE);
+        switch (state) {
+            case OFFLINE -> status(I18n.t("start.offline"), MoonTheme.SUSPICIOUS);
+            case IDLE -> status(html(I18n.t("start.code.hint"), 520), MoonTheme.FAINT);
+            case CONNECTING -> status(I18n.t("start.connecting"), MoonTheme.MUTED);
+            case CONNECTED -> status(I18n.t("start.connected", link.adminAlias(),
+                    link.playerName().isBlank() ? "—" : link.playerName()), MoonTheme.CLEAN);
+            case FAILED -> status(html("✗ " + escape(failure), 520), MoonTheme.CHEAT);
+        }
         revalidate();
         repaint();
     }
 
+    private void status(String text, Color color) {
+        linkStatus.setText(text);
+        linkStatus.setForeground(color);
+    }
+
     private static String html(String text, int width) {
         return "<html><div style='width:" + width + "px'>" + text + "</div></html>";
+    }
+
+    private static String escape(String s) {
+        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /** Upper-cases input, keeps only code characters and inserts the dash: XXXX-XXXX. */
+    static final class CodeFilter extends DocumentFilter {
+        static String format(String raw) {
+            StringBuilder sb = new StringBuilder();
+            for (char c : raw.toUpperCase(java.util.Locale.ROOT).toCharArray()) {
+                if (Character.isLetterOrDigit(c) && c < 128 && sb.length() < 8) {
+                    sb.append(c);
+                }
+            }
+            if (sb.length() > 4) {
+                sb.insert(4, '-');
+            }
+            return sb.toString();
+        }
+
+        private void replaceAll(FilterBypass fb, String next) throws BadLocationException {
+            fb.replace(0, fb.getDocument().getLength(), format(next), null);
+        }
+
+        @Override
+        public void insertString(FilterBypass fb, int offset, String text, AttributeSet attr)
+                throws BadLocationException {
+            String cur = fb.getDocument().getText(0, fb.getDocument().getLength());
+            replaceAll(fb, cur.substring(0, offset) + text + cur.substring(offset));
+        }
+
+        @Override
+        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                throws BadLocationException {
+            String cur = fb.getDocument().getText(0, fb.getDocument().getLength());
+            replaceAll(fb, cur.substring(0, offset) + (text == null ? "" : text) + cur.substring(offset + length));
+        }
+
+        @Override
+        public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
+            String cur = fb.getDocument().getText(0, fb.getDocument().getLength());
+            replaceAll(fb, cur.substring(0, offset) + cur.substring(offset + length));
+        }
     }
 }

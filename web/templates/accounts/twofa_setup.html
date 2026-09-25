@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Two-factor authentication{% endblock %}
+{% block content %}
+<div class="grid two">
+  <div class="card">
+    <h1>Set up two-factor authentication</h1>
+    {% if forced %}<p class="t-warn">Two-factor authentication is required for every team member.</p>{% endif %}
+    <ol>
+      <li>Install an authenticator app (Google Authenticator, Aegis, 2FAS, 1Password, Bitwarden…).</li>
+      <li>Scan this QR code, or enter the key manually.</li>
+      <li>Type the 6-digit code the app shows.</li>
+    </ol>
+    <div class="qr">{{ qr|safe }}</div>
+    <p class="small muted">Manual key:</p>
+    <p><code class="break" id="totp-secret">{{ secret }}</code> <button class="btn small" data-copy="#totp-secret">Copy</button></p>
+  </div>
+  <div class="card">
+    <h2>Confirm</h2>
+    <form method="post" novalidate>{% csrf_token %}{% include "_form.html" %}
+      <button class="btn primary" type="submit">Enable 2FA</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -62,8 +62,10 @@ public final class ResultsPanel extends JPanel {
     private final JTextArea detail = new JTextArea();
     private JComboBox<String> moduleCombo;
     private JTextField search;
+    private final JLabel upload = new JLabel();
+    private final MoonButton retry = new MoonButton("", false);
 
-    public ResultsPanel(ScanResult result, Actions actions) {
+    public ResultsPanel(ScanResult result, Actions actions, Runnable onRetry) {
         this.result = result;
         this.model = new FindingTableModel(result.findings());
         this.table = new JTable(model);
@@ -73,8 +75,21 @@ public final class ResultsPanel extends JPanel {
 
         add(verdictHero(), BorderLayout.NORTH);
         add(centre(), BorderLayout.CENTER);
-        add(actionBar(actions), BorderLayout.SOUTH);
+        add(actionBar(actions, onRetry), BorderLayout.SOUTH);
         showDetail();
+    }
+
+    /** Shows whether the evidence reached the admin's Moon panel (call on the EDT). */
+    public void setUploadStatus(ru.moon.checker.net.ReportUploader.Status status) {
+        upload.setText(status.text());
+        upload.setForeground(switch (status.state()) {
+            case DELIVERED -> MoonTheme.CLEAN;
+            case SENDING -> MoonTheme.ACCENT2;
+            case MISMATCH, OFFLINE -> MoonTheme.SUSPICIOUS;
+            case FAILED -> MoonTheme.CHEAT;
+        });
+        retry.setVisible(status.retryAllowed());
+        retry.setEnabled(true);
     }
 
     @Override
@@ -505,8 +520,8 @@ public final class ResultsPanel extends JPanel {
         detail.setCaretPosition(0);
     }
 
-    private JComponent actionBar(Actions actions) {
-        JPanel bar = new JPanel(new BorderLayout());
+    private JComponent actionBar(Actions actions, Runnable onRetry) {
+        JPanel bar = new JPanel(new BorderLayout(0, 8));
         bar.setOpaque(false);
         bar.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
 
@@ -515,6 +530,22 @@ public final class ResultsPanel extends JPanel {
         code.setFont(MoonTheme.mono(Font.PLAIN, 11));
         code.setForeground(MoonTheme.ACCENT2);
         bar.add(code, BorderLayout.WEST);
+
+        // delivery to the admin's panel gets its own row: the text can be long
+        upload.setFont(MoonTheme.font(Font.BOLD, 12));
+        retry.setText(I18n.t("upload.retry"));
+        retry.setVisible(false);
+        retry.addActionListener(e -> {
+            retry.setEnabled(false);
+            if (onRetry != null) {
+                onRetry.run();
+            }
+        });
+        JPanel delivery = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        delivery.setOpaque(false);
+        delivery.add(upload);
+        delivery.add(retry);
+        bar.add(delivery, BorderLayout.NORTH);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);

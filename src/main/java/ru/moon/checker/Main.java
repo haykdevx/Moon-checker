@@ -3,6 +3,7 @@ package ru.moon.checker;
 import ru.moon.checker.core.EnvironmentInfo;
 import ru.moon.checker.core.Hashing;
 import ru.moon.checker.core.I18n;
+import ru.moon.checker.net.ServerConfig;
 import ru.moon.checker.signatures.SignatureDb;
 import ru.moon.checker.signatures.SignatureLoader;
 import ru.moon.checker.ui.MainWindow;
@@ -19,11 +20,13 @@ import java.nio.file.Path;
  * (including whether we are elevated and the self-hash of this build), loads the
  * signature database (bundled, or an override sitting next to the exe), and
  * opens the main window. The scan itself is triggered by the operator from the
- * start screen.
+ * start screen, once the Moon panel has accepted the admin's check code.
+ * {@code --server URL} points the GUI at another panel; {@code --offline}
+ * runs it standalone with nothing sent anywhere.
  */
 public final class Main {
 
-    private static final String FALLBACK_VERSION = "1.0.0";
+    private static final String FALLBACK_VERSION = "1.1.0";
 
     private Main() {
     }
@@ -50,11 +53,20 @@ public final class Main {
                 + "; signatures " + sig.origin() + " v" + db.version() + " (" + db.ruleCount() + " rules)"
                 + (sig.error() != null ? "; sigError=" + sig.error() : ""));
 
+        ServerConfig server = ServerConfig.resolve(argValue(args, "--server"),
+                java.util.Arrays.asList(args).contains("--offline"), exeDir());
+        ru.moon.checker.core.Log.info("panel: " + (server.online() ? server.base() : "offline")
+                + " (" + server.origin() + ")" + (server.error() != null ? "; error=" + server.error() : ""));
+
         I18n.setLocale(I18n.RUSSIAN);
 
         SwingUtilities.invokeLater(() -> {
             MoonTheme.install();
-            MainWindow window = new MainWindow(env, db);
+            if (server.error() != null) {
+                javax.swing.JOptionPane.showMessageDialog(null, "Moon panel URL is invalid: " + server.error()
+                        + "\nThe checker will run offline.", "Moon Checker", javax.swing.JOptionPane.WARNING_MESSAGE);
+            }
+            MainWindow window = new MainWindow(env, db, server);
             window.setTitle("Moon Checker — " + I18n.t("app.subtitle"));
             window.setVisible(true);
         });
@@ -65,7 +77,17 @@ public final class Main {
         return v != null ? v : FALLBACK_VERSION;
     }
 
-    private static Path exeDir() {
+    private static String argValue(String[] args, String flag) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if (flag.equals(args[i])) {
+                return args[i + 1];
+            }
+        }
+        return null;
+    }
+
+    /** Folder of the running exe/jar (where signatures.json / moon.properties overrides may sit). */
+    public static Path exeDir() {
         try {
             Path self = Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             return self.getParent();

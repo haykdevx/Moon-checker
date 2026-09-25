@@ -1,0 +1,12 @@
+.env
+*.sqlite3
+__pycache__/
+*.pyc
+staticfiles/
+downloads/
+tests/
+.git
+docker-compose.yml
+deploy/
+README.md
+.env.example

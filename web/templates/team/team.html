@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Team{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Team</h1>
+  <div class="actions"><a class="btn" href="{% url 'accounts:roles' %}">Roles &amp; permissions</a></div>
+</div>
+{% include "_flash_link.html" %}
+<div class="layout-side">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Alias</th><th>Role</th><th>2FA</th><th>Checks</th><th>Last sign-in</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for m, manageable in rows %}
+        <tr class="clickable" data-href="{% url 'accounts:member' m.username %}">
+          <td><a href="{% url 'accounts:member' m.username %}"><b>{{ m.username }}</b></a>{% if m.display_name %} <span class="muted">· {{ m.display_name }}</span>{% endif %}{% if m.pk == user.pk %} <span class="muted small">(you)</span>{% endif %}</td>
+          <td><span class="role-dot" data-color="{{ m.role.color }}"></span>{{ m.role.name }}</td>
+          <td>{% if m.totp_enabled %}<span class="t-ok">on</span>{% else %}<span class="t-bad">off</span>{% endif %}</td>
+          <td>{{ m.check_count }}</td>
+          <td class="nowrap">{{ m.last_login|date:"Y-m-d H:i"|default:"never" }}</td>
+          <td>{% if m.is_active %}<span class="t-ok">active</span>{% else %}<span class="t-bad">disabled</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    {% if invite_form.fields.role.queryset.exists %}
+    <div class="card">
+      <h2>Invite a member</h2>
+      <p class="muted small">Creates a one-time link. The new member picks their own alias and password.</p>
+      <form method="post" action="{% url 'accounts:invite_create' %}" novalidate>{% csrf_token %}
+        {% include "_form.html" with form=invite_form %}
+        <button class="btn primary" type="submit">Create invite link</button>
+      </form>
+    </div>
+    {% endif %}
+    {% if invites %}
+    <div class="card">
+      <h2>Open links</h2>
+      <table>
+        <tbody>
+        {% for inv in invites %}
+          <tr>
+            <td>
+              {% if inv.kind == 'reset' %}Password reset · <b>{{ inv.user.username }}</b>{% else %}Invite · {{ inv.role.name }}{% endif %}
+              {% if inv.note %}<div class="muted small">{{ inv.note }}</div>{% endif %}
+              <div class="muted small">by {{ inv.created_by.username|default:"—" }}, expires {{ inv.expires_at|date:"M j H:i" }}</div>
+            </td>
+            <td class="right"><form method="post" action="{% url 'accounts:invite_revoke' inv.pk %}" class="inline">{% csrf_token %}<button class="btn small danger" type="submit">Revoke</button></form></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

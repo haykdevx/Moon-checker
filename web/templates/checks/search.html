@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Evidence search{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Evidence search</h1></div>
+<p class="muted">Search every finding in the checks you can see — a file name, hash, cheat site, driver, Steam ID… Useful to spot the same cheat across several players.</p>
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="e.g. loader.exe, 3f2a…, cheat-site.com" autofocus>
+  <button class="btn primary" type="submit">Search</button>
+</form>
+{% if too_short %}<p class="t-warn">Type at least 3 characters.</p>{% endif %}
+{% if q and not too_short %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Check</th><th>Severity</th><th>Finding</th><th>Evidence</th></tr></thead>
+  <tbody>
+  {% for f in results %}
+    <tr class="clickable" data-href="{% url 'checks:detail' f.session.pk %}">
+      <td class="nowrap"><a href="{% url 'checks:detail' f.session.pk %}"><b>{{ f.session.player_name }}</b></a><div class="muted small">{{ f.session.created_at|date:"Y-m-d" }} · {{ f.session.admin.username }}</div></td>
+      <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
+      <td>{{ f.title }}</td>
+      <td class="evidence">{{ f.evidence|truncatechars:200 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4" class="empty">Nothing found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if results|length == 300 %}<p class="muted small">Showing the first 300 matches.</p>{% endif %}
+{% elif top %}
+<div class="card">
+  <h2>Most common serious findings</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Finding</th><th>Checks</th></tr></thead>
+    <tbody>{% for t in top %}<tr><td>{{ t.title }}</td><td>{{ t.n }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

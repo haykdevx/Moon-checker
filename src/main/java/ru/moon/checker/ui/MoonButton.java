@@ -53,7 +53,13 @@ public final class MoonButton extends JButton {
         int arc = primary ? 12 : 10;
         boolean pressed = getModel().isPressed();
 
-        if (primary) {
+        if (primary && !isEnabled()) {
+            // waiting for something (e.g. the admin's code): an inert card, no glow
+            g2.setColor(MoonTheme.CARD);
+            g2.fillRoundRect(0, 0, w, h - 2, arc, arc);
+            g2.setColor(MoonTheme.LINE2);
+            g2.drawRoundRect(0, 0, w - 1, h - 3, arc, arc);
+        } else if (primary) {
             // soft glow under the CTA
             g2.setColor(new Color(0x6f, 0x78, 0xef, hover ? 70 : 46));
             g2.fillRoundRect(2, 4, w - 4, h - 3, arc + 2, arc + 2);

@@ -1,0 +1,39 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <title>{% block title %}Moon Panel{% endblock %} · Moon Panel</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="data:,">
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body>
+{% if user.is_authenticated %}
+<header class="topbar">
+  <a class="brand" href="{% url 'checks:dashboard' %}"><span class="moon"></span>MOON <b>PANEL</b></a>
+  <nav class="nav">
+    {% for url_name, label in nav %}
+      {% url url_name as nav_url %}
+      <a href="{{ nav_url }}" class="{% if request.path == nav_url %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <div class="who">
+    <a href="{% url 'accounts:account' %}" title="Your account">
+      <span class="role-dot" data-color="{{ user.role.color }}"></span>{{ user.username }}
+      <span class="muted small">· {{ user.role.name }}</span>
+    </a>
+    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn small" type="submit">Sign out</button></form>
+  </div>
+</header>
+{% endif %}
+<main>
+  {% if messages %}
+  <ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot">Moon Panel · cs2-moon.ru</footer>
+</body>
+</html>
