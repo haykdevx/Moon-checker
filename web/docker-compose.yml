@@ -1,0 +1,77 @@
+# Moon Panel stack. Kept deliberately small: the VPS is shared with other busy
+# services. nginx on the host proxies straight to the web container's fixed
+# address (no docker-proxy hop); nothing is published to the internet directly.
+name: moon-panel
+
+networks:
+  moon:
+    ipam:
+      config:
+        - subnet: 172.30.87.0/24
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-moon}
+      POSTGRES_USER: ${POSTGRES_USER:-moon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [moon]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 300s  # first init is slow on a busy host
+    mem_limit: 512m
+
+  web:
+    build: .
+    image: moon-panel:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      MOON_DOWNLOAD_DIR: /app/downloads
+      HOME: /tmp
+    # One process, several threads: the in-process cache (rate limits, settings) is shared
+    # by every request, so no Redis is needed. Tunable here without rebuilding the image.
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn moonpanel.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 8 --timeout 180 --max-requests 5000 --max-requests-jitter 500 --access-logfile - --forwarded-allow-ips='*'"]
+    depends_on:
+      db: {condition: service_healthy}
+    networks:
+      moon:
+        ipv4_address: 172.30.87.10
+    ports:
+      - "127.0.0.1:${MOON_WEB_PORT:-8710}:8000"   # local fallback / debugging only
+    volumes:
+      - ./downloads:/app/downloads:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=30).status == 200 else 1)"]
+      interval: 120s
+      timeout: 60s
+      retries: 5
+      start_period: 300s  # migrations run before gunicorn starts
+    mem_limit: 512m
+
+  worker:
+    image: moon-panel:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      HOME: /tmp
+    command: ["python", "manage.py", "moon_worker", "--interval", "30"]
+    healthcheck:
+      disable: true
+    depends_on:
+      db: {condition: service_healthy}
+      web: {condition: service_started}
+    networks: [moon]
+    mem_limit: 256m
+
+volumes:
+  pgdata: {}

@@ -35,21 +35,49 @@ public final class Hashing {
         }
     }
 
+    private static volatile String selfFull;
+
     /**
      * SHA-256 of the running program's own jar/exe, first 12 hex chars, so the
      * admin can confirm the player launched the official unmodified build.
      */
     public static String selfHashShort() {
-        try {
-            Path self = Path.of(Hashing.class.getProtectionDomain()
-                    .getCodeSource().getLocation().toURI());
-            if (Files.isRegularFile(self)) {
-                String full = sha256File(self);
-                return full != null ? full.substring(0, 12) : "unknown";
+        String full = selfHashFull();
+        return full.isEmpty() ? (isDevRun() ? "dev-run" : "unknown") : full.substring(0, 12);
+    }
+
+    /**
+     * Full SHA-256 of the running jar/exe (computed once), or "" for a dev run
+     * from class folders. The panel matches it against its trusted build list.
+     */
+    public static String selfHashFull() {
+        String v = selfFull;
+        if (v == null) {
+            v = "";
+            try {
+                Path self = selfPath();
+                if (self != null && Files.isRegularFile(self)) {
+                    String full = sha256File(self);
+                    v = full != null ? full : "";
+                }
+            } catch (Exception ignored) {
+                // leave empty
             }
-            return "dev-run";
+            selfFull = v;
+        }
+        return v;
+    }
+
+    private static boolean isDevRun() {
+        Path self = selfPath();
+        return self != null && Files.isDirectory(self);
+    }
+
+    private static Path selfPath() {
+        try {
+            return Path.of(Hashing.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         } catch (Exception e) {
-            return "unknown";
+            return null;
         }
     }
 

@@ -55,8 +55,10 @@ public final class ResultsPanel extends JPanel {
     private final FindingTableModel model;
     private final JTable table;
     private final JTextArea detail = new JTextArea();
+    private final JLabel upload = new JLabel();
+    private final JButton retry = new JButton();
 
-    public ResultsPanel(ScanResult result, Actions actions) {
+    public ResultsPanel(ScanResult result, Actions actions, Runnable onRetry) {
         this.result = result;
         this.model = new FindingTableModel(result.findings());
         this.table = new JTable(model);
@@ -66,7 +68,20 @@ public final class ResultsPanel extends JPanel {
 
         add(verdictHeader(), BorderLayout.NORTH);
         add(centerSplit(), BorderLayout.CENTER);
-        add(buttons(actions), BorderLayout.SOUTH);
+        add(buttons(actions, onRetry), BorderLayout.SOUTH);
+    }
+
+    /** Shows whether the evidence reached the admin's panel (called on the EDT). */
+    public void setUploadStatus(ru.moon.checker.net.ReportUploader.Status status) {
+        upload.setText(status.text());
+        upload.setForeground(switch (status.state()) {
+            case DELIVERED -> MoonTheme.CLEAN;
+            case SENDING -> MoonTheme.ACCENT2;
+            case MISMATCH, OFFLINE -> MoonTheme.SUSPICIOUS;
+            case FAILED -> MoonTheme.CHEAT;
+        });
+        retry.setVisible(status.retryAllowed());
+        retry.setEnabled(true);
     }
 
     private JPanel verdictHeader() {
@@ -221,15 +236,30 @@ public final class ResultsPanel extends JPanel {
         detail.setCaretPosition(0);
     }
 
-    private JPanel buttons(Actions actions) {
-        JPanel p = new JPanel(new BorderLayout());
+    private JPanel buttons(Actions actions, Runnable onRetry) {
+        JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setOpaque(false);
 
         JLabel code = new JLabel("🔒 " + ru.moon.checker.report.JsonReport.verificationCode(result));
-        code.setForeground(MoonTheme.MUTED);
-        code.setFont(new Font("Consolas", Font.PLAIN, 12));
-        code.setToolTipText("Verification code — must match the saved report / server");
-        p.add(code, BorderLayout.WEST);
+        code.setForeground(MoonTheme.TEXT);
+        code.setFont(new Font("Consolas", Font.BOLD, 14));
+        code.setToolTipText("Verification code — must match the code on the admin's panel");
+
+        upload.setFont(MoonTheme.font(Font.BOLD, 13));
+        retry.setText(I18n.t("upload.retry"));
+        retry.setVisible(false);
+        retry.addActionListener(e -> {
+            retry.setEnabled(false);
+            if (onRetry != null) {
+                onRetry.run();
+            }
+        });
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        left.setOpaque(false);
+        left.add(code);
+        left.add(upload);
+        left.add(retry);
+        p.add(left, BorderLayout.NORTH); // own row: the delivery line can be long
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);

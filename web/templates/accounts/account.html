@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Your account{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ user.username }}</h1><span class="badge"><span class="role-dot" data-color="{{ user.role.color }}"></span>{{ user.role.name }}</span></div>
+<div class="grid two">
+  <div class="card">
+    <h2>Profile</h2>
+    <p class="muted small">Your alias <b>{{ user.username }}</b> is what players see after entering your check code. Only an owner can change it.</p>
+    <form method="post" novalidate>{% csrf_token %}{% include "_form.html" %}
+      <button class="btn primary" type="submit">Save profile</button>
+    </form>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Security</h2>
+      <dl class="kv">
+        <dt>Password</dt><dd><a href="{% url 'accounts:password' %}">Change password</a></dd>
+        <dt>Two-factor</dt><dd>{% if user.totp_enabled %}<span class="t-ok">Enabled</span> · {{ recovery_left }} recovery codes left{% else %}<span class="t-bad">Disabled</span> · <a href="{% url 'accounts:twofa_setup' %}">Enable</a>{% endif %}</dd>
+        <dt>Last sign-in</dt><dd>{{ user.last_login|default:"—" }}</dd>
+        <dt>Joined</dt><dd>{{ user.date_joined|date:"Y-m-d" }}</dd>
+      </dl>
+    </div>
+    {% if user.totp_enabled %}
+    <div class="card">
+      <h2>Recovery codes</h2>
+      <form method="post" action="{% url 'accounts:twofa_regenerate' %}" class="actions">{% csrf_token %}
+        <input type="text" name="code" placeholder="Authenticator code" autocomplete="one-time-code" inputmode="numeric" maxlength="8">
+        <button class="btn" type="submit">Regenerate</button>
+      </form>
+    </div>
+    {% if not require_2fa %}
+    <div class="card">
+      <h2>Disable two-factor</h2>
+      <form method="post" action="{% url 'accounts:twofa_disable' %}" novalidate data-confirm="Disable two-factor authentication?">{% csrf_token %}
+        {% include "_form.html" with form=disable_form %}
+        <button class="btn danger" type="submit">Disable 2FA</button>
+      </form>
+    </div>
+    {% endif %}
+    {% endif %}
+    <div class="card">
+      <h2>Sessions</h2>
+      <p class="muted small">Signs out every other browser where you are logged in.</p>
+      <form method="post" action="{% url 'accounts:signout_everywhere' %}" data-confirm="Sign out all other sessions?">{% csrf_token %}
+        <button class="btn danger" type="submit">Sign out everywhere else</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

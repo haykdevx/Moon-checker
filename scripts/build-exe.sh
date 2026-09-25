@@ -9,18 +9,32 @@
 # Windows JRE on first run and caches them under build/.
 #
 # Usage:  scripts/build-exe.sh
+# Output also lands in build/panel-downloads/, which web/deploy/deploy.sh publishes
+# on the Moon panel's download page and registers as a trusted build.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build"
 DIST="$BUILD/dist"
 mkdir -p "$BUILD"
+VERSION="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$ROOT/pom.xml" | head -1)"
+VERSION4="$VERSION.0"
+
+# Maven from PATH, or the official image when it is not installed.
+mvn_run() {
+  if command -v mvn >/dev/null 2>&1; then
+    (cd "$ROOT" && mvn "$@")
+  else
+    docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/.m2:/var/maven/.m2" -v "$ROOT:/src" -w /src \
+      maven:3.9-eclipse-temurin-21 mvn -Duser.home=/var/maven -Dmaven.repo.local=/var/maven/.m2/repository "$@"
+  fi
+}
 
 L4J_URL="https://downloads.sourceforge.net/project/launch4j/launch4j-3/3.50/launch4j-3.50-linux-x64.tgz"
 JRE_URL="https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse"
 
-echo ">> Building shaded jar"
-(cd "$ROOT" && mvn -q -DskipTests package)
+echo ">> Building shaded jar ($VERSION)"
+mvn_run -q -B -ntp -DskipTests package
 cp "$ROOT/target/moon-checker.jar" "$BUILD/moon-checker.jar"
 
 if [ ! -d "$BUILD/launch4j" ]; then
@@ -58,6 +72,8 @@ cat > "$BUILD/moon.manifest" <<'EOF'
 </assembly>
 EOF
 
+# stayAlive=true: the launcher waits for the JVM and returns its exit code, so
+# scripted runs (MoonCheck.exe --diagnose / --headless) report success or failure.
 echo ">> Writing launch4j config"
 cat > "$BUILD/l4j-config.xml" <<EOF
 <launch4jConfig>
@@ -69,7 +85,7 @@ cat > "$BUILD/l4j-config.xml" <<EOF
   <chdir>.</chdir>
   <priority>normal</priority>
   <supportUrl>https://cs2-moon.ru/</supportUrl>
-  <stayAlive>false</stayAlive>
+  <stayAlive>true</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest>$BUILD/moon.manifest</manifest>
   <jre>
@@ -78,12 +94,12 @@ cat > "$BUILD/l4j-config.xml" <<EOF
     <requires64Bit>true</requires64Bit>
   </jre>
   <versionInfo>
-    <fileVersion>1.0.0.0</fileVersion>
-    <txtFileVersion>1.0.0</txtFileVersion>
+    <fileVersion>$VERSION4</fileVersion>
+    <txtFileVersion>$VERSION</txtFileVersion>
     <fileDescription>Moon CS2 anti-cheat checker</fileDescription>
     <copyright>cs2-moon.ru</copyright>
-    <productVersion>1.0.0.0</productVersion>
-    <txtProductVersion>1.0.0</txtProductVersion>
+    <productVersion>$VERSION4</productVersion>
+    <txtProductVersion>$VERSION</txtProductVersion>
     <productName>Moon Checker</productName>
     <companyName>cs2-moon.ru</companyName>
     <internalName>MoonCheck</internalName>
@@ -95,16 +111,25 @@ EOF
 
 echo ">> Running launch4j"
 mkdir -p "$DIST"
+rm -f "$DIST/MoonCheck.exe" # launch4j can exit 0 on a config error: never ship a stale exe
 java -jar "$BUILD/launch4j/launch4j.jar" "$BUILD/l4j-config.xml"
+[ -s "$DIST/MoonCheck.exe" ] || { echo "launch4j did not produce MoonCheck.exe" >&2; exit 1; }
 
 echo ">> Staging bundled runtime"
 rm -rf "$DIST/runtime"
 cp -r "$BUILD/runtime-src" "$DIST/runtime"
 
 echo ">> Packaging zip"
-(cd "$DIST" && zip -qr -9 "$BUILD/MoonCheck-1.0.0-win64.zip" MoonCheck.exe runtime)
+(cd "$DIST" && zip -qr -9 "$BUILD/MoonCheck-$VERSION-win64.zip" MoonCheck.exe runtime)
+
+echo ">> Staging panel downloads"
+rm -rf "$BUILD/panel-downloads"
+mkdir -p "$BUILD/panel-downloads"
+cp "$BUILD/MoonCheck-$VERSION-win64.zip" "$BUILD/panel-downloads/"
+cp "$ROOT/target/moon-checker.jar" "$BUILD/panel-downloads/moon-checker-$VERSION.jar"
 
 echo ""
 echo "Done."
 echo "  Standalone folder : $DIST  (ship the whole folder)"
-echo "  Zip               : $BUILD/MoonCheck-1.0.0-win64.zip"
+echo "  Zip               : $BUILD/MoonCheck-$VERSION-win64.zip"
+echo "  exe sha256        : $(sha256sum "$DIST/MoonCheck.exe" | cut -d' ' -f1)"

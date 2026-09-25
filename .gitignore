@@ -19,3 +19,16 @@ kernel/windows/*.pdb
 .swarm/
 .hive-mind/
 .ruvector/
+
+# driver build (msbuild / NuGet WDK) and CI output
+kernel/windows/build/
+kernel/windows/packages/
+ci-out/
+
+# Moon Panel (web/) local state and secrets
+web/.env
+web/*.sqlite3
+web/staticfiles/
+web/downloads/
+__pycache__/
+*.pyc

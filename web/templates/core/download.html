@@ -1,0 +1,18 @@
+{% extends "base_auth.html" %}
+{% block title %}Download the checker{% endblock %}
+{% block content %}
+<h2>Moon Checker</h2>
+<p class="muted">Official anti-cheat checker of cs2-moon.ru. Run it only when an admin asks you to and gives you a check code.</p>
+{% for f in files %}
+  <p><a class="btn primary" href="{{ download_url }}files/{{ f.name|urlencode }}">⬇ {{ f.name }} <span class="small">({{ f.size_mb }} MB)</span></a></p>
+{% empty %}
+  <p class="t-warn">No build has been published yet. Ask your admin.</p>
+{% endfor %}
+<ol class="small">
+  <li>Unzip the archive (keep the <code>runtime</code> folder next to the exe).</li>
+  <li>Right-click <b>MoonCheck.exe</b> → Run as administrator.</li>
+  <li>Enter the code your admin gave you and check the admin alias it shows.</li>
+  <li>Press <b>Start check</b> and wait until it says the results were delivered.</li>
+</ol>
+<p class="muted small">The results (findings, PC name, Windows user name, Steam accounts found) are sent only to the admin who gave you the code.</p>
+{% endblock %}

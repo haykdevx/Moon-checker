@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Unit tests + fat jar, then the jar's own self-test and a headless scan on a real Linux host.
+  java-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven # caches ~/.m2/repository keyed on pom.xml
+      - name: Test and package
+        run: mvn -B -ntp verify
+      - name: Self-test (--diagnose)
+        run: java -jar target/moon-checker.jar --diagnose --out ci-out/diagnose
+      - name: Headless scan smoke run
+        run: java -jar target/moon-checker.jar --headless --lang en --out ci-out/scan
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: linux-results
+          path: |
+            target/moon-checker.jar
+            target/surefire-reports/
+            ci-out/
+
+  # Same on real Windows. Hosted runners are elevated, so --diagnose exercises the
+  # MFT, USN journal, AmCache mount/unmount, ADS and registry paths end-to-end and
+  # fails the job if any of them silently returns nothing.
+  java-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Test and package
+        run: mvn -B -ntp verify
+      - name: Self-test (--diagnose)
+        shell: pwsh
+        run: |
+          java -jar target\moon-checker.jar --diagnose --out ci-out\diagnose
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Headless scan smoke run
+        shell: pwsh
+        run: |
+          java -jar target\moon-checker.jar --headless --lang en --out ci-out\scan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: windows-results-${{ matrix.os }}
+          path: |
+            target/surefire-reports/
+            ci-out/
+
+  # Moon Panel (results website): full test-suite on SQLite, then a real round-trip:
+  # the freshly built checker jar claims a code, streams progress and uploads to a live dev server.
+  web-panel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: web/requirements.txt
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Install panel dependencies
+        run: pip install -r web/requirements.txt
+      - name: Panel tests
+        working-directory: web
+        env:
+          DJANGO_DEBUG: '1'
+        run: python manage.py test tests
+      - name: Checker ↔ panel round-trip
+        env:
+          DJANGO_DEBUG: '1'
+          SQLITE_PATH: ${{ runner.temp }}/panel.sqlite3
+        run: |
+          mvn -B -ntp -q -DskipTests package
+          cd web
+          python manage.py migrate -v0
+          python manage.py bootstrap_owner ci-owner > /dev/null
+          code=$(python manage.py shell -v0 -c "
+          from accounts.models import User; from checks.models import CheckSession; from checks import codes
+          from django.utils import timezone; from datetime import timedelta
+          s = CheckSession.objects.create(admin=User.objects.get(username='ci-owner'), player_name='ci',
+                                          code=codes.generate(), expires_at=timezone.now() + timedelta(minutes=30))
+          print(s.code)" | tail -1)
+          python manage.py runserver 127.0.0.1:8765 --noreload > "$RUNNER_TEMP/runserver.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8765/healthz && break; sleep 1; done
+          java -jar ../target/moon-checker.jar --headless --lang en --server http://127.0.0.1:8765 \
+               --code "$code" --modules linuxproc,linuxhist --out "$RUNNER_TEMP/scan"
+          python manage.py shell -v0 -c "
+          from checks.models import CheckSession
+          s = CheckSession.objects.get(code='$code')
+          assert s.status == 'COMPLETED' and s.verification_code, (s.status, s.verification_code)
+          print('panel received', s.verdict, s.verification_code)"
+
+  # Builds moonmon.ko against the runner kernel, loads it and checks the Java bridge reads it.
+  kernel-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Kernel headers
+        run: sudo apt-get update && sudo apt-get install -y "linux-headers-$(uname -r)"
+      - name: Build module (warnings are errors)
+        run: make -C kernel/linux KCFLAGS=-Werror
+      - name: Package jar
+        run: mvn -B -ntp -DskipTests package
+      - name: Load module and self-test the bridge
+        run: |
+          sudo insmod kernel/linux/moonmon.ko
+          sudo head -n 5 /proc/moonmon
+          sudo "$JAVA_HOME/bin/java" -jar target/moon-checker.jar --diagnose --out ci-out/diagnose | tee diag.txt
+          grep -E '^\[PASS\] kernel\.bridge' diag.txt
+          sudo rmmod moonmon
+
+  # Compiles MoonMon.sys with the WDK NuGet packages (same approach as
+  # microsoft/Windows-driver-samples) and test-signs it with a throw-away certificate,
+  # proving the documented signing commands. Loading needs test-signing mode + reboot,
+  # which hosted runners cannot do; see kernel/windows/MoonMon.c for the lab steps.
+  driver-windows:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+      - name: Restore WDK/SDK NuGet packages
+        run: nuget restore kernel\windows\packages.config -PackagesDirectory kernel\windows\packages
+      - name: Build MoonMon.sys
+        run: msbuild kernel\windows\MoonMon.vcxproj /p:Configuration=Release /p:Platform=x64 /m
+      - name: Test-sign with an ephemeral certificate
+        shell: pwsh
+        run: |
+          $sys = "kernel\windows\build\Release\MoonMon.sys"
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Moon CI Test Driver" `
+                    -CertStoreLocation Cert:\CurrentUser\My -HashAlgorithm SHA256
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+                      Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /s My /sha1 $cert.Thumbprint $sys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sig = Get-AuthenticodeSignature $sys
+          Write-Host "signer: $($sig.SignerCertificate.Subject) status: $($sig.Status)"
+          if ($sig.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "signature not applied" }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: moonmon-driver-test-signed
+          path: kernel/windows/build/Release/MoonMon.*

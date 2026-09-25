@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ s.player_name }} · {{ s.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ s.player_name }} <span class="badge st-{{ s.status }}">{{ s.get_status_display }}</span></h1>
+    <div class="muted small">Check <span class="mono">{{ s.code }}</span> · admin <b>{{ s.admin.username }}</b> · created {{ s.created_at|date:"Y-m-d H:i" }}</div>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{% url 'checks:dashboard' %}">← Checks</a>
+    {% if can_export %}<a class="btn" href="{% url 'checks:export' s.pk %}">Evidence JSON</a>{% endif %}
+    {% if can_cancel %}<form method="post" action="{% url 'checks:cancel' s.pk %}" data-confirm="Cancel this check? The code stops working.">{% csrf_token %}<button class="btn danger" type="submit">Cancel check</button></form>{% endif %}
+    {% if can_delete %}<form method="post" action="{% url 'checks:delete' s.pk %}" data-confirm="Delete this check and all its evidence permanently?">{% csrf_token %}<button class="btn danger" type="submit">Delete</button></form>{% endif %}
+  </div>
+</div>
+
+{% if s.status == 'WAITING' %}
+<div class="grid two">
+  <div class="card code-box">
+    <h3>Give this code to the player</h3>
+    <div class="code" id="check-code">{{ s.code }}</div>
+    <div class="actions">
+      <button class="btn primary" data-copy="#check-code">Copy code</button>
+      <button class="btn" data-copy="#player-message">Copy message for player</button>
+    </div>
+    <p class="muted small">Valid for <span data-expires="{{ s.expires_at.isoformat }}">…</span> · single use</p>
+  </div>
+  <div class="card">
+    <h3>Message for the player</h3>
+    <div class="mono small" id="player-message">1) Download the Moon checker: {{ public_url }}{% url 'core:download' %}
+2) Unzip it, right-click MoonCheck.exe → Run as administrator.
+3) Enter the code {{ s.code }} — you will see my alias "{{ s.admin.username }}".
+4) Press "Start check" and keep the screen share on until it says the results were delivered.</div>
+    <p></p>
+    <p class="muted small" data-live-url="{% url 'checks:live' s.pk %}" data-status="{{ s.status }}">This page updates by itself when the player connects.</p>
+  </div>
+</div>
+{% endif %}
+
+{% if s.is_live or s.status == 'ABANDONED' %}
+<div class="card" data-live-url="{% url 'checks:live' s.pk %}" data-status="{{ s.status }}">
+  <div class="page-head">
+    <h2>{% if s.status == 'ABANDONED' %}Checker stopped responding{% else %}Scanning the player's PC…{% endif %}</h2>
+    <span class="muted small">last signal <span data-last-seen data-ago="{{ s.last_seen_at.isoformat|default:'' }}">—</span></span>
+  </div>
+  {% if s.status == 'ABANDONED' %}<p class="t-bad">No signal for several minutes: the checker was closed, crashed or lost its connection before sending results. If it reconnects, the check continues automatically.</p>{% endif %}
+  <div class="progress"><div data-progress-bar data-width="{{ s.progress_percent }}"></div></div>
+  <p class="small"><span data-progress-text>{% if s.progress_total %}{{ s.progress_done }} / {{ s.progress_total }} modules{% else %}starting…{% endif %}</span> · now: <b data-progress-module>{{ s.progress_module|default:"—" }}</b></p>
+  <div class="chips">{% for sev, n in s.severity_counts %}<span class="badge sev-{{ sev }}">{{ sev }} <span data-count="{{ sev }}">{{ n }}</span></span>{% endfor %}</div>
+</div>
+{% endif %}
+
+{% if s.status == 'COMPLETED' %}
+<div class="card verdict-banner v-{{ s.verdict }}">
+  <div>
+    <h3>Automatic verdict</h3>
+    <div class="verdict v-{{ s.verdict }}">{{ s.verdict }}</div>
+  </div>
+  <div class="chips">{% for sev, n in s.severity_counts %}<span class="badge sev-{{ sev }}">{{ n }} {{ sev }}</span>{% endfor %}</div>
+  <div class="score">{{ s.score }}<span class="muted small"> / 100</span></div>
+</div>
+{% endif %}
+
+<div class="layout-side">
+  <div>
+    {% if s.status == 'COMPLETED' %}
+    <div class="card">
+      <h2>Trust signals</h2>
+      <ul class="flags">
+        {% for f in s.flags %}
+        <li><span class="icon t-{{ f.level }}">{% if f.level == 'ok' %}✓{% elif f.level == 'warn' %}!{% elif f.level == 'bad' %}✕{% else %}i{% endif %}</span><span>{{ f.text }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="page-head"><h2>Findings <span class="muted">(<span id="f-count">{{ findings|length }}</span>)</span></h2></div>
+      {% if findings %}
+      <div class="filters">
+        <select id="f-sev"><option value="">All severities</option>{% for sev in severities %}<option value="{{ sev }}">{{ sev }} and above</option>{% endfor %}</select>
+        <select id="f-mod"><option value="">All modules</option>{% for m in module_names %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
+        <input type="search" id="f-text" placeholder="Filter text…">
+      </div>
+      <div class="table-wrap">
+        <table id="findings">
+          <thead><tr><th>Severity</th><th>Module</th><th>Finding</th><th>Evidence</th><th>Source</th></tr></thead>
+          <tbody>
+          {% for f in findings %}
+            <tr data-sev="{{ f.severity }}" data-mod="{{ f.module }}" class="clickable">
+              <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
+              <td class="small">{{ f.module }}</td>
+              <td>{{ f.title }}</td>
+              <td class="evidence">{{ f.evidence|truncatechars:160 }}</td>
+              <td class="small muted">{{ f.source }}</td>
+            </tr>
+            <tr class="detail-row hidden"><td colspan="5">
+              <dl class="kv small">
+                {% if f.detail %}<dt>Detail</dt><dd>{{ f.detail|linebreaksbr }}</dd>{% endif %}
+                {% if f.evidence %}<dt>Evidence</dt><dd class="mono break">{{ f.evidence }}</dd>{% endif %}
+                {% if f.when %}<dt>Time</dt><dd>{{ f.when }}</dd>{% endif %}
+                <dt>Category</dt><dd>{{ f.category }} · weight {{ f.weight }}</dd>
+              </dl>
+            </td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if truncated %}<p class="t-warn small">Only the first {{ findings|length }} findings are shown; download the evidence JSON for all of them.</p>{% endif %}
+      {% else %}<p class="muted">The checker found nothing to report.</p>{% endif %}
+    </div>
+
+    {% if modules %}
+    <div class="card">
+      <h2>Modules</h2>
+      <div class="chips">{% for name, st in modules %}<span class="badge {% if st == 'OK' %}sev-ok{% elif st == 'SKIPPED' %}sev-INFO{% else %}sev-CRITICAL{% endif %}">{{ name }}: {{ st }}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <aside>
+    {% if s.status == 'COMPLETED' %}
+    <div class="card">
+      <h3>Verification code</h3>
+      <div class="verif">{{ s.verification_code }}</div>
+      <p class="muted small">Must match the 🔒 code on the player's results screen. If it differs, the report you see is not the one on their screen.</p>
+    </div>
+    <div class="card">
+      <h3>Decision</h3>
+      {% if s.decision %}
+        <p><b class="d-{{ s.decision }}">{{ s.get_decision_display }}</b><br><span class="muted small">by {{ s.decision_by.username|default:"—" }}, {{ s.decision_at|date:"Y-m-d H:i" }}</span></p>
+        {% if s.decision_note %}<p class="small">{{ s.decision_note|linebreaksbr }}</p>{% endif %}
+      {% endif %}
+      {% if can_decide %}
+      <form method="post" action="{% url 'checks:decide' s.pk %}" novalidate>{% csrf_token %}
+        {% include "_form.html" with form=decision_form %}
+        <button class="btn primary" type="submit">Save decision</button>
+      </form>
+      {% elif not s.decision %}<p class="muted small">Your role cannot record the decision for this check.</p>{% endif %}
+    </div>
+    {% endif %}
+    <div class="card">
+      <h3>Player</h3>
+      <dl class="kv">
+        <dt>Name</dt><dd>{{ s.player_name }}</dd>
+        {% if s.player_steam %}<dt>Steam</dt><dd class="break">{{ s.player_steam }}</dd>{% endif %}
+        {% if s.player_discord %}<dt>Discord</dt><dd>{{ s.player_discord }}</dd>{% endif %}
+        {% if s.note %}<dt>Note</dt><dd>{{ s.note }}</dd>{% endif %}
+      </dl>
+    </div>
+    {% if s.client %}
+    <div class="card">
+      <h3>Player PC</h3>
+      <dl class="kv small">
+        <dt>PC name</dt><dd>{{ s.client.hostname|default:"—" }}</dd>
+        <dt>User</dt><dd>{{ s.client.user|default:"—" }}</dd>
+        <dt>OS</dt><dd>{{ s.client.os|default:"—" }}</dd>
+        <dt>Admin rights</dt><dd>{% if s.client.elevated %}<span class="t-ok">yes</span>{% else %}<span class="t-bad">no</span>{% endif %}</dd>
+        <dt>Checker</dt><dd>v{{ s.client.appVersion|default:"?" }}</dd>
+        <dt>Build hash</dt><dd class="mono break">{% firstof s.client.selfHashFull s.client.selfHash "—" %}</dd>
+        <dt>Connected</dt><dd>{{ s.claimed_at|date:"Y-m-d H:i:s" }}</dd>
+        <dt>Connect IP</dt><dd class="mono">{{ s.claimed_ip|default:"—" }}</dd>
+        {% if s.report_ip %}<dt>Upload IP</dt><dd class="mono">{{ s.report_ip }}</dd>{% endif %}
+        {% if s.completed_at %}<dt>Delivered</dt><dd>{{ s.completed_at|date:"Y-m-d H:i:s" }}</dd>{% endif %}
+        {% if meta.durationSeconds is not None %}<dt>Scan time</dt><dd>{{ meta.durationSeconds }} s (checker)</dd>{% endif %}
+        {% if meta.signatureVersion %}<dt>Signatures</dt><dd>v{{ meta.signatureVersion }}</dd>{% endif %}
+        {% if meta.checkId %}<dt>Report id</dt><dd class="mono">{{ meta.checkId }}</dd>{% endif %}
+      </dl>
+    </div>
+    {% endif %}
+    {% if related %}
+    <div class="card">
+      <h3>Other checks of this player / PC</h3>
+      <ul class="flags">
+        {% for r in related %}<li><span><a href="{% url 'checks:detail' r.pk %}">{{ r.created_at|date:"Y-m-d" }} · {{ r.player_name }}</a>
+          {% if r.verdict %}<span class="badge v-{{ r.verdict }}">{{ r.verdict }}</span>{% else %}<span class="badge st-{{ r.status }}">{{ r.get_status_display }}</span>{% endif %}
+          {% if r.decision %}<span class="d-{{ r.decision }} small">{{ r.get_decision_display }}</span>{% endif %}</span></li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
