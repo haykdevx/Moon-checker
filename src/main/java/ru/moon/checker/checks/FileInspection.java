@@ -8,6 +8,7 @@ import ru.moon.checker.core.Severity;
 import ru.moon.checker.parse.BinStrings;
 import ru.moon.checker.parse.Pe;
 import ru.moon.checker.signatures.SignatureRule;
+import ru.moon.checker.win.AlternateStreams;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -18,6 +19,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Shared logic for inspecting a candidate binary and walking user-writable
@@ -33,6 +35,9 @@ public final class FileInspection {
     private static final int MIN_STRING = 4;
     private static final int OFFSET_HIT_HIGH = 3;   // this many offset names => strong
     private static final double PACKED_ENTROPY = 7.2; // near-8.0 => packed/encrypted
+
+    /** Stream enumeration; replaced in tests (the real API only exists on Windows). */
+    static volatile Function<String, List<AlternateStreams.Stream>> streamLister = AlternateStreams::list;
 
     private FileInspection() {
     }
@@ -78,18 +83,10 @@ public final class FileInspection {
                         .openPath(parent(file))
                         .build()));
 
-        long size;
-        try {
-            size = Files.size(file);
-        } catch (IOException e) {
-            return;
-        }
-        if (size <= 0) {
-            return;
-        }
-
-        // 2. hidden Alternate Data Streams — a classic cheat-payload hiding spot
-        for (ru.moon.checker.win.AlternateStreams.Stream st : ru.moon.checker.win.AlternateStreams.list(pathStr)) {
+        // 2. hidden Alternate Data Streams — a classic cheat-payload hiding spot.
+        //    Checked before the size gate: `type cheat.dll > notes.txt:x` leaves a
+        //    0-byte host file whose only content is the hidden stream.
+        for (AlternateStreams.Stream st : streamLister.apply(pathStr)) {
             var streamRule = ctx.signatures().matchCheatName(st.name());
             Severity sev = streamRule.isPresent() ? Severity.CRITICAL : Severity.HIGH;
             ctx.emit(Finding.builder(category, sev,
@@ -101,6 +98,16 @@ public final class FileInspection {
                     .source("NTFS ADS")
                     .openPath(parent(file))
                     .build());
+        }
+
+        long size;
+        try {
+            size = Files.size(file);
+        } catch (IOException e) {
+            return;
+        }
+        if (size <= 0) {
+            return;
         }
 
         // 3. executable disguised under a non-executable extension (MZ header)

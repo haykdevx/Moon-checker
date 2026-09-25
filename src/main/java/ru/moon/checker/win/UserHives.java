@@ -8,19 +8,33 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Gives every module access to <em>all</em> users' registry hives, not just the
  * interactive user's — so a cheater's second Windows account can't hide the
  * evidence. Currently-logged-in users are read straight from {@code HKEY_USERS};
  * logged-off users have their {@code NTUSER.DAT} temporarily mounted with
- * {@code reg load} and always unmounted on {@link Scope#close()}.
+ * {@code reg load}.
+ *
+ * <p>The mounts are <b>shared and reference-counted</b>: several modules run in
+ * parallel and each opens a scope. Mounting per scope made the second
+ * {@code reg load} of the same {@code NTUSER.DAT} fail (the first mount holds the
+ * file), so whichever module lost the race silently skipped those users. Now the
+ * first {@link #open()} mounts, later ones reuse, and the last
+ * {@link Scope#close()} unmounts.
  */
 public final class UserHives {
 
-    private static final AtomicInteger COUNTER = new AtomicInteger();
+    private static final Object LOCK = new Object();
+    private static int refs;
+    private static List<User> shared = List.of();
+    private static List<String> mounted = List.of();
+
+    /** Platform access; replaced in tests. */
+    static volatile Mounter mounter = new RegMounter();
 
     private UserHives() {
     }
@@ -32,14 +46,13 @@ public final class UserHives {
         }
     }
 
-    /** A set of user hives; unmounts any it mounted when closed. */
+    /** A view of the shared user hives; releases its reference when closed. */
     public static final class Scope implements AutoCloseable {
         private final List<User> users;
-        private final List<String> mounted;
+        private final AtomicBoolean closed = new AtomicBoolean();
 
-        Scope(List<User> users, List<String> mounted) {
+        Scope(List<User> users) {
             this.users = users;
-            this.mounted = mounted;
         }
 
         public List<User> users() {
@@ -48,55 +61,124 @@ public final class UserHives {
 
         @Override
         public void close() {
-            for (String key : mounted) {
-                try {
-                    new ProcessBuilder("reg", "unload", "HKU\\" + key)
-                            .redirectErrorStream(true).start().waitFor(10, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    Log.warn("failed to unload hive " + key, e);
-                }
+            if (closed.compareAndSet(false, true)) {
+                release();
             }
         }
     }
 
+    /** What {@link UserHives} needs from the OS. */
+    interface Mounter {
+        /** Users whose hive is already loaded (plus a fallback when none are). */
+        List<User> loadedUsers();
+
+        /** Profile folders whose {@code NTUSER.DAT} is not loaded yet. */
+        List<Path> offlineProfiles(List<User> loaded);
+
+        boolean mount(String key, Path ntuserDat);
+
+        void unmount(String key);
+    }
+
     public static Scope open() {
-        List<User> users = new ArrayList<>();
-        List<String> mounted = new ArrayList<>();
-
-        if (!Platform.isWindows()) {
-            users.add(new User(Registry.HKCU, "", "current"));
-            return new Scope(users, mounted);
+        synchronized (LOCK) {
+            if (refs++ == 0) {
+                acquire();
+            }
+            return new Scope(shared);
         }
+    }
 
-        // 1. every currently-loaded user hive under HKEY_USERS
-        for (String sid : Registry.subKeys(Registry.HKU, "")) {
-            if (sid.startsWith("S-1-5-21") && !sid.endsWith("_Classes")) {
-                users.add(new User(Registry.HKU, sid + "\\", sid));
+    private static void acquire() {
+        Mounter m = mounter;
+        List<User> users = new ArrayList<>(m.loadedUsers());
+        List<String> keys = new ArrayList<>();
+        int n = 0;
+        for (Path profile : m.offlineProfiles(users)) {
+            String key = "MoonChk_" + (++n); // stable names: a stale mount is reclaimed next run
+            if (m.mount(key, profile.resolve("NTUSER.DAT"))) {
+                keys.add(key);
+                users.add(new User(Registry.HKU, key + "\\", String.valueOf(profile.getFileName())));
             }
         }
-        if (users.isEmpty()) {
-            users.add(new User(Registry.HKCU, "", "current"));
-        }
+        shared = List.copyOf(users);
+        mounted = List.copyOf(keys);
+    }
 
-        // 2. logged-off profiles: mount NTUSER.DAT (fails for locked/loaded ones)
-        for (Path profile : Platform.userProfiles()) {
-            Path ntuser = profile.resolve("NTUSER.DAT");
-            if (!Files.isRegularFile(ntuser)) {
-                continue;
+    private static void release() {
+        synchronized (LOCK) {
+            if (refs == 0 || --refs > 0) {
+                return;
             }
-            String tempKey = "MoonChk_" + COUNTER.incrementAndGet();
-            try {
-                Process p = new ProcessBuilder("reg", "load", "HKU\\" + tempKey, ntuser.toString())
-                        .redirectErrorStream(true).start();
-                boolean ok = p.waitFor(20, TimeUnit.SECONDS) && p.exitValue() == 0;
-                if (ok) {
-                    mounted.add(tempKey);
-                    users.add(new User(Registry.HKU, tempKey + "\\", profile.getFileName().toString()));
+            for (String key : mounted) {
+                mounter.unmount(key);
+            }
+            mounted = List.of();
+            shared = List.of();
+        }
+    }
+
+    /** Production mounter backed by HKEY_USERS, ProfileList and reg.exe. */
+    static final class RegMounter implements Mounter {
+        private static final String PROFILE_LIST = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList";
+
+        @Override
+        public List<User> loadedUsers() {
+            List<User> users = new ArrayList<>();
+            if (Platform.isWindows()) {
+                for (String sid : Registry.subKeys(Registry.HKU, "")) {
+                    if (sid.startsWith("S-1-5-21") && !sid.endsWith("_Classes")) {
+                        users.add(new User(Registry.HKU, sid + "\\", profileName(sid)));
+                    }
                 }
-            } catch (Exception e) {
-                Log.warn("could not mount hive for " + profile, e);
             }
+            if (users.isEmpty()) {
+                users.add(new User(Registry.HKCU, "", "current"));
+            }
+            return users;
         }
-        return new Scope(users, mounted);
+
+        @Override
+        public List<Path> offlineProfiles(List<User> loaded) {
+            List<Path> out = new ArrayList<>();
+            if (!Platform.isWindows()) {
+                return out;
+            }
+            Set<String> loadedNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            loaded.forEach(u -> loadedNames.add(u.label()));
+            for (Path profile : Platform.userProfiles()) {
+                String name = String.valueOf(profile.getFileName());
+                if (!loadedNames.contains(name) && Files.isRegularFile(profile.resolve("NTUSER.DAT"))) {
+                    out.add(profile);
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public boolean mount(String key, Path ntuserDat) {
+            HiveMount.LoadResult r = HiveMount.load(HiveMount.Root.HKU, key, ntuserDat);
+            if (!r.loaded()) {
+                Log.warn("could not mount " + ntuserDat + ": " + r.output());
+            }
+            return r.loaded();
+        }
+
+        @Override
+        public void unmount(String key) {
+            HiveMount.unload(HiveMount.Root.HKU, key);
+        }
+
+        /** Profile folder name for a SID (e.g. "Игрок"), or the SID itself. */
+        private static String profileName(String sid) {
+            String image = Registry.getString(Registry.HKLM, PROFILE_LIST + "\\" + sid, "ProfileImagePath");
+            if (image == null || image.isBlank()) {
+                return sid;
+            }
+            String p = image.replace('/', '\\');
+            int i = p.lastIndexOf('\\');
+            String name = i >= 0 ? p.substring(i + 1) : p;
+            return name.isEmpty() ? sid : name;
+        }
     }
 }

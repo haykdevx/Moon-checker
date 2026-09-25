@@ -77,8 +77,8 @@ public final class KernelCheck implements CheckModule {
     private void consumeDriverReport(ScanContext ctx, KernelBridge.Report report) {
         for (String line : report.lines()) {
             String l = line.trim();
-            if (l.isEmpty()) {
-                continue;
+            if (l.isEmpty() || l.startsWith("MOONMON")) {
+                continue; // blank / report header
             }
             // driver contract: "HIDDEN <type> <name>" or "DRIVER <name> <path>"
             if (l.startsWith("HIDDEN ")) {
@@ -122,14 +122,24 @@ public final class KernelCheck implements CheckModule {
                             .module(ID).detail(rule.label() + " — " + name)
                             .evidence(image != null ? image : name).source("kernel service").build()));
         }
-        WinInfo.testSigningEnabled().ifPresent(on -> {
-            if (on) {
-                ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
-                                "Отключена проверка подписи драйверов / Driver signature enforcement off (test-signing)")
-                        .module(ID)
-                        .detail("Позволяет загрузить неподписанный драйвер чита в ядро.")
-                        .source("bcdedit").build());
-            }
+        WinInfo.signingState().filter(WinInfo.SigningState::anyRelaxed).ifPresent(st -> {
+            // one finding for the whole boot configuration: test-signing and
+            // nointegritychecks are the same "unsigned kernel code allowed" risk
+            boolean unsignedAllowed = st.testSigning() || st.integrityChecksOff();
+            StringBuilder what = new StringBuilder();
+            if (st.testSigning()) what.append("TESTSIGNING ");
+            if (st.integrityChecksOff()) what.append("NOINTEGRITYCHECKS ");
+            if (st.kernelDebug()) what.append("DEBUG ");
+            ctx.emit(Finding.builder(Category.KERNEL, unsignedAllowed ? Severity.HIGH : Severity.MEDIUM,
+                            unsignedAllowed
+                                    ? "Отключена проверка подписи драйверов / Driver signature enforcement relaxed"
+                                    : "Включена отладка ядра / Kernel debugging enabled")
+                    .module(ID)
+                    .detail(what.toString().trim() + " — "
+                            + (unsignedAllowed ? "позволяет загрузить неподписанный драйвер чита в ядро"
+                                               : "отключает PatchGuard, позволяет патчить ядро"))
+                    .evidence(st.source())
+                    .source("code integrity").build());
         });
     }
 

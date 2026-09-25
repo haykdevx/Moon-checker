@@ -2,16 +2,17 @@ package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
 import ru.moon.checker.core.CheckModule;
+import ru.moon.checker.core.Exec;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
 import ru.moon.checker.core.ScanContext;
 import ru.moon.checker.core.Severity;
 
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Reads Windows Defender's own threat-detection history via PowerShell
@@ -54,10 +55,12 @@ public final class DefenderCheck implements CheckModule {
     }
 
     private void threatHistory(ScanContext ctx) {
-        String script = "Get-MpThreatDetection | ForEach-Object { "
+        // error records (Defender disabled / third-party AV) are suppressed so
+        // their text is never mistaken for a detection line
+        String script = "Get-MpThreatDetection -ErrorAction SilentlyContinue | ForEach-Object { "
                 + "$_.InitialDetectionTime.ToString('o') + '|' + "
                 + "($_.Resources -join ';') } ; "
-                + "Get-MpThreat | ForEach-Object { 'THREAT|' + $_.ThreatName }";
+                + "Get-MpThreat -ErrorAction SilentlyContinue | ForEach-Object { 'THREAT|' + $_.ThreatName }";
         String out = powershell(script);
         if (out == null) {
             return;
@@ -97,7 +100,7 @@ public final class DefenderCheck implements CheckModule {
     }
 
     private void protectionState(ScanContext ctx) {
-        String out = powershell("(Get-MpPreference).DisableRealtimeMonitoring");
+        String out = powershell("(Get-MpPreference -ErrorAction SilentlyContinue).DisableRealtimeMonitoring");
         if (out != null && out.trim().equalsIgnoreCase("true")) {
             ctx.emit(Finding.builder(Category.DEFENDER, Severity.MEDIUM,
                             "Защита в реальном времени отключена / Real-time protection disabled")
@@ -109,15 +112,7 @@ public final class DefenderCheck implements CheckModule {
     }
 
     private String powershell(String script) {
-        try {
-            Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-Command", script)
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor(30, TimeUnit.SECONDS);
-            return out;
-        } catch (Throwable t) {
-            return null;
-        }
+        Exec.Result r = Exec.powershell(script, Duration.ofSeconds(45));
+        return r.error() != null || r.timedOut() ? null : r.output();
     }
 }

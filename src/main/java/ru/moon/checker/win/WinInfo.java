@@ -1,25 +1,41 @@
 package ru.moon.checker.win;
 
+import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Advapi32;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.platform.win32.WinNT.HANDLEByReference;
 import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.win32.StdCallLibrary;
 import ru.moon.checker.core.Platform;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Miscellaneous machine-state probes: administrator elevation, virtual-machine
- * detection, and test-signing status. Each returns a conservative default off
+ * detection, and driver-signing state. Each returns a conservative default off
  * Windows so the rest of the app is unaffected.
  */
 public final class WinInfo {
 
     private static final int TOKEN_QUERY = 0x0008;
+    private static final int SYSTEM_CODE_INTEGRITY_INFORMATION = 103;
+    static final int CODEINTEGRITY_OPTION_TESTSIGN = 0x02;
+    static final int CODEINTEGRITY_OPTION_DEBUGMODE_ENABLED = 0x80;
+
+    private static final Pattern XEN = Pattern.compile("\\bxen\\b");
 
     private WinInfo() {
+    }
+
+    private interface NtDll extends StdCallLibrary {
+        NtDll INSTANCE = Native.load("ntdll", NtDll.class);
+
+        int NtQuerySystemInformation(int infoClass, Pointer info, int length, IntByReference returnLength);
     }
 
     /** True if the current process is running elevated (as administrator). */
@@ -51,73 +67,115 @@ public final class WinInfo {
     }
 
     /**
-     * Detect common hypervisors from BIOS / system identity strings and
-     * guest-tool services. Returns the detected product name, or empty.
+     * Detect a hypervisor from the SMBIOS identity strings, then from services
+     * that only exist <em>inside</em> a guest (guest additions / tools). Host-side
+     * components (Hyper-V integration services, VMware's vmci bus driver) are
+     * deliberately not used: they are present on ordinary gaming PCs.
      */
     public static Optional<String> detectVirtualMachine() {
         if (!Platform.isWindows()) {
             return Optional.empty();
         }
-        String bios = "\\HARDWARE\\DESCRIPTION\\System\\BIOS";
-        String[] values = {"SystemManufacturer", "SystemProductName", "BIOSVendor", "BIOSVersion"};
-        for (String v : values) {
-            String s = Registry.getString(Registry.HKLM, "HARDWARE\\DESCRIPTION\\System\\BIOS", v);
-            String hit = matchVm(s);
-            if (hit != null) {
-                return Optional.of(hit + " (" + v + "=" + s + ")");
-            }
+        String bios = "HARDWARE\\DESCRIPTION\\System\\BIOS";
+        String manufacturer = Registry.getString(Registry.HKLM, bios, "SystemManufacturer");
+        String product = Registry.getString(Registry.HKLM, bios, "SystemProductName");
+        String vendor = Registry.getString(Registry.HKLM, bios, "BIOSVendor");
+        String version = Registry.getString(Registry.HKLM, bios, "BIOSVersion");
+        String hit = matchVm(manufacturer, product, vendor, version);
+        if (hit != null) {
+            return Optional.of(hit + " (" + manufacturer + " / " + product + ")");
         }
-        // guest-tool services
-        String[][] svc = {
-                {"VBoxService", "VirtualBox"}, {"VBoxGuest", "VirtualBox"},
-                {"vmtools", "VMware"}, {"vmmemctl", "VMware"},
-                {"vmicheartbeat", "Hyper-V"}, {"vmci", "Hyper-V"},
-                {"qemu-ga", "QEMU"}
+        String[][] guestServices = {
+                {"VBoxGuest", "VirtualBox"}, {"VBoxSF", "VirtualBox"},
+                {"VMTools", "VMware"}, {"vm3dmp", "VMware"}, {"vmhgfs", "VMware"},
+                {"QEMU-GA", "QEMU"}, {"prl_tg", "Parallels"}
         };
-        for (String[] pair : svc) {
+        for (String[] pair : guestServices) {
             if (Registry.keyExists(Registry.HKLM, "SYSTEM\\CurrentControlSet\\Services\\" + pair[0])) {
-                return Optional.of(pair[1] + " (service " + pair[0] + ")");
+                return Optional.of(pair[1] + " (guest service " + pair[0] + ")");
             }
         }
         return Optional.empty();
     }
 
-    private static String matchVm(String s) {
-        if (s == null) {
-            return null;
-        }
-        String l = s.toLowerCase(Locale.ROOT);
-        if (l.contains("vmware")) return "VMware";
-        if (l.contains("virtualbox") || l.contains("innotek") || l.contains("vbox")) return "VirtualBox";
-        if (l.contains("qemu")) return "QEMU";
-        if (l.contains("kvm")) return "KVM";
-        if (l.contains("xen")) return "Xen";
-        if (l.contains("microsoft corporation") && l.contains("virtual")) return "Hyper-V";
-        if (l.contains("parallels")) return "Parallels";
+    /** Hypervisor product from SMBIOS strings, or null for physical hardware. */
+    static String matchVm(String manufacturer, String product, String biosVendor, String biosVersion) {
+        String m = lower(manufacturer);
+        String p = lower(product);
+        String all = m + " " + p + " " + lower(biosVendor) + " " + lower(biosVersion);
+        if (all.contains("vmware")) return "VMware";
+        if (all.contains("virtualbox") || all.contains("innotek") || all.contains("vbox")) return "VirtualBox";
+        if (all.contains("qemu")) return "QEMU";
+        if (all.contains("kvm")) return "KVM";
+        if (all.contains("bochs")) return "Bochs";
+        if (XEN.matcher(all).find()) return "Xen";
+        if (all.contains("parallels")) return "Parallels";
+        if (m.contains("microsoft corporation") && p.contains("virtual machine")) return "Hyper-V";
+        if (all.contains("amazon ec2")) return "Amazon EC2";
+        if (all.contains("google compute engine")) return "Google Compute Engine";
         return null;
     }
 
+    /** Driver-signing relaxations active in the <em>current</em> boot. */
+    public record SigningState(boolean testSigning, boolean integrityChecksOff, boolean kernelDebug, String source) {
+        public boolean anyRelaxed() {
+            return testSigning || integrityChecksOff || kernelDebug;
+        }
+    }
+
     /**
-     * Whether Windows test-signing mode is enabled (allows unsigned kernel
-     * drivers — a common precondition for kernel cheats). Uses bcdedit, which
-     * needs the elevation we already hold. Empty if it cannot be determined.
+     * Whether the running kernel accepts test-signed / unsigned drivers (a
+     * common precondition for kernel cheats). Asks the kernel directly
+     * ({@code SystemCodeIntegrityInformation}); falls back to the loader options
+     * the system booted with. Unlike parsing {@code bcdedit}, neither depends on
+     * the UI language, needs elevation, or reflects a not-yet-rebooted change.
      */
-    public static Optional<Boolean> testSigningEnabled() {
+    public static Optional<SigningState> signingState() {
         if (!Platform.isWindows()) {
             return Optional.empty();
         }
-        try {
-            Process p = new ProcessBuilder("cmd", "/c", "bcdedit", "/enum", "{current}")
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor();
-            String l = out.toLowerCase(Locale.ROOT);
-            if (l.contains("testsigning")) {
-                return Optional.of(l.contains("testsigning") && l.contains("yes"));
-            }
-            return Optional.of(false);
-        } catch (Throwable t) {
-            return Optional.empty();
+        String startOptions = Registry.getString(Registry.HKLM,
+                "SYSTEM\\CurrentControlSet\\Control", "SystemStartOptions");
+        SigningState fromBoot = startOptions == null ? null : parseStartOptions(startOptions);
+        Integer ci = codeIntegrityOptions();
+        if (ci != null) {
+            boolean integrityOff = fromBoot != null && fromBoot.integrityChecksOff();
+            return Optional.of(new SigningState((ci & CODEINTEGRITY_OPTION_TESTSIGN) != 0, integrityOff,
+                    (ci & CODEINTEGRITY_OPTION_DEBUGMODE_ENABLED) != 0,
+                    "CodeIntegrityOptions=0x" + Integer.toHexString(ci)));
         }
+        return Optional.ofNullable(fromBoot);
+    }
+
+    /** Parse {@code SystemStartOptions}, e.g. {@code " NOEXECUTE=OPTIN  TESTSIGNING"}. */
+    static SigningState parseStartOptions(String options) {
+        boolean test = false;
+        boolean integrity = false;
+        boolean debug = false;
+        for (String token : options.trim().toUpperCase(Locale.ROOT).split("[\\s/]+")) {
+            switch (token) {
+                case "TESTSIGNING" -> test = true;
+                case "DISABLE_INTEGRITY_CHECKS", "NOINTEGRITYCHECKS" -> integrity = true;
+                case "DEBUG" -> debug = true;
+                default -> { }
+            }
+        }
+        return new SigningState(test, integrity, debug, "SystemStartOptions=" + options.trim());
+    }
+
+    private static Integer codeIntegrityOptions() {
+        try (Memory buf = new Memory(8)) {
+            buf.setInt(0, 8); // SYSTEM_CODEINTEGRITY_INFORMATION.Length
+            buf.setInt(4, 0);
+            int status = NtDll.INSTANCE.NtQuerySystemInformation(
+                    SYSTEM_CODE_INTEGRITY_INFORMATION, buf, 8, new IntByReference());
+            return status == 0 ? buf.getInt(4) : null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static String lower(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.ROOT);
     }
 }

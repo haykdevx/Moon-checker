@@ -1,6 +1,7 @@
 package ru.moon.checker.parse;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +13,50 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BrowserHistoryTest {
+
+    @Test
+    void profilePathWithUriMetacharactersIsReadable(@TempDir Path tmp) throws Exception {
+        // a raw "file:" + path URL truncates at '#' and decodes "%41" -> reads nothing
+        Path dir = Files.createDirectories(tmp.resolve("Игрок #1 %41").resolve("User Data"));
+        Path db = dir.resolve("History");
+        try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db);
+             Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE urls (id INTEGER, url TEXT, title TEXT, last_visit_time INTEGER)");
+            st.execute("INSERT INTO urls VALUES (1,'https://neverlose.cc','x',0)");
+        }
+        assertEquals(1, BrowserHistory.readChromium(db, true).size());
+        assertEquals(1, BrowserHistory.readChromium(db, false).size());
+        assertTrue(BrowserHistory.jdbcUrl(db, true).contains("%23"), "'#' must be percent-encoded");
+    }
+
+    @Test
+    void snapshotIncludesUncheckpointedWalVisits(@TempDir Path tmp) throws Exception {
+        Path profile = Files.createDirectories(tmp.resolve("ff"));
+        Path places = profile.resolve("places.sqlite");
+        // the "browser" keeps the database open, so the visit lives only in -wal
+        try (Connection browser = DriverManager.getConnection("jdbc:sqlite:" + places);
+             Statement st = browser.createStatement()) {
+            st.execute("PRAGMA journal_mode=WAL");
+            st.execute("PRAGMA wal_autocheckpoint=0");
+            st.execute("CREATE TABLE moz_places (id INTEGER, url TEXT, title TEXT, last_visit_date INTEGER)");
+            st.execute("INSERT INTO moz_places VALUES (1,'https://nixware.cc','Nixware',0)");
+            assertTrue(Files.size(profile.resolve("places.sqlite-wal")) > 0);
+
+            Path snapDir = Files.createDirectories(tmp.resolve("snap"));
+            Path snap = BrowserHistory.snapshot(places, snapDir, "h0");
+            assertNotNull(snap);
+            assertTrue(Files.isRegularFile(snapDir.resolve("h0-wal")));
+            assertEquals(1, BrowserHistory.readFirefox(snap).size(), "WAL content must be visible");
+        }
+    }
+
+    @Test
+    void missingDatabaseIsNotCreated(@TempDir Path tmp) {
+        Path db = tmp.resolve("History");
+        assertTrue(BrowserHistory.readChromium(db).isEmpty());
+        assertFalse(Files.exists(db), "reader must not create files in a player's profile");
+        assertNull(BrowserHistory.snapshot(db, tmp, "x"));
+    }
 
     @Test
     void readsChromiumUrlsTable() throws Exception {

@@ -12,6 +12,8 @@ import ru.moon.checker.core.Platform;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Enumerates NTFS Alternate Data Streams on a file. A payload hidden in an ADS
@@ -42,8 +44,24 @@ public final class AlternateStreams {
     }
 
     /**
+     * Streams Windows and common sync clients attach to ordinary files. They are
+     * tiny metadata blobs; a payload hidden under one of these names is still
+     * reported because {@link #isBenign} also bounds the size.
+     */
+    private static final Set<String> BENIGN_NAMES = Set.of(
+            "zone.identifier",          // Mark-of-the-Web on downloads
+            "smartscreen",              // Edge/SmartScreen verdict on downloads
+            "streamedfilestate",        // 32-byte state blob Windows 11 puts on files in %TEMP%
+            "com.dropbox.attributes", "com.dropbox.attrs",
+            "ms-properties",            // OneDrive / property store
+            "oecustomproperty", "encryptable", "favicon",
+            "afp_afpinfo", "afp_resource",
+            "{4c8cc155-6c1e-11d1-8e41-00c04fb9386d}");
+    static final long BENIGN_MAX_SIZE = 4096;
+
+    /**
      * Non-default data streams on {@code path}. The default stream ("::$DATA")
-     * and the benign download marker ("Zone.Identifier") are excluded.
+     * and small, well-known metadata streams (see {@link #isBenign}) are excluded.
      */
     public static List<Stream> list(String path) {
         List<Stream> out = new ArrayList<>();
@@ -60,9 +78,11 @@ public final class AlternateStreams {
                 long size = buf.getLong(0);
                 String name = buf.getWideString(8); // e.g. ":cheat:$DATA"
                 String clean = cleanName(name);
-                if (clean != null && !clean.isEmpty()
-                        && !clean.equalsIgnoreCase("Zone.Identifier")) {
-                    out.add(new Stream(clean, size));
+                if (clean != null && !clean.isEmpty()) {
+                    Stream st = new Stream(clean, size);
+                    if (!isBenign(st)) {
+                        out.add(st);
+                    }
                 }
             } while (K32.INSTANCE.FindNextStreamW(h, buf));
         } catch (Throwable t) {
@@ -73,6 +93,11 @@ public final class AlternateStreams {
             }
         }
         return out;
+    }
+
+    /** A well-known metadata stream of plausible metadata size. */
+    static boolean isBenign(Stream st) {
+        return st.size() <= BENIGN_MAX_SIZE && BENIGN_NAMES.contains(st.name().toLowerCase(Locale.ROOT));
     }
 
     /** ":name:$DATA" -> "name"; "::$DATA" (default) -> "". */

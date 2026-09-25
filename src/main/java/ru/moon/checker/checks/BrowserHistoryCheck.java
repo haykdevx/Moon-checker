@@ -6,6 +6,7 @@ import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
 import ru.moon.checker.core.ScanContext;
+import ru.moon.checker.core.Severity;
 import ru.moon.checker.parse.BrowserHistory;
 import ru.moon.checker.signatures.SignatureRule;
 
@@ -52,11 +53,17 @@ public final class BrowserHistoryCheck implements CheckModule {
         java.util.Set<String> reportedDownloads = new java.util.HashSet<>();
         Path tmp = Files.createTempDirectory("moon-hist");
         try {
+            int n = 0;
             for (Path db : chromiumHistories()) {
                 ctx.log(I18n.t("log.browser", shortName(db)));
-                Path localCopy = copy(db, tmp);
-                match(ctx, BrowserHistory.readChromium(localCopy), byRule);
-                matchDownloads(ctx, BrowserHistory.readChromiumDownloads(localCopy), byRule, reportedDownloads);
+                Path snap = BrowserHistory.snapshot(db, tmp, "h" + (n++));
+                boolean live = snap == null;
+                if (live) {
+                    lockedNotice(ctx, db);
+                }
+                Path src = live ? db : snap;
+                match(ctx, BrowserHistory.readChromium(src, live), byRule);
+                matchDownloads(ctx, BrowserHistory.readChromiumDownloads(src, live), byRule, reportedDownloads);
                 Path bookmarks = db.getParent() == null ? null : db.getParent().resolve("Bookmarks");
                 if (bookmarks != null) {
                     matchUrls(BrowserHistory.readChromiumBookmarkUrls(bookmarks), ctx, byRule);
@@ -64,9 +71,14 @@ public final class BrowserHistoryCheck implements CheckModule {
             }
             for (Path db : firefoxHistories()) {
                 ctx.log(I18n.t("log.browser", shortName(db)));
-                Path localCopy = copy(db, tmp);
-                match(ctx, BrowserHistory.readFirefox(localCopy), byRule);
-                matchUrls(BrowserHistory.readFirefoxBookmarkUrls(localCopy), ctx, byRule);
+                Path snap = BrowserHistory.snapshot(db, tmp, "h" + (n++));
+                boolean live = snap == null;
+                if (live) {
+                    lockedNotice(ctx, db);
+                }
+                Path src = live ? db : snap;
+                match(ctx, BrowserHistory.readFirefox(src, live), byRule);
+                matchUrls(BrowserHistory.readFirefoxBookmarkUrls(src, live), ctx, byRule);
             }
         } finally {
             deleteTree(tmp);
@@ -192,14 +204,19 @@ public final class BrowserHistoryCheck implements CheckModule {
         return out;
     }
 
-    private Path copy(Path db, Path tmpDir) {
-        try {
-            Path dest = tmpDir.resolve(db.getParent().getFileName() + "-" + db.getFileName());
-            Files.copy(db, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            return dest;
-        } catch (Exception e) {
-            return db; // fall back to reading the original (immutable mode)
-        }
+    /**
+     * The browser holds the database locked, so only its last checkpointed state
+     * can be read — tell the admin coverage is partial rather than stay silent.
+     */
+    private void lockedNotice(ScanContext ctx, Path db) {
+        ctx.emit(Finding.builder(Category.BROWSER, Severity.INFO,
+                        "История браузера заблокирована / Browser history locked")
+                .module(ID)
+                .detail("Браузер открыт — свежие записи могут быть не видны. Закройте браузер и повторите проверку."
+                        + " / Browser is running: recent entries may be missing. Close it and re-run.")
+                .evidence(db.toString())
+                .source("browser history")
+                .build());
     }
 
     private static Instant laterOf(Instant a, Instant b) {

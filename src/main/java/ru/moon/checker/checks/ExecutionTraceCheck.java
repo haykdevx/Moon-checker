@@ -9,18 +9,23 @@ import ru.moon.checker.core.ScanContext;
 import ru.moon.checker.core.Severity;
 import ru.moon.checker.parse.Lnk;
 import ru.moon.checker.parse.Prefetch;
+import ru.moon.checker.parse.PrefetchBody;
 import ru.moon.checker.parse.UserAssist;
 import ru.moon.checker.win.Registry;
+import ru.moon.checker.win.Volumes;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Correlates every Windows "this program ran" artefact against the cheat
- * signatures: Prefetch, Background Activity Moderator (BAM), UserAssist,
+ * signatures: Prefetch (name, run count, real last-run times and the files each
+ * program loaded), Background Activity Moderator (BAM), UserAssist,
  * MUICache, the Program Compatibility Assistant store, RunMRU, and Recent
  * shortcuts. Together these survive most casual cleanup and pin an execution
  * to a timestamp.
@@ -28,6 +33,9 @@ import java.util.Map;
 public final class ExecutionTraceCheck implements CheckModule {
 
     public static final String ID = "execution";
+
+    /** Real .pf files are a few KB to ~200 KB compressed. */
+    private static final long MAX_PREFETCH_BYTES = 8L * 1024 * 1024;
 
     @Override
     public String id() {
@@ -63,11 +71,15 @@ public final class ExecutionTraceCheck implements CheckModule {
     }
 
     private void report(ScanContext ctx, String name, String evidence, String source, Instant when) {
+        report(ctx, name, evidence, source, when, "");
+    }
+
+    private void report(ScanContext ctx, String name, String evidence, String source, Instant when, String extra) {
         ctx.signatures().matchCheatName(baseName(name)).ifPresent(rule ->
                 ctx.emit(Finding.builder(Category.EXECUTION, rule.severity(),
                                 "Запуск чита зафиксирован / Cheat execution recorded")
                         .module(ID)
-                        .detail(rule.label() + " — " + source)
+                        .detail(rule.label() + " — " + source + extra)
                         .evidence(evidence)
                         .source(source)
                         .when(when)
@@ -80,18 +92,82 @@ public final class ExecutionTraceCheck implements CheckModule {
             return;
         }
         ctx.log(I18n.t("log.prefetch"));
+        Map<Long, Character> drives = Volumes.serialToLetter();
         FileInspection.walk(dir, 5000, 1, f -> {
             Prefetch.Info info = Prefetch.fromFileName(f.getFileName().toString());
             if (info == null) {
                 return;
             }
-            Instant when = null;
-            try {
-                when = Files.getLastModifiedTime(f).toInstant();
-            } catch (Exception ignored) {
+            PrefetchBody.Info body = readBody(f);
+            if (body == null) {
+                // body unreadable: the name still proves execution; mtime ~ last run
+                report(ctx, info.exeName(), f.toString(), "Prefetch", modified(f));
+                return;
             }
-            report(ctx, info.exeName(), f.toString(), "Prefetch", when);
+            report(ctx, body.exeName().isEmpty() ? info.exeName() : body.exeName(), f.toString(), "Prefetch",
+                    body.lastRun(), "  (runs=" + body.runCount() + ", last runs " + body.lastRuns() + ")");
+            correlateLoadedFiles(ctx, f, body, drives);
         }, ctx);
+    }
+
+    /**
+     * Every file a program loaded in its first seconds is in its Prefetch trace.
+     * A cheat DLL in CS2's own trace is near-proof of injection; the same file in
+     * any other program's trace (a loader, an injector) is reported at the rule's
+     * severity.
+     */
+    static void correlateLoadedFiles(ScanContext ctx, Path pf, PrefetchBody.Info body, Map<Long, Character> drives) {
+        boolean game = isGame(body.exeName());
+        Set<String> seen = new HashSet<>();
+        for (String loaded : body.loadedFiles()) {
+            String base = baseName(loaded);
+            if (base.equalsIgnoreCase(body.exeName())) {
+                continue; // the program itself was already matched by name
+            }
+            ctx.signatures().matchCheatName(base).ifPresent(rule -> {
+                if (!seen.add(rule.label() + "|" + base)) {
+                    return;
+                }
+                String path = PrefetchBody.toDrivePath(loaded, drives);
+                ctx.emit(Finding.builder(Category.EXECUTION, game ? Severity.CRITICAL : rule.severity(),
+                                game ? "CS2 загрузил модуль чита / CS2 loaded a cheat module"
+                                     : "Программа загрузила файл чита / Program loaded a cheat-signature file")
+                        .module(ID)
+                        .detail(rule.label() + " — loaded by " + body.exeName() + " (" + pf.getFileName()
+                                + ", runs=" + body.runCount() + ")")
+                        .evidence(path)
+                        .source("Prefetch trace")
+                        .when(body.lastRun())
+                        .openPath(parentOf(path))
+                        .build());
+            });
+        }
+    }
+
+    static boolean isGame(String exeName) {
+        String e = exeName == null ? "" : exeName.toUpperCase(Locale.ROOT);
+        return e.equals("CS2.EXE") || e.equals("CSGO.EXE");
+    }
+
+    private static PrefetchBody.Info readBody(Path pf) {
+        try {
+            return Files.size(pf) <= MAX_PREFETCH_BYTES ? PrefetchBody.parse(Files.readAllBytes(pf)) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Instant modified(Path f) {
+        try {
+            return Files.getLastModifiedTime(f).toInstant();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String parentOf(String path) {
+        int i = path == null ? -1 : path.lastIndexOf('\\');
+        return i > 0 ? path.substring(0, i) : null;
     }
 
     private void bam(ScanContext ctx) {

@@ -1,11 +1,14 @@
 package ru.moon.checker.win;
 
 import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.ptr.IntByReference;
 import ru.moon.checker.core.Platform;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Enumerates fixed (local, non-removable) drive letters — the volumes worth
@@ -16,6 +19,29 @@ public final class Volumes {
     private static final int DRIVE_FIXED = 3;
 
     private Volumes() {
+    }
+
+    /**
+     * Volume serial number -> drive letter for fixed drives. Prefetch records
+     * paths as {@code \VOLUME{<created>-<serial>}\...}; this maps them back to
+     * {@code C:\...}.
+     */
+    public static Map<Long, Character> serialToLetter() {
+        Map<Long, Character> out = new HashMap<>();
+        for (char d : fixedDrives()) {
+            try {
+                IntByReference serial = new IntByReference();
+                char[] name = new char[261];
+                char[] fs = new char[261];
+                if (Kernel32.INSTANCE.GetVolumeInformation(d + ":\\", name, name.length, serial, null, null,
+                        fs, fs.length)) {
+                    out.put(serial.getValue() & 0xFFFFFFFFL, d);
+                }
+            } catch (Throwable ignored) {
+                // unreadable volume: its paths stay in \VOLUME{..} form
+            }
+        }
+        return out;
     }
 
     public static List<Character> fixedDrives() {

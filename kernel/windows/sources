@@ -1,6 +1,0 @@
-# Classic WDK build file for MoonMon (run `build` from a WDK build environment).
-# For the modern WDK/EWDK, create a Kernel-Mode Driver (WDM, empty) project,
-# add MoonMon.c, and build with msbuild instead.
-TARGETNAME=MoonMon
-TARGETTYPE=DRIVER
-SOURCES=MoonMon.c

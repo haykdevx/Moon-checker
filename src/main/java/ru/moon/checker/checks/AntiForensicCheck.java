@@ -2,6 +2,7 @@ package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
 import ru.moon.checker.core.CheckModule;
+import ru.moon.checker.core.Exec;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
@@ -16,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Detects tell-tale signs the PC was "cleaned" before the check: cleared event
@@ -187,15 +187,7 @@ public final class AntiForensicCheck implements CheckModule {
     }
 
     private String powershell(String script) {
-        try {
-            Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-Command", script)
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor(30, TimeUnit.SECONDS);
-            return out;
-        } catch (Throwable t) {
-            return null;
-        }
+        Exec.Result r = Exec.powershell(script, Duration.ofSeconds(45));
+        return r.error() != null || r.timedOut() ? null : r.output();
     }
 }
