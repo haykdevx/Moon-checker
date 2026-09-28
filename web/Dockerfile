@@ -12,7 +12,9 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY . .
-RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput -v0 \
+# the source is read by the unprivileged "moon" user, whatever the permissions in the build context
+RUN chmod -R a+rX /app \
+    && DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput -v0 \
     && mkdir -p /app/downloads && chown -R moon:moon /app/downloads
 
 USER moon

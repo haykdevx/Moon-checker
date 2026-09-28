@@ -53,6 +53,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "core.middleware.RealIpMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "core.middleware.LanguageMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -73,6 +74,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context.panel",
@@ -146,9 +148,13 @@ X_FRAME_OPTIONS = "DENY"
 MOON_TRUST_X_REAL_IP = env_bool("MOON_TRUST_X_REAL_IP", not DEBUG)
 
 # --- i18n / time ----------------------------------------------------------
-LANGUAGE_CODE = "en-us"
+# Russian by default (the server's admins); English through the switch in the header.
+LANGUAGE_CODE = "ru"
+LANGUAGES = [("ru", "Русский"), ("en", "English")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
+LANGUAGE_COOKIE_NAME = "moon_lang"
 TIME_ZONE = env("MOON_TIME_ZONE", "Europe/Moscow")
-USE_I18N = False
+USE_I18N = True
 USE_TZ = True
 
 # --- static ---------------------------------------------------------------

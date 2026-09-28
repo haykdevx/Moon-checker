@@ -1,16 +1,17 @@
 {% extends "base_auth.html" %}
-{% block title %}{% if invite.kind == 'reset' %}Set a new password{% else %}Join the team{% endif %}{% endblock %}
+{% load i18n %}
+{% block title %}{% if invite.kind == 'reset' %}{% translate "Set a new password" %}{% else %}{% translate "Join the team" %}{% endif %}{% endblock %}
 {% block content %}
 {% if invite.kind == 'reset' %}
-  <h2>Set a new password</h2>
-  <p class="muted">For <b>{{ invite.user.username }}</b>. This link works once.</p>
+  <h2>{% translate "Set a new password" %}</h2>
+  <p class="muted">{% blocktranslate with name=invite.user.username %}For <b>{{ name }}</b>. This link works once.{% endblocktranslate %}</p>
 {% else %}
-  <h2>Join Moon Panel</h2>
-  <p class="muted">You were invited as <b>{{ invite.role.name }}</b>{% if invite.created_by %} by {{ invite.created_by.username }}{% endif %}. Your alias is shown to players when they enter your check code.</p>
+  <h2>{% translate "Join Moon Panel" %}</h2>
+  <p class="muted">{% blocktranslate with role=invite.role.label %}You were invited as <b>{{ role }}</b>.{% endblocktranslate %}{% if invite.created_by %} {% blocktranslate with name=invite.created_by.username %}Invited by {{ name }}.{% endblocktranslate %}{% endif %} {% translate "Players see your nickname when they enter your check code." %}</p>
 {% endif %}
 <form method="post" novalidate>
   {% csrf_token %}
   {% include "_form.html" %}
-  <button class="btn primary" type="submit">{% if invite.kind == 'reset' %}Save password{% else %}Create account{% endif %}</button>
+  <button class="btn primary" type="submit">{% if invite.kind == 'reset' %}{% translate "Save password" %}{% else %}{% translate "Create account" %}{% endif %}</button>
 </form>
 {% endblock %}

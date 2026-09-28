@@ -5,6 +5,18 @@
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+  // the few strings the script writes itself, in the page's language
+  const RU = (document.documentElement.lang || "ru").startsWith("ru");
+  const T = RU ? {
+    copied: "Скопировано ✓", expired: "истёк", codeExpired: "код истёк — создайте новую проверку",
+    secAgo: s => s + " с назад", minAgo: m => m + " мин назад",
+    progress: (d, t) => d + " из " + t + " разделов проверено", starting: "запуск…",
+  } : {
+    copied: "Copied ✓", expired: "expired", codeExpired: "code expired — create a new check",
+    secAgo: s => s + "s ago", minAgo: m => m + "m ago",
+    progress: (d, t) => d + " of " + t + " parts checked", starting: "starting…",
+  };
+
   // colours coming from data (CSP forbids inline style attributes)
   function paint(root) {
     $$("[data-color]", root).forEach(el => { el.style.background = el.dataset.color; });
@@ -23,14 +35,15 @@
     }
     navigator.clipboard.writeText(text).then(() => {
       const old = btn.textContent;
-      btn.textContent = "Copied ✓";
+      btn.textContent = T.copied;
       setTimeout(() => { btn.textContent = old; }, 1400);
     });
   });
 
-  // confirmation for destructive forms
+  // confirmation for destructive forms, or for one button of a form (data-confirm-button)
   document.addEventListener("submit", e => {
-    const msg = e.target.dataset.confirm;
+    const button = e.submitter;
+    const msg = (button && button.dataset.confirmButton) || e.target.dataset.confirm;
     if (msg && !window.confirm(msg)) e.preventDefault();
   });
 
@@ -44,7 +57,12 @@
   function tickCountdowns() {
     $$("[data-expires]").forEach(el => {
       const left = Math.round((new Date(el.dataset.expires) - Date.now()) / 1000);
-      if (left <= 0) { el.textContent = "expired"; el.classList.add("t-bad"); return; }
+      if (left <= 0) {
+        const phrase = el.closest("[data-expiry]");   // replace the whole "valid for …" phrase
+        (phrase || el).textContent = phrase ? T.codeExpired : T.expired;
+        (phrase || el).classList.add("t-bad");
+        return;
+      }
       const m = Math.floor(left / 60), s = left % 60;
       el.textContent = m + ":" + String(s).padStart(2, "0");
     });
@@ -55,7 +73,7 @@
     $$("[data-ago]").forEach(el => {
       if (!el.dataset.ago) return;
       const s = Math.max(0, Math.round((Date.now() - new Date(el.dataset.ago)) / 1000));
-      el.textContent = s < 60 ? s + "s ago" : Math.floor(s / 60) + "m ago";
+      el.textContent = s < 60 ? T.secAgo(s) : T.minAgo(Math.floor(s / 60));
     });
   }
 
@@ -74,7 +92,7 @@
           const bar = $("[data-progress-bar]");
           if (bar) bar.style.width = d.percent + "%";
           const set = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
-          set("[data-progress-text]", d.total ? `${d.done} / ${d.total} modules` : "starting…");
+          set("[data-progress-text]", d.total ? T.progress(d.done, d.total) : T.starting);
           set("[data-progress-module]", d.module || "—");
           Object.entries(d.counts).forEach(([k, v]) => set(`[data-count="${k}"]`, v));
           const ago = $("[data-last-seen]");
@@ -86,24 +104,24 @@
     setTimeout(poll, 2000);
   }
 
-  // dashboard: refresh the rows while something is open
-  function liveTable() {
-    const body = $("[data-refresh-rows]");
-    if (!body) return;
+  // dashboard: refresh the work queues while a check is waiting or running
+  function liveQueues() {
+    const block = $("[data-refresh-block]");
+    if (!block) return;
     async function refresh() {
-      if (body.dataset.active !== "1") return;
+      if (block.dataset.active !== "1") return;
       try {
         const url = new URL(window.location.href);
         url.searchParams.set("fragment", "1");
         const r = await fetch(url, { credentials: "same-origin" });
         if (r.ok) {
-          const tmp = document.createElement("tbody");
+          const tmp = document.createElement("div");
           tmp.innerHTML = await r.text();   // server-rendered, auto-escaped HTML
           const marker = tmp.querySelector("[data-any-open]");
-          body.dataset.active = marker ? marker.dataset.anyOpen : "0";
-          body.replaceChildren(...tmp.childNodes);
-          paint(body);
-          tickAgo();
+          block.dataset.active = marker ? marker.dataset.anyOpen : "0";
+          block.replaceChildren(...tmp.childNodes);
+          paint(block);
+          tickCountdowns();
         }
       } catch (_) { /* ignore */ }
       setTimeout(refresh, 4000);
@@ -154,6 +172,6 @@
   setInterval(tickCountdowns, 1000);
   setInterval(tickAgo, 1000);
   liveCheck();
-  liveTable();
+  liveQueues();
   findingsFilter();
 })();

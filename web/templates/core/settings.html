@@ -1,31 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Settings" %}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Panel settings</h1></div>
+<div class="page-head"><h1>{% translate "Panel settings" %}</h1></div>
 <div class="grid two">
   <div class="card">
-    <h2>Checks &amp; security</h2>
+    <h2>{% translate "Checks and security" %}</h2>
     <form method="post" novalidate>{% csrf_token %}{% include "_form.html" %}
-      <button class="btn primary" type="submit">Save settings</button>
+      <button class="btn primary" type="submit">{% translate "Save settings" %}</button>
     </form>
   </div>
   <div>
     <div class="card">
-      <h2>Trusted checker builds</h2>
-      <p class="muted small">SHA-256 of each official <code>MoonCheck.exe</code> / <code>moon-checker.jar</code> you distribute. Checks from any other file are flagged red (or refused, if blocking is on). The deploy script registers new builds automatically.</p>
+      <h2>{% translate "Trusted checker builds" %}</h2>
+      <p class="muted small">{% blocktranslate %}SHA-256 of each official <code>MoonCheck.exe</code> / <code>moon-checker.jar</code> you give to players. Reports from any other file are flagged red (or refused, if blocking is on). The deploy script registers new builds by itself.{% endblocktranslate %}</p>
       {% if builds %}
       <table>
         <tbody>
         {% for b in builds %}
-          <tr><td><b>{{ b.label }}</b><div class="mono small break muted">{{ b.sha256 }}</div><div class="muted small">{{ b.added_at|date:"Y-m-d" }}{% if b.added_by %} · {{ b.added_by.username }}{% endif %}</div></td>
-            <td class="right"><form method="post" action="{% url 'core:build_remove' b.pk %}" data-confirm="Stop trusting {{ b.label }}?">{% csrf_token %}<button class="btn small danger" type="submit">Remove</button></form></td></tr>
+          <tr><td><b>{{ b.label }}</b><div class="mono small break muted">{{ b.sha256 }}</div><div class="muted small">{{ b.added_at|date:"j E Y" }}{% if b.added_by %} · {{ b.added_by.username }}{% endif %}</div></td>
+            <td class="right"><form method="post" action="{% url 'core:build_remove' b.pk %}" data-confirm="{% blocktranslate with name=b.label %}Stop trusting {{ name }}?{% endblocktranslate %}">{% csrf_token %}<button class="btn small danger" type="submit">{% translate "Remove" %}</button></form></td></tr>
         {% endfor %}
         </tbody>
       </table>
-      {% else %}<p class="t-warn">No trusted builds yet — every check will show a warning.</p>{% endif %}
-      <h3>Add build</h3>
+      {% else %}<p class="t-warn">{% translate "No trusted builds yet — every check will show a warning." %}</p>{% endif %}
+      <h3>{% translate "Add a build" %}</h3>
       <form method="post" action="{% url 'core:build_add' %}" novalidate>{% csrf_token %}{% include "_form.html" with form=build_form %}
-        <button class="btn" type="submit">Add</button>
+        <button class="btn" type="submit">{% translate "Add" %}</button>
       </form>
     </div>
   </div>

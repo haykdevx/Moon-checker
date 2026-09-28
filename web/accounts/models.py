@@ -36,7 +36,22 @@ class Role(models.Model):
         ordering = ["-rank", "name"]
 
     def __str__(self):
-        return self.name
+        return str(self.label)
+
+    @property
+    def label(self):
+        """A built-in role keeps its translated name until someone renames it."""
+        from django.utils.translation import gettext
+        from .permissions import DEFAULT_TEXT
+        default = DEFAULT_TEXT.get(self.slug)
+        return gettext(self.name) if default and default[0] == self.name else self.name
+
+    @property
+    def label_description(self):
+        from django.utils.translation import gettext
+        from .permissions import DEFAULT_TEXT
+        default = DEFAULT_TEXT.get(self.slug)
+        return gettext(self.description) if default and default[1] == self.description else self.description
 
     @property
     def is_owner_role(self):

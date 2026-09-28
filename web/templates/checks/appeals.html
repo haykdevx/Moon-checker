@@ -1,40 +1,39 @@
 {% extends "base.html" %}
-{% load moon %}
-{% block title %}Appeals & requests{% endblock %}
+{% load i18n moon %}
+{% block title %}{% translate "Appeals" %}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Appeals &amp; player requests</h1></div>
-<p class="muted">Appeals are resolved by a different admin than the one who decided. Every resolution is recorded in the audit log.</p>
-<h2>Appeals</h2>
+<div class="page-head"><div><h1>{% translate "Appeals and player requests" %}</h1>
+<p class="lead">{% translate "An appeal is resolved by a different admin than the one who decided. Every resolution is recorded in the log." %}</p></div></div>
+<h2>{% translate "Appeals" %}</h2>
 {% for a in appeals %}
-<div class="card">
-  <div class="page-head">
-    <div class="status-line"><b>#{{ a.pk }}</b> <a href="{% url 'checks:detail' a.session.pk %}">{{ a.session.player_name }}</a>
-      {% if a.session.is_test %}<span class="badge test">TEST</span>{% endif %}
-      <span class="badge {% if a.status == 'OPEN' %}tone-review{% endif %}">{{ a.get_status_display }}</span>
-      <span class="muted small">decision at filing: {{ a.decision_at_filing|default:"—" }} · admin {{ a.session.admin.username }} · {{ a.created_at|date:"Y-m-d H:i" }}</span></div>
-  </div>
-  <p class="small">{{ a.statement|linebreaksbr }}</p>
-  {% if a.contact %}<p class="small muted">Contact: {{ a.contact }}</p>{% endif %}
+<div class="card stack">
+  <div class="status-line"><b>{% blocktranslate with n=a.pk %}Appeal #{{ n }}{% endblocktranslate %}</b> <a href="{% url 'checks:detail' a.session.pk %}">{{ a.session.player_name }}</a>
+    {% if a.session.is_test %}<span class="badge test">{% translate "TEST" %}</span>{% endif %}
+    <span class="badge {% if a.status == 'OPEN' %}tone-review{% endif %}">{{ a.get_status_display }}</span></div>
+  <div class="muted small">{% translate "decision when filed" %}: {{ a.decision_at_filing|decision_label }} · {% translate "admin" %} {{ a.session.admin.username }} · {{ a.created_at|date:"j E, H:i" }}</div>
+  <blockquote class="statement">{{ a.statement|linebreaksbr }}</blockquote>
+  {% if a.contact %}<p class="small muted">{% translate "Contact" %}: {{ a.contact }}</p>{% endif %}
   {% if a.status == "OPEN" %}
-    <form method="post" action="{% url 'checks:resolve_appeal' a.pk %}" novalidate class="grid two">{% csrf_token %}
-      <div>{% include "_form.html" with form=resolve_form %}<button class="btn primary" type="submit">Resolve</button></div>
+    <form method="post" action="{% url 'checks:resolve_appeal' a.pk %}" novalidate class="resolve-form">{% csrf_token %}
+      {% include "_form.html" with form=resolve_form %}
+      <button class="btn primary" type="submit">{% translate "Resolve" %}</button>
     </form>
   {% else %}
-    <p class="small"><b>{{ a.get_status_display }}</b> by {{ a.resolved_by.username|default:"—" }} on {{ a.resolved_at|date:"Y-m-d H:i" }}: {{ a.resolution }}</p>
+    <p class="small"><b>{{ a.get_status_display }}</b> — {{ a.resolved_by.username|default:"—" }}, {{ a.resolved_at|date:"j E, H:i" }}: {{ a.resolution }}</p>
   {% endif %}
 </div>
-{% empty %}<p class="muted">No appeals.</p>{% endfor %}
+{% empty %}<p class="muted">{% translate "No appeals." %}</p>{% endfor %}
 
 {% if requests %}
-<h2>Deletion requests</h2>
+<h2>{% translate "Data deletion requests" %}</h2>
 <div class="table-wrap"><table class="cards-sm">
-  <thead><tr><th>Check</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+  <thead><tr><th>{% translate "Check" %}</th><th>{% translate "Reason" %}</th><th>{% translate "Status" %}</th><th>{% translate "Action" %}</th></tr></thead>
   <tbody>{% for r in requests %}
     <tr>
-      <td class="c-player">{% if r.session %}<a href="{% url 'checks:detail' r.session.pk %}">{{ r.session_label }}</a>{% else %}{{ r.session_label }}{% endif %}<div class="muted small">{{ r.created_at|date:"Y-m-d H:i" }}</div></td>
-      <td class="small" data-label="Reason">{{ r.reason|default:"—" }}</td>
-      <td data-label="Status">{{ r.get_status_display }}{% if r.note %}<div class="muted small">{{ r.note }}</div>{% endif %}</td>
-      <td class="c-wide">{% if r.status == "OPEN" %}<form method="post" action="{% url 'checks:handle_request' r.pk %}" novalidate data-confirm="Apply this to the player's data?">{% csrf_token %}{% include "_form.html" with form=handle_form %}<button class="btn small" type="submit">Apply</button></form>{% endif %}</td>
+      <td class="c-player">{% if r.session %}<a href="{% url 'checks:detail' r.session.pk %}">{{ r.session_label }}</a>{% else %}{{ r.session_label }}{% endif %}<div class="muted small">{{ r.created_at|date:"j E, H:i" }}</div></td>
+      <td class="small" data-label="{% translate 'Reason' %}">{{ r.reason|default:"—" }}</td>
+      <td data-label="{% translate 'Status' %}">{{ r.get_status_display }}{% if r.note %}<div class="muted small">{{ r.note }}</div>{% endif %}</td>
+      <td class="c-wide">{% if r.status == "OPEN" %}<form method="post" action="{% url 'checks:handle_request' r.pk %}" novalidate data-confirm="{% translate "Apply this to the player's data?" %}">{% csrf_token %}{% include "_form.html" with form=handle_form %}<button class="btn small" type="submit">{% translate "Apply" %}</button></form>{% endif %}</td>
     </tr>{% endfor %}</tbody>
 </table></div>
 {% endif %}

@@ -13,6 +13,7 @@ urlpatterns = [
     path("audit/", views.audit, name="audit"),
     path("download/", views.download, name="download"),
     path("healthz", views.healthz, name="healthz"),
+    path("language/", views.set_language, name="set_language"),
 ]
 
 if settings.DEBUG:  # production serves the files straight from nginx

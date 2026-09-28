@@ -1,6 +1,7 @@
 import ipaddress
 
 from django.conf import settings
+from django.utils import translation
 
 CSP = "; ".join([
     "default-src 'self'",
@@ -31,6 +32,28 @@ class RealIpMiddleware:
             except ValueError:
                 pass
         return self.get_response(request)
+
+
+class LanguageMiddleware:
+    """The panel is Russian unless the member picked English (cookie from the header switch).
+    Player pages follow the player's own choice instead (?lang=, then the browser)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from .public_text import is_public_path, language as public_language
+        if is_public_path(request.path):
+            lang = public_language(request)
+        else:
+            lang = request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME)
+            if lang not in dict(settings.LANGUAGES):
+                lang = settings.LANGUAGE_CODE
+        translation.activate(lang)
+        request.LANGUAGE_CODE = lang
+        response = self.get_response(request)
+        response.headers.setdefault("Content-Language", lang)
+        return response
 
 
 class SecurityHeadersMiddleware:

@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
+from django.utils.translation import gettext as _t
 from django.views.decorators.http import require_POST
 
 from core import ratelimit
@@ -67,7 +68,7 @@ def login_view(request):
         if (ratelimit.exceeded("login-ip", ip, 30) or ratelimit.exceeded("login-user", alias, 10)
                 or ratelimit.exceeded("login-pair", f"{ip}:{alias}", 5)):
             record(request, "login.throttled", alias)
-            form.add_error(None, "Too many failed attempts. Wait 15 minutes and try again.")
+            form.add_error(None, _t("Too many failed attempts. Wait 15 minutes and try again."))
         else:
             user = authenticate(request, username=alias, password=form.cleaned_data["password"])
             if user is None:
@@ -75,7 +76,7 @@ def login_view(request):
                 ratelimit.hit("login-user", alias, LOCK_WINDOW)
                 ratelimit.hit("login-pair", f"{ip}:{alias}", LOCK_WINDOW)
                 record(request, "login.failed", alias)
-                form.add_error(None, "Wrong alias or password.")
+                form.add_error(None, _t("Wrong alias or password."))
             elif user.totp_enabled:
                 request.session.cycle_key()
                 request.session["pending_2fa"] = {"uid": user.pk, "at": time.time(), "tries": 0,
@@ -100,7 +101,7 @@ def login_2fa(request):
         if ratelimit.exceeded("2fa-user", user.pk, 10):
             request.session.pop("pending_2fa", None)
             record(request, "login.2fa_throttled", user.username, actor=user)
-            messages.error(request, "Too many wrong codes. Wait 15 minutes.")
+            messages.error(request, _t("Too many wrong codes. Wait 15 minutes."))
             return redirect("accounts:login")
         code = form.cleaned_data["code"]
         used_recovery = False
@@ -111,7 +112,7 @@ def login_2fa(request):
             request.session.pop("pending_2fa", None)
             if used_recovery:
                 left = user.recovery_codes.filter(used_at__isnull=True).count()
-                messages.warning(request, f"Signed in with a recovery code. {left} left — regenerate them soon.")
+                messages.warning(request, _t("Signed in with a recovery code. %(left)s left — regenerate them soon.") % {"left": left})
                 record(request, "login.recovery_code", user.username, actor=user, remaining=left)
             return _finish_login(request, user, pending.get("next"))
         ratelimit.hit("2fa-user", user.pk, LOCK_WINDOW)
@@ -119,10 +120,10 @@ def login_2fa(request):
         record(request, "login.2fa_failed", user.username, actor=user)
         if pending["tries"] >= 5:
             request.session.pop("pending_2fa", None)
-            messages.error(request, "Too many wrong codes. Sign in again.")
+            messages.error(request, _t("Too many wrong codes. Sign in again."))
             return redirect("accounts:login")
         request.session["pending_2fa"] = pending
-        form.add_error("code", "That code is not valid.")
+        form.add_error("code", _t("That code is not valid."))
     return render(request, "accounts/login_2fa.html", {"form": form, "alias": user.username})
 
 
@@ -157,7 +158,7 @@ def invite_accept(request, token):
                 invite.used_at, invite.used_by = timezone.now(), user
                 invite.save(update_fields=["used_at", "used_by"])
             record(request, "password.reset_used", user.username, actor=user)
-            messages.success(request, "Password set. Sign in with your new password.")
+            messages.success(request, _t("Password set. Sign in with your new password."))
             return redirect("accounts:login")
         return render(request, "accounts/invite_accept.html", {"form": form, "invite": invite})
 
@@ -175,7 +176,7 @@ def invite_accept(request, token):
         record(request, "member.joined", user.username, actor=user, role=invite.role.slug,
                invited_by=invite.created_by.username if invite.created_by else None)
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-        messages.success(request, f"Welcome to the team, {user.label}.")
+        messages.success(request, _t("Welcome to the team, %(name)s.") % {"name": user.label})
         return redirect("checks:dashboard")
     return render(request, "accounts/invite_accept.html", {"form": form, "invite": invite})
 
@@ -189,7 +190,7 @@ def account(request):
     if request.method == "POST" and form.is_valid():
         form.save()
         record(request, "account.profile_updated", user.username, fields=form.changed_data)
-        messages.success(request, "Profile saved.")
+        messages.success(request, _t("Profile saved."))
         return redirect("accounts:account")
     return render(request, "accounts/account.html", {
         "form": form,
@@ -209,7 +210,7 @@ def password_change(request):
         user.save()
         update_session_auth_hash(request, user)
         record(request, "password.changed", user.username)
-        messages.success(request, "Password changed.")
+        messages.success(request, _t("Password changed."))
         return redirect("accounts:account")
     return render(request, "accounts/password.html", {"form": form, "forced": request.user.must_change_password})
 
@@ -227,7 +228,7 @@ def twofa_setup(request):
     if request.method == "POST" and form.is_valid():
         step = totp.match_step(secret, form.cleaned_data["code"])
         if step is None:
-            form.add_error("code", "That code does not match. Check the phone's clock and try again.")
+            form.add_error("code", _t("That code does not match. Check the phone's clock and try again."))
         else:
             user.totp_secret, user.totp_enabled, user.totp_last_step = secret, True, step
             user.save(update_fields=["totp_secret", "totp_enabled", "totp_last_step"])
@@ -255,7 +256,7 @@ def twofa_recovery(request):
 def twofa_regenerate(request):
     user = request.user
     if not user.totp_enabled or not totp.verify_user(user, request.POST.get("code", "")):
-        messages.error(request, "Enter a valid authenticator code to regenerate recovery codes.")
+        messages.error(request, _t("Enter a valid authenticator code to regenerate recovery codes."))
         return redirect("accounts:account")
     request.session["show_recovery"] = totp.issue_recovery_codes(user)
     record(request, "2fa.recovery_regenerated", user.username)
@@ -267,7 +268,7 @@ def twofa_regenerate(request):
 def twofa_disable(request):
     user = request.user
     if SiteSettings.load().require_2fa:
-        messages.error(request, "Two-factor authentication is mandatory on this panel.")
+        messages.error(request, _t("Two-factor authentication is mandatory on this panel."))
         return redirect("accounts:account")
     form = DisableTotpForm(request.POST)
     if form.is_valid() and user.check_password(form.cleaned_data["password"]) \
@@ -276,9 +277,9 @@ def twofa_disable(request):
         user.save(update_fields=["totp_enabled", "totp_secret"])
         user.recovery_codes.all().delete()
         record(request, "2fa.disabled", user.username)
-        messages.success(request, "Two-factor authentication disabled.")
+        messages.success(request, _t("Two-factor authentication disabled."))
     else:
-        messages.error(request, "Password or code is wrong.")
+        messages.error(request, _t("Password or code is wrong."))
     return redirect("accounts:account")
 
 
@@ -288,7 +289,7 @@ def signout_everywhere(request):
     request.user.bump_sessions()
     update_session_auth_hash(request, request.user)
     record(request, "account.signout_everywhere", request.user.username)
-    messages.success(request, "All other sessions were signed out.")
+    messages.success(request, _t("All other sessions were signed out."))
     return redirect("accounts:account")
 
 
@@ -322,13 +323,13 @@ def team(request):
 def invite_create(request):
     form = InviteForm(request.POST, roles=policy.assignable_roles(request.user))
     if not form.is_valid():
-        messages.error(request, "Pick a role you are allowed to assign.")
+        messages.error(request, _t("Pick a role you are allowed to assign."))
         return redirect("accounts:team")
     invite, token = Invite.issue(Invite.KIND_INVITE, request.user, hours=form.cleaned_data["hours"],
                                  role=form.cleaned_data["role"], note=form.cleaned_data["note"])
     record(request, "invite.created", invite.note or f"invite #{invite.pk}", role=invite.role.slug,
            hours=form.cleaned_data["hours"])
-    _flash_link(request, f"Invite link for a new {invite.role.name}", token)
+    _flash_link(request, _t("Invite link for a new %(role)s") % {"role": invite.role.label}, token)
     return redirect("accounts:team")
 
 
@@ -344,7 +345,7 @@ def invite_revoke(request, pk):
     invite.expires_at = timezone.now()
     invite.save(update_fields=["expires_at"])
     record(request, "invite.revoked", f"invite #{invite.pk}")
-    messages.success(request, "Link revoked.")
+    messages.success(request, _t("Link revoked."))
     return redirect("accounts:team")
 
 
@@ -368,7 +369,7 @@ def member_detail(request, alias):
         if request.method == "POST" and form.is_valid():
             new_role, active = form.cleaned_data["role"], form.cleaned_data["is_active"]
             if policy.would_orphan_owners(member, new_role=new_role, deactivate=not active):
-                messages.error(request, "That would leave the panel without an active owner.")
+                messages.error(request, _t("That would leave the panel without an active owner."))
                 return redirect("accounts:member", alias=member.username)
             changes = {}
             if new_role != member.role:
@@ -384,7 +385,7 @@ def member_detail(request, alias):
             member.save()
             if changes:
                 record(request, "member.updated", member.username, **changes)
-            messages.success(request, "Member updated.")
+            messages.success(request, _t("Member updated."))
             return redirect("accounts:member", alias=member.username)
     events = AuditEvent.objects.filter(target=member.username)[:25] if actor.can("audit.view") else []
     return render(request, "team/member.html", {
@@ -403,18 +404,18 @@ def member_action(request, alias, action):
     if action == "reset-password":
         invite, token = Invite.issue(Invite.KIND_RESET, actor, hours=24, user=member)
         record(request, "password.reset_issued", member.username)
-        _flash_link(request, f"Password reset link for {member.username} (valid 24 h)", token)
+        _flash_link(request, _t("Password reset link for %(name)s (valid 24 h)") % {"name": member.username}, token)
     elif action == "reset-2fa":
         member.totp_enabled, member.totp_secret = False, ""
         member.session_epoch += 1
         member.save(update_fields=["totp_enabled", "totp_secret", "session_epoch"])
         member.recovery_codes.all().delete()
         record(request, "2fa.reset_by_manager", member.username)
-        messages.success(request, f"2FA reset for {member.username}. They must enroll again at next sign-in.")
+        messages.success(request, _t("2FA reset for %(name)s. They must set it up again at the next sign-in.") % {"name": member.username})
     elif action == "signout":
         member.bump_sessions()
         record(request, "member.signed_out", member.username)
-        messages.success(request, f"{member.username} was signed out everywhere.")
+        messages.success(request, _t("%(name)s was signed out everywhere.") % {"name": member.username})
     else:
         raise Http404
     return redirect("accounts:member", alias=member.username)
@@ -456,7 +457,7 @@ def role_edit(request, slug=None):
             # everyone holding this role gets fresh sessions with the new rights
             for m in obj.members.all():
                 m.bump_sessions()
-        messages.success(request, f"Role {obj.name} saved.")
+        messages.success(request, _t("Role %(name)s saved.") % {"name": obj.name})
         return redirect("accounts:roles")
     return render(request, "team/role_edit.html", {"form": form, "role": role})
 
@@ -468,9 +469,9 @@ def role_delete(request, slug):
     if not policy.can_edit_role(request.user, role) or role.is_system:
         raise PermissionDenied
     if role.members.exists():
-        messages.error(request, "Move the members to another role first.")
+        messages.error(request, _t("Move the members to another role first."))
     else:
         record(request, "role.deleted", role.slug)
         role.delete()
-        messages.success(request, "Role deleted.")
+        messages.success(request, _t("Role deleted."))
     return redirect("accounts:roles")

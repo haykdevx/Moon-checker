@@ -1,34 +1,30 @@
 {% extends "base.html" %}
-{% block title %}{% if role %}Edit {{ role.name }}{% else %}New role{% endif %}{% endblock %}
+{% load i18n %}
+{% block title %}{% if role %}{{ role.label }}{% else %}{% translate "New role" %}{% endif %}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>{% if role %}Edit role: {{ role.name }}{% else %}New role{% endif %}</h1><a class="btn" href="{% url 'accounts:roles' %}">← Roles</a></div>
+<a class="back" href="{% url 'accounts:roles' %}">← {% translate "Roles" %}</a>
+<div class="page-head"><h1>{% if role %}{% blocktranslate with name=role.label %}Edit role: {{ name }}{% endblocktranslate %}{% else %}{% translate "New role" %}{% endif %}</h1></div>
 <form method="post" novalidate>
   {% csrf_token %}
   <div class="grid two">
     <div class="card">
       {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-      {% for field in form %}{% if field.name != "permissions" %}
-      <div class="field">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
-        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
-        {% for e in field.errors %}<div class="err">{{ e }}</div>{% endfor %}
-      </div>
-      {% endif %}{% endfor %}
+      {% for field in form %}{% if field.name != "permissions" %}{% include "_field.html" %}{% endif %}{% endfor %}
     </div>
     <div class="card">
-      <h2>Permissions</h2>
+      <h2>{% translate "Permissions" %}</h2>
       {% for title, codes in form.permission_groups %}{% if codes %}
       <div class="perm-group"><h3>{{ title }}</h3><ul>
         {% for choice in form.permissions %}{% if choice.data.value in codes %}<li>{{ choice.tag }} <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label> <code class="muted small">{{ choice.data.value }}</code></li>{% endif %}{% endfor %}
       </ul></div>
       {% endif %}{% endfor %}
-      {% if form.hidden_permissions %}<p class="muted small">This role also has permissions you do not hold; they stay unchanged: {{ form.hidden_permissions|join:", " }}</p>{% endif %}
+      {% if form.hidden_permissions %}<p class="muted small">{% translate "This role also has permissions you do not hold; they stay unchanged:" %} {{ form.hidden_permissions|join:", " }}</p>{% endif %}
     </div>
   </div>
-  <div class="actions"><button class="btn primary big" type="submit">Save role</button></div>
+  <div class="actions"><button class="btn primary big" type="submit">{% translate "Save role" %}</button></div>
 </form>
 {% if role and not role.is_system %}
 <p></p>
-<form method="post" action="{% url 'accounts:role_delete' role.slug %}" data-confirm="Delete role {{ role.name }}?">{% csrf_token %}<button class="btn danger" type="submit">Delete role</button></form>
+<form method="post" action="{% url 'accounts:role_delete' role.slug %}" data-confirm="{% blocktranslate with name=role.label %}Delete role {{ name }}?{% endblocktranslate %}">{% csrf_token %}<button class="btn danger" type="submit">{% translate "Delete role" %}</button></form>
 {% endif %}
 {% endblock %}

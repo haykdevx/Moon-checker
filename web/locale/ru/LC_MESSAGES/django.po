@@ -1,0 +1,2369 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: accounts/forms.py
+msgid "1 hour"
+msgstr "1 час"
+
+#: accounts/forms.py
+msgid "1–%(max)s. You can only manage roles below your own rank (%(own)s)."
+msgstr "1–%(max)s. Можно управлять только ролями ниже вашего ранга (%(own)s)."
+
+#: accounts/forms.py
+msgid "24 hours"
+msgstr "24 часа"
+
+#: accounts/forms.py
+msgid "48 hours"
+msgstr "48 часов"
+
+#: accounts/forms.py
+msgid "6-digit code from the app"
+msgstr "6-значный код из приложения"
+
+#: accounts/forms.py
+msgid "7 days"
+msgstr "7 дней"
+
+#: accounts/forms.py
+msgid "Account active"
+msgstr "Аккаунт активен"
+
+#: accounts/forms.py
+msgid "Code from the app or a recovery code"
+msgstr "Код из приложения или резервный код"
+
+#: accounts/forms.py
+msgid "Colour"
+msgstr "Цвет"
+
+#: accounts/forms.py
+msgid "Current code from the app"
+msgstr "Текущий код из приложения"
+
+#: accounts/forms.py
+msgid "Current password"
+msgstr "Текущий пароль"
+
+#: accounts/forms.py
+msgid "Current password is wrong."
+msgstr "Текущий пароль неверный."
+
+#: accounts/forms.py
+msgid "Description"
+msgstr "Описание"
+
+#: accounts/forms.py
+#: checks/views.py
+msgid "Discord"
+msgstr "Discord"
+
+#: accounts/forms.py
+msgid "Discord webhook for your results"
+msgstr "Discord-вебхук для ваших результатов"
+
+#: accounts/forms.py
+msgid "Display name"
+msgstr "Отображаемое имя"
+
+#: accounts/forms.py
+#: core/views.py
+msgid "Name"
+msgstr "Название"
+
+#: accounts/forms.py
+msgid "New password"
+msgstr "Новый пароль"
+
+#: accounts/forms.py
+#: templates/checks/detail.html
+#: templates/team/team.html
+msgid "Nickname"
+msgstr "Ник"
+
+#: accounts/forms.py
+msgid "Nickname (players will see it)"
+msgstr "Ник (его увидят игроки)"
+
+#: accounts/forms.py
+#: templates/checks/detail.html
+msgid "Note"
+msgstr "Заметка"
+
+#: accounts/forms.py
+#: templates/accounts/account.html
+#: templates/accounts/password.html
+msgid "Password"
+msgstr "Пароль"
+
+#: accounts/forms.py
+#: templates/team/role_edit.html
+#: templates/team/roles.html
+msgid "Permissions"
+msgstr "Права"
+
+#: accounts/forms.py
+#: templates/team/roles.html
+msgid "Rank"
+msgstr "Ранг"
+
+#: accounts/forms.py
+msgid "Rank must be between 1 and %(max)s."
+msgstr "Ранг должен быть от 1 до %(max)s."
+
+#: accounts/forms.py
+msgid "Repeat the new password"
+msgstr "Повторите новый пароль"
+
+#: accounts/forms.py
+#: templates/team/member.html
+#: templates/team/roles.html
+#: templates/team/team.html
+msgid "Role"
+msgstr "Роль"
+
+#: accounts/forms.py
+msgid "The two passwords do not match."
+msgstr "Пароли не совпадают."
+
+#: accounts/forms.py
+msgid "This nickname is already taken."
+msgstr "Этот ник уже занят."
+
+#: accounts/forms.py
+#: templates/checks/detail.html
+msgid "Valid for"
+msgstr "Действует"
+
+#: accounts/forms.py
+msgid "Who is this for? Only the team sees it."
+msgstr "Для кого ссылка? Видит только команда."
+
+#: accounts/permissions.py
+#: templates/checks/_session_rows.html
+#: templates/checks/dashboard.html
+msgid "Admin"
+msgstr "Админ"
+
+#: accounts/permissions.py
+msgid "Can run checks; a senior admin records the decision."
+msgstr "Проводит проверки; решение записывает старший админ."
+
+#: accounts/permissions.py
+msgid "Change panel settings and trusted checker builds"
+msgstr "Менять настройки панели и доверенные сборки чекера"
+
+#: accounts/permissions.py
+#: core/context.py
+#: templates/checks/dashboard.html
+#: templates/checks/rules.html
+#: templates/checks/search.html
+#: templates/team/team.html
+msgid "Checks"
+msgstr "Проверки"
+
+#: accounts/permissions.py
+msgid "Checks players and decides on their own checks."
+msgstr "Проверяет игроков и принимает решения по своим проверкам."
+
+#: accounts/permissions.py
+msgid "Create and edit lower-ranked roles"
+msgstr "Создавать и менять роли ниже своей"
+
+#: accounts/permissions.py
+msgid "Create check codes for players"
+msgstr "Создавать коды проверки для игроков"
+
+#: accounts/permissions.py
+msgid "Delete checks"
+msgstr "Удалять проверки"
+
+#: accounts/permissions.py
+msgid "Download raw evidence JSON"
+msgstr "Скачивать полный отчёт (JSON)"
+
+#: accounts/permissions.py
+msgid "Full control. Cannot be edited; the last active owner cannot be removed."
+msgstr "Полный доступ. Роль не редактируется; последнего активного владельца нельзя убрать."
+
+#: accounts/permissions.py
+msgid "Head Admin"
+msgstr "Старший админ"
+
+#: accounts/permissions.py
+msgid "Invite, edit, disable and reset lower-ranked members"
+msgstr "Приглашать, менять, отключать и сбрасывать доступ участникам ниже рангом"
+
+#: accounts/permissions.py
+msgid "Observer"
+msgstr "Наблюдатель"
+
+#: accounts/permissions.py
+msgid "Owner"
+msgstr "Владелец"
+
+#: accounts/permissions.py
+msgid "Panel"
+msgstr "Панель"
+
+#: accounts/permissions.py
+msgid "Read the audit log"
+msgstr "Читать журнал действий"
+
+#: accounts/permissions.py
+msgid "Read-only access to every check (auditors, owners of partner servers)."
+msgstr "Только просмотр всех проверок (аудиторы, владельцы серверов-партнёров)."
+
+#: accounts/permissions.py
+msgid "Record or override the decision on any visible check"
+msgstr "Принимать или менять решение по любой доступной проверке"
+
+#: accounts/permissions.py
+msgid "Record the final decision on own checks"
+msgstr "Принимать решение по своим проверкам"
+
+#: accounts/permissions.py
+msgid "Runs the admin team: sees every check, overrides decisions, manages admins."
+msgstr "Руководит админами: видит все проверки, может менять решения, управляет админами."
+
+#: accounts/permissions.py
+msgid "See checks created by every admin"
+msgstr "Видеть проверки всех админов"
+
+#: accounts/permissions.py
+msgid "See the team list"
+msgstr "Видеть список команды"
+
+#: accounts/permissions.py
+#: core/context.py
+#: templates/team/member.html
+#: templates/team/roles.html
+#: templates/team/team.html
+msgid "Team"
+msgstr "Команда"
+
+#: accounts/permissions.py
+msgid "Trainee"
+msgstr "Стажёр"
+
+#: accounts/views.py
+msgid "%(name)s was signed out everywhere."
+msgstr "%(name)s выведен из всех сеансов."
+
+#: accounts/views.py
+msgid "2FA reset for %(name)s. They must set it up again at the next sign-in."
+msgstr "2FA для %(name)s сброшена. При следующем входе её нужно настроить заново."
+
+#: accounts/views.py
+msgid "All other sessions were signed out."
+msgstr "Все остальные сеансы завершены."
+
+#: accounts/views.py
+msgid "Enter a valid authenticator code to regenerate recovery codes."
+msgstr "Введите верный код из приложения, чтобы создать новые резервные коды."
+
+#: accounts/views.py
+msgid "Invite link for a new %(role)s"
+msgstr "Ссылка-приглашение: %(role)s"
+
+#: accounts/views.py
+msgid "Link revoked."
+msgstr "Ссылка отозвана."
+
+#: accounts/views.py
+msgid "Member updated."
+msgstr "Участник обновлён."
+
+#: accounts/views.py
+msgid "Move the members to another role first."
+msgstr "Сначала переведите участников в другую роль."
+
+#: accounts/views.py
+msgid "Password changed."
+msgstr "Пароль изменён."
+
+#: accounts/views.py
+msgid "Password or code is wrong."
+msgstr "Неверный пароль или код."
+
+#: accounts/views.py
+msgid "Password reset link for %(name)s (valid 24 h)"
+msgstr "Ссылка для сброса пароля %(name)s (действует 24 ч)"
+
+#: accounts/views.py
+msgid "Password set. Sign in with your new password."
+msgstr "Пароль сохранён. Войдите с новым паролем."
+
+#: accounts/views.py
+msgid "Pick a role you are allowed to assign."
+msgstr "Выберите роль, которую вам можно назначать."
+
+#: accounts/views.py
+msgid "Profile saved."
+msgstr "Профиль сохранён."
+
+#: accounts/views.py
+msgid "Role %(name)s saved."
+msgstr "Роль «%(name)s» сохранена."
+
+#: accounts/views.py
+msgid "Role deleted."
+msgstr "Роль удалена."
+
+#: accounts/views.py
+msgid "Signed in with a recovery code. %(left)s left — regenerate them soon."
+msgstr "Вход по резервному коду. Осталось: %(left)s — скоро создайте новые."
+
+#: accounts/views.py
+msgid "That code does not match. Check the phone's clock and try again."
+msgstr "Код не подошёл. Проверьте время на телефоне и попробуйте ещё раз."
+
+#: accounts/views.py
+msgid "That code is not valid."
+msgstr "Код неверный."
+
+#: accounts/views.py
+msgid "That would leave the panel without an active owner."
+msgstr "Так панель останется без активного владельца."
+
+#: accounts/views.py
+msgid "Too many failed attempts. Wait 15 minutes and try again."
+msgstr "Слишком много неудачных попыток. Подождите 15 минут."
+
+#: accounts/views.py
+msgid "Too many wrong codes. Sign in again."
+msgstr "Слишком много неверных кодов. Войдите заново."
+
+#: accounts/views.py
+msgid "Too many wrong codes. Wait 15 minutes."
+msgstr "Слишком много неверных кодов. Подождите 15 минут."
+
+#: accounts/views.py
+msgid "Two-factor authentication disabled."
+msgstr "Двухфакторная защита выключена."
+
+#: accounts/views.py
+msgid "Two-factor authentication is mandatory on this panel."
+msgstr "В этой панели двухфакторная защита обязательна."
+
+#: accounts/views.py
+msgid "Welcome to the team, %(name)s."
+msgstr "Добро пожаловать в команду, %(name)s."
+
+#: accounts/views.py
+msgid "Wrong alias or password."
+msgstr "Неверный ник или пароль."
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+#: templates/checks/detail.html
+msgid "Ban"
+msgstr "Бан"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Cancelled"
+msgstr "Отменена"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Checker connected"
+msgstr "Чекер подключён"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Checker lost"
+msgstr "Чекер пропал"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Checking"
+msgstr "Идёт проверка"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+#: templates/checks/detail.html
+msgid "Clean"
+msgstr "Чисто"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Code expired"
+msgstr "Код истёк"
+
+#: checks/models.py
+msgid "Decision upheld"
+msgstr "Решение оставлено"
+
+#: checks/models.py
+msgid "Deleted"
+msgstr "Удалено"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Done"
+msgstr "Готово"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Needs a second look"
+msgstr "Нужен второй взгляд"
+
+#: checks/models.py
+msgid "Not a real player: shown with a TEST label and left out of statistics."
+msgstr "Не настоящий игрок: помечается как ТЕСТ и не попадает в статистику."
+
+#: checks/models.py
+msgid "Not decided"
+msgstr "Нет решения"
+
+#: checks/models.py
+#: templates/checks/_queues.html
+msgid "Open"
+msgstr "Открыт"
+
+#: checks/models.py
+msgid "Overturned — cleared"
+msgstr "Отменено — чисто"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+#: templates/checks/detail.html
+msgid "Re-check"
+msgstr "Перепроверить"
+
+#: checks/models.py
+msgid "Re-check ordered"
+msgstr "Назначена перепроверка"
+
+#: checks/models.py
+msgid "Refused (kept, with reason)"
+msgstr "Отказано (данные сохранены, причина указана)"
+
+#: checks/models.py
+#: checks/views.py
+msgid "Steam (link or ID)"
+msgstr "Steam (ссылка или ID)"
+
+#: checks/models.py
+msgid "Test check"
+msgstr "Тестовая проверка"
+
+#: checks/models.py
+msgid "Under review"
+msgstr "На рассмотрении"
+
+#: checks/models.py
+#: checks/templatetags/moon.py
+msgid "Waiting for the player"
+msgstr "Ждёт игрока"
+
+#: checks/templatetags/moon.py
+msgid "A file on the PC matched a known cheat byte for byte. The decision is still yours."
+msgstr "Файл на ПК побайтно совпал с известным читом. Решение всё равно принимаете вы."
+
+#: checks/templatetags/moon.py
+msgid "A name, trace or content that matches a cheat rule. Check what the program really is."
+msgstr "Имя, след или содержимое совпали с правилом о читах. Проверьте, что это за программа на самом деле."
+
+#: checks/templatetags/moon.py
+msgid "A system setting that lowers trust in the report. Never a reason to ban on its own."
+msgstr "Настройка системы, которая снижает доверие к отчёту. Сама по себе — не причина для бана."
+
+#: checks/templatetags/moon.py
+msgid "Accounts signed in on this PC and their VAC bans."
+msgstr "Аккаунты, входившие на этом ПК, и их VAC-баны."
+
+#: checks/templatetags/moon.py
+msgid "Autostart"
+msgstr "Автозапуск"
+
+#: checks/templatetags/moon.py
+msgid "Background information; it does not affect the result."
+msgstr "Справочные сведения; на итог не влияют."
+
+#: checks/templatetags/moon.py
+msgid "Browser and terminal history matches on Linux."
+msgstr "Совпадения в истории браузера и терминала на Linux."
+
+#: checks/templatetags/moon.py
+msgid "Browser history"
+msgstr "История браузера"
+
+#: checks/templatetags/moon.py
+msgid "CS2 itself"
+msgstr "Сама игра CS2"
+
+#: checks/templatetags/moon.py
+msgid "Cheat (old score)"
+msgstr "Чит (старая оценка)"
+
+#: checks/templatetags/moon.py
+msgid "Cheat files in the home folder and temporary folders on Linux."
+msgstr "Файлы читов в домашней и временных папках на Linux."
+
+#: checks/templatetags/moon.py
+msgid "Check incomplete"
+msgstr "Проверка неполная"
+
+#: checks/templatetags/moon.py
+msgid "Clean (old score)"
+msgstr "Чисто (старая оценка)"
+
+#: checks/templatetags/moon.py
+msgid "Deleted files"
+msgstr "Удалённые файлы"
+
+#: checks/templatetags/moon.py
+msgid "Drivers and kernel"
+msgstr "Драйверы и ядро"
+
+#: checks/templatetags/moon.py
+msgid "Every required check ran and found nothing to look at. That is not proof the PC is clean."
+msgstr "Все обязательные проверки прошли и ничего не нашли. Это не доказательство, что ПК чистый."
+
+#: checks/templatetags/moon.py
+msgid "Files on disk"
+msgstr "Файлы на диске"
+
+#: checks/templatetags/moon.py
+msgid "Finds cheat files that were deleted or renamed recently."
+msgstr "Находит файлы читов, которые недавно удалили или переименовали."
+
+#: checks/templatetags/moon.py
+msgid "Inconclusive (old)"
+msgstr "Неясно (старая оценка)"
+
+#: checks/templatetags/moon.py
+msgid "Known cheat found"
+msgstr "Найден известный чит"
+
+#: checks/templatetags/moon.py
+msgid "Linux autostart"
+msgstr "Автозапуск Linux"
+
+#: checks/templatetags/moon.py
+msgid "Linux files"
+msgstr "Файлы Linux"
+
+#: checks/templatetags/moon.py
+msgid "Linux history"
+msgstr "История Linux"
+
+#: checks/templatetags/moon.py
+msgid "Linux processes"
+msgstr "Процессы Linux"
+
+#: checks/templatetags/moon.py
+msgid "Loaded drivers, weakened driver protection and hidden objects."
+msgstr "Загруженные драйверы, ослабленная защита драйверов и скрытые объекты."
+
+#: checks/templatetags/moon.py
+msgid "Looks for cheat files by name, exact hash and content, including renamed ones."
+msgstr "Ищет файлы читов по имени, точному хешу и содержимому — в том числе переименованные."
+
+#: checks/templatetags/moon.py
+msgid "Looks like traces were removed or hidden. It also happens after a reinstall or a “cleaner” tool — ask the player."
+msgstr "Похоже, следы удалили или спрятали. Так бывает и после переустановки или «чистилок» — спросите игрока."
+
+#: checks/templatetags/moon.py
+msgid "Macro software and USB devices used for scripts."
+msgstr "Программы для макросов и USB-устройства для скриптов."
+
+#: checks/templatetags/moon.py
+msgid "Macros and devices"
+msgstr "Макросы и устройства"
+
+#: checks/templatetags/moon.py
+msgid "Needs a look"
+msgstr "Нужно посмотреть"
+
+#: checks/templatetags/moon.py
+msgid "Nothing found"
+msgstr "Ничего не найдено"
+
+#: checks/templatetags/moon.py
+msgid "Program inventory"
+msgstr "Список программ"
+
+#: checks/templatetags/moon.py
+msgid "Programs that start with Windows or on a schedule."
+msgstr "Программы, которые запускаются вместе с Windows или по расписанию."
+
+#: checks/templatetags/moon.py
+msgid "Programs that start with the system on Linux."
+msgstr "Программы, которые запускаются вместе с системой на Linux."
+
+#: checks/templatetags/moon.py
+msgid "Running processes and what is loaded into the game on Linux."
+msgstr "Запущенные процессы и то, что загружено в игру, на Linux."
+
+#: checks/templatetags/moon.py
+msgid "Running processes, cheat windows, drivers and DMA cheat hardware."
+msgstr "Запущенные процессы, окна читов, драйверы и DMA-железо для читов."
+
+#: checks/templatetags/moon.py
+msgid "Running programs and hardware"
+msgstr "Запущенные программы и железо"
+
+#: checks/templatetags/moon.py
+msgid "Signs of cleaning"
+msgstr "Следы чистки"
+
+#: checks/templatetags/moon.py
+msgid "Some required checks did not run (no administrator rights, an error or the time limit). “Nothing found” cannot be concluded — ask the player to run it again."
+msgstr "Часть обязательных проверок не выполнилась (нет прав администратора, ошибка или не хватило времени). Сказать «ничего не найдено» нельзя — попросите игрока пройти проверку заново."
+
+#: checks/templatetags/moon.py
+msgid "Steam accounts"
+msgstr "Аккаунты Steam"
+
+#: checks/templatetags/moon.py
+msgid "Suspicious (old score)"
+msgstr "Подозрительно (старая оценка)"
+
+#: checks/templatetags/moon.py
+msgid "System not supported"
+msgstr "Система не поддерживается"
+
+#: checks/templatetags/moon.py
+msgid "The checker found traces worth a look with your own eyes. This is not a verdict — you decide."
+msgstr "Чекер нашёл следы, которые стоит посмотреть своими глазами. Это не приговор — решаете вы."
+
+#: checks/templatetags/moon.py
+msgid "The file matched a known cheat byte for byte."
+msgstr "Файл побайтно совпал с известным читом."
+
+#: checks/templatetags/moon.py
+msgid "The player's system is not one the checker is built for, so the result is incomplete."
+msgstr "Чекер не рассчитан на систему игрока, поэтому результат неполный."
+
+#: checks/templatetags/moon.py
+msgid "Traces that logs or history were wiped shortly before the check."
+msgstr "Следы того, что журналы или историю очистили незадолго до проверки."
+
+#: checks/templatetags/moon.py
+msgid "Visits to cheat sites. Only the matches leave the PC."
+msgstr "Посещения сайтов с читами. С ПК уходят только совпадения."
+
+#: checks/templatetags/moon.py
+msgid "What the antivirus found and removed, and its exclusions."
+msgstr "Что антивирус нашёл и удалил, и его исключения."
+
+#: checks/templatetags/moon.py
+msgid "What was run"
+msgstr "Что запускалось"
+
+#: checks/templatetags/moon.py
+msgid "Whether the game's files were modified and what is loaded into the game."
+msgstr "Изменены ли файлы игры и что загружено в игру."
+
+#: checks/templatetags/moon.py
+msgid "Windows Defender"
+msgstr "Защитник Windows"
+
+#: checks/templatetags/moon.py
+msgid "Windows' list of programs and drivers that were ever on the PC."
+msgstr "Список Windows всех программ и драйверов, которые когда-либо были на ПК."
+
+#: checks/templatetags/moon.py
+msgid "Windows' own records of programs that were started (Prefetch and others)."
+msgstr "Записи самой Windows о запущенных программах (Prefetch и другие)."
+
+#: checks/templatetags/moon.py
+msgid "exact match"
+msgstr "точное совпадение"
+
+#: checks/templatetags/moon.py
+msgid "hiding traces"
+msgstr "сокрытие следов"
+
+#: checks/templatetags/moon.py
+msgid "indicator"
+msgstr "признак"
+
+#: checks/templatetags/moon.py
+msgid "information"
+msgstr "сведения"
+
+#: checks/templatetags/moon.py
+msgid "system setting"
+msgstr "настройка системы"
+
+#: checks/trust.py
+msgid "A rule file was placed next to the checker: %(note)s."
+msgstr "Рядом с чекером подложили файл правил: %(note)s."
+
+#: checks/trust.py
+msgid "All %(n)s required collectors completed."
+msgstr "Все обязательные разделы (%(n)s) выполнены."
+
+#: checks/trust.py
+msgid "All modules finished."
+msgstr "Все разделы выполнены."
+
+#: checks/trust.py
+msgid "Checked on %(os)s; Windows-only modules were skipped."
+msgstr "Проверка на %(os)s; разделы только для Windows пропущены."
+
+#: checks/trust.py
+msgid "Checker %(got)s is older than the required %(min)s."
+msgstr "Чекер %(got)s старее требуемой версии %(min)s."
+
+#: checks/trust.py
+msgid "Checker claims a %(claimed)ss scan but the server saw only %(measured)ss."
+msgstr "Чекер заявляет проверку на %(claimed)s с, а сервер видел только %(measured)s с."
+
+#: checks/trust.py
+msgid "Checker ran with administrator rights."
+msgstr "Чекер работал с правами администратора."
+
+#: checks/trust.py
+msgid "Checker was NOT running as administrator — deep checks were skipped."
+msgstr "Чекер работал БЕЗ прав администратора — глубокие проверки пропущены."
+
+#: checks/trust.py
+msgid "Detection rules did not come from the build or a signed update (origin '%(origin)s', %(count)s rules)."
+msgstr "Правила поиска взяты не из сборки и не из подписанного обновления (источник «%(origin)s», правил: %(count)s)."
+
+#: checks/trust.py
+msgid "Legacy report format (checker older than 1.1): no coverage, assurance or consent sections; the verdict is the old weighted score."
+msgstr "Старый формат отчёта (чекер до 1.1): нет разделов охвата, доверия и согласия; итог — старая оценка по баллам."
+
+#: checks/trust.py
+msgid "Modules that did not finish: %(list)s."
+msgstr "Разделы, которые не завершились: %(list)s."
+
+#: checks/trust.py
+msgid "No player consent was recorded in the report."
+msgstr "В отчёте не записано согласие игрока."
+
+#: checks/trust.py
+msgid "No trusted builds are configured, so the checker file was not verified."
+msgstr "Доверенные сборки не настроены, поэтому файл чекера не проверен."
+
+#: checks/trust.py
+msgid "Official checker build: %(label)s."
+msgstr "Официальная сборка чекера: %(label)s."
+
+#: checks/trust.py
+msgid "PC clock differs from the server by %(min)s min."
+msgstr "Часы ПК расходятся с сервером на %(min)s мин."
+
+#: checks/trust.py
+msgid "PC/user changed between connect (%(before)s) and upload (%(after)s)."
+msgstr "ПК или пользователь сменились между подключением (%(before)s) и отправкой (%(after)s)."
+
+#: checks/trust.py
+msgid "Report id %(id)s was already submitted in another check."
+msgstr "Отчёт %(id)s уже отправляли в другой проверке."
+
+#: checks/trust.py
+msgid "Report uploaded from %(upload)s, but the code was entered from %(claim)s."
+msgstr "Отчёт отправлен с %(upload)s, а код вводили с %(claim)s."
+
+#: checks/trust.py
+msgid "Required collectors that did not complete: %(list)s. Finding nothing there means nothing."
+msgstr "Не завершились обязательные разделы: %(list)s. То, что там ничего не нашли, ничего не значит."
+
+#: checks/trust.py
+msgid "Scan finished %(s)ss after it started (server clock) — unusually fast."
+msgstr "Проверка закончилась через %(s)s с после начала (по часам сервера) — подозрительно быстро."
+
+#: checks/trust.py
+msgid "The checker left required collectors out of its coverage list: %(list)s."
+msgstr "Чекер выкинул обязательные разделы из своего списка: %(list)s."
+
+#: checks/trust.py
+msgid "The checker reported %(got)s but its own evidence and coverage imply %(expected)s — produced or edited outside the official policy."
+msgstr "Чекер сообщил %(got)s, но по его же находкам и охвату должно быть %(expected)s — отчёт сделан или изменён в обход правил."
+
+#: checks/trust.py
+msgid "The checker stopped reporting %(n)s time(s) during the scan."
+msgstr "Во время проверки чекер пропадал со связи %(n)s раз."
+
+#: checks/trust.py
+msgid "The report was produced by a different program file than the one that connected. It may be forged: ask the player to run the check again while you watch."
+msgstr "Отчёт отправила не та программа, что подключилась по коду. Возможна подделка — попросите игрока пройти проверку заново при вас."
+
+#: checks/trust.py
+msgid "Unknown checker build (sha256 %(hash)s…). The player may be running a modified or outdated checker."
+msgstr "Неизвестная сборка чекера (sha256 %(hash)s…). Возможно, игрок запустил изменённый или старый чекер."
+
+#: checks/views.py
+msgid "An appeal must be resolved by a different admin than the one who decided."
+msgstr "Апелляцию должен рассмотреть другой админ, а не тот, кто принял решение."
+
+#: checks/views.py
+msgid "Answer to the player"
+msgstr "Ответ игроку"
+
+#: checks/views.py
+msgid "Appeal resolved."
+msgstr "Апелляция рассмотрена."
+
+#: checks/views.py
+msgid "As on the server. Nothing else is required."
+msgstr "Как на сервере. Остальное можно не заполнять."
+
+#: checks/views.py
+msgid "Check cancelled; the code no longer works."
+msgstr "Проверка отменена, код больше не работает."
+
+#: checks/views.py
+msgid "Check deleted."
+msgstr "Проверка удалена."
+
+#: checks/views.py
+msgid "Choose an outcome and explain it (at least 10 characters)."
+msgstr "Выберите итог и объясните его (не меньше 10 символов)."
+
+#: checks/views.py
+msgid "Choose what to do with the request. Refusing it needs a reason."
+msgstr "Выберите, что сделать с запросом. Для отказа нужна причина."
+
+#: checks/views.py
+msgid "Choose…"
+msgstr "Выберите…"
+
+#: checks/views.py
+msgid "Comment — only admins see it"
+msgstr "Комментарий — видят только админы"
+
+#: checks/views.py
+msgid "Could not allocate a code, try again."
+msgstr "Не удалось выдать код, попробуйте ещё раз."
+
+#: checks/views.py
+msgid "Decision saved."
+msgstr "Решение сохранено."
+
+#: checks/views.py
+msgid "Note for admins"
+msgstr "Заметка для админов"
+
+#: checks/views.py
+msgid "Outcome"
+msgstr "Итог"
+
+#: checks/views.py
+msgid "Player's nickname"
+msgstr "Ник игрока"
+
+#: checks/views.py
+msgid "Reason (required when refusing)"
+msgstr "Причина (обязательна при отказе)"
+
+#: checks/views.py
+msgid "Request handled."
+msgstr "Запрос обработан."
+
+#: checks/views.py
+msgid "Test check — left out of statistics"
+msgstr "Тестовая проверка — не попадёт в статистику"
+
+#: checks/views.py
+msgid "The player sees it on their page."
+msgstr "Игрок увидит это на своей странице."
+
+#: checks/views.py
+msgid "What to do"
+msgstr "Что сделать"
+
+#: core/context.py
+#: templates/checks/appeals.html
+msgid "Appeals"
+msgstr "Апелляции"
+
+#: core/context.py
+#: templates/checks/rules.html
+msgid "How it checks"
+msgstr "Как проверяет"
+
+#: core/context.py
+#: templates/core/audit.html
+msgid "Log"
+msgstr "Журнал"
+
+#: core/context.py
+#: templates/checks/dashboard.html
+#: templates/checks/search.html
+msgid "Search"
+msgstr "Поиск"
+
+#: core/context.py
+#: templates/core/settings.html
+msgid "Settings"
+msgstr "Настройки"
+
+#: core/views.py
+msgid "A finished check faster than this (by the server's clock) is flagged."
+msgstr "Проверка быстрее этого (по часам сервера) помечается как подозрительная."
+
+#: core/views.py
+msgid "A running check that stops reporting for this long is marked lost."
+msgstr "Если чекер молчит столько времени, проверка считается пропавшей."
+
+#: core/views.py
+msgid "Build added to the trusted list."
+msgstr "Сборка добавлена в доверенные."
+
+#: core/views.py
+msgid "Build removed."
+msgstr "Сборка удалена."
+
+#: core/views.py
+msgid "Checkers whose file hash is not in the list below cannot connect."
+msgstr "Чекеры, чьего хеша нет в списке ниже, не смогут подключиться."
+
+#: core/views.py
+msgid "Code lifetime, minutes"
+msgstr "Срок действия кода, минут"
+
+#: core/views.py
+msgid "Form expired"
+msgstr "Форма устарела"
+
+#: core/views.py
+msgid "How long a code stays valid before the player enters it."
+msgstr "Сколько код действует, пока игрок его не ввёл."
+
+#: core/views.py
+msgid "Invalid build: %(errors)s"
+msgstr "Неверная сборка: %(errors)s"
+
+#: core/views.py
+msgid "Keep finished checks, days"
+msgstr "Хранить завершённые проверки, дней"
+
+#: core/views.py
+msgid "Not allowed"
+msgstr "Нет доступа"
+
+#: core/views.py
+msgid "Not found"
+msgstr "Не найдено"
+
+#: core/views.py
+msgid "Older checkers are refused when they connect."
+msgstr "Более старые чекеры не смогут подключиться."
+
+#: core/views.py
+msgid "Older finished checks are deleted automatically (0 = keep forever)."
+msgstr "Более старые проверки удаляются автоматически (0 — хранить всегда)."
+
+#: core/views.py
+msgid "Oldest allowed checker version"
+msgstr "Самая старая допустимая версия чекера"
+
+#: core/views.py
+msgid "Refuse checkers that are not on the trusted list"
+msgstr "Не пускать чекеры не из списка доверенных"
+
+#: core/views.py
+msgid "Reload the page and try again."
+msgstr "Обновите страницу и попробуйте снова."
+
+#: core/views.py
+msgid "Settings saved."
+msgstr "Настройки сохранены."
+
+#: core/views.py
+msgid "Silence before a check counts as lost, minutes"
+msgstr "Тишина, после которой проверка считается пропавшей, минут"
+
+#: core/views.py
+msgid "Suspiciously fast check, seconds"
+msgstr "Подозрительно быстрая проверка, секунд"
+
+#: core/views.py
+msgid "That page does not exist or you cannot see it."
+msgstr "Такой страницы нет или у вас нет к ней доступа."
+
+#: core/views.py
+msgid "Two-factor authentication required for everyone"
+msgstr "Двухфакторная защита обязательна для всех"
+
+#: core/views.py
+msgid "Your role does not allow this action."
+msgstr "Ваша роль не позволяет это действие."
+
+#: templates/_flash_link.html
+#: templates/accounts/twofa_setup.html
+#: templates/checks/detail.html
+msgid "Copy"
+msgstr "Скопировать"
+
+#: templates/_flash_link.html
+msgid "Copy it now — it is shown only once and works a single time. Send it privately (a Discord DM)."
+msgstr "Скопируйте сейчас — ссылка показывается один раз и работает один раз. Отправьте её лично (в ЛС Discord)."
+
+#: templates/_flash_link.html
+msgid "Link"
+msgstr "Ссылка"
+
+#: templates/accounts/account.html
+msgid "%(n)s recovery code left"
+msgid_plural "%(n)s recovery codes left"
+msgstr[0] "Остался %(n)s резервный код"
+msgstr[1] "Осталось %(n)s резервных кода"
+msgstr[2] "Осталось %(n)s резервных кодов"
+
+#: templates/accounts/account.html
+#: templates/accounts/password.html
+msgid "Change password"
+msgstr "Сменить пароль"
+
+#: templates/accounts/account.html
+msgid "Code from the app"
+msgstr "Код из приложения"
+
+#: templates/accounts/account.html
+#: templates/team/member.html
+msgid "Joined"
+msgstr "В команде с"
+
+#: templates/accounts/account.html
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "Last sign-in"
+msgstr "Последний вход"
+
+#: templates/accounts/account.html
+msgid "Make new codes"
+msgstr "Создать новые коды"
+
+#: templates/accounts/account.html
+msgid "Players see your nickname <b>%(alias)s</b> after entering your check code. Only an owner can change it."
+msgstr "Игроки видят ваш ник <b>%(alias)s</b>, когда вводят ваш код проверки. Сменить его может только владелец."
+
+#: templates/accounts/account.html
+msgid "Profile"
+msgstr "Профиль"
+
+#: templates/accounts/account.html
+#: templates/accounts/twofa_recovery.html
+msgid "Recovery codes"
+msgstr "Резервные коды"
+
+#: templates/accounts/account.html
+msgid "Save profile"
+msgstr "Сохранить профиль"
+
+#: templates/accounts/account.html
+msgid "Security"
+msgstr "Безопасность"
+
+#: templates/accounts/account.html
+msgid "Sessions"
+msgstr "Сеансы"
+
+#: templates/accounts/account.html
+msgid "Sign out all other sessions?"
+msgstr "Завершить все остальные сеансы?"
+
+#: templates/accounts/account.html
+msgid "Sign out everywhere else"
+msgstr "Выйти на всех других устройствах"
+
+#: templates/accounts/account.html
+msgid "Signs out every other browser where you are signed in."
+msgstr "Выход во всех других браузерах, где вы вошли."
+
+#: templates/accounts/account.html
+msgid "Turn off 2FA"
+msgstr "Выключить 2FA"
+
+#: templates/accounts/account.html
+msgid "Turn off two-factor"
+msgstr "Выключить двухфакторную защиту"
+
+#: templates/accounts/account.html
+msgid "Turn off two-factor authentication?"
+msgstr "Выключить двухфакторную защиту?"
+
+#: templates/accounts/account.html
+msgid "Turn on"
+msgstr "Включить"
+
+#: templates/accounts/account.html
+#: templates/team/member.html
+msgid "Two-factor"
+msgstr "Двухфакторная защита"
+
+#: templates/accounts/account.html
+#: templates/base.html
+msgid "Your account"
+msgstr "Ваш аккаунт"
+
+#: templates/accounts/account.html
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "off"
+msgstr "выкл."
+
+#: templates/accounts/account.html
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "on"
+msgstr "вкл."
+
+#: templates/accounts/invite_accept.html
+msgid "Create account"
+msgstr "Создать аккаунт"
+
+#: templates/accounts/invite_accept.html
+msgid "For <b>%(name)s</b>. This link works once."
+msgstr "Для <b>%(name)s</b>. Ссылка работает один раз."
+
+#: templates/accounts/invite_accept.html
+msgid "Invited by %(name)s."
+msgstr "Пригласил(а) %(name)s."
+
+#: templates/accounts/invite_accept.html
+msgid "Join Moon Panel"
+msgstr "Вход в команду Moon Panel"
+
+#: templates/accounts/invite_accept.html
+msgid "Join the team"
+msgstr "Вступить в команду"
+
+#: templates/accounts/invite_accept.html
+msgid "Players see your nickname when they enter your check code."
+msgstr "Игроки видят ваш ник, когда вводят ваш код проверки."
+
+#: templates/accounts/invite_accept.html
+#: templates/accounts/password.html
+msgid "Save password"
+msgstr "Сохранить пароль"
+
+#: templates/accounts/invite_accept.html
+msgid "Set a new password"
+msgstr "Новый пароль"
+
+#: templates/accounts/invite_accept.html
+msgid "You were invited as <b>%(role)s</b>."
+msgstr "Вас пригласили как <b>%(role)s</b>."
+
+#: templates/accounts/invite_invalid.html
+msgid "Go to sign in"
+msgstr "Ко входу"
+
+#: templates/accounts/invite_invalid.html
+msgid "It was already used, revoked, or has expired. Ask the person who sent it for a new one."
+msgstr "Её уже использовали, отозвали или срок истёк. Попросите у отправителя новую."
+
+#: templates/accounts/invite_invalid.html
+msgid "Link not valid"
+msgstr "Ссылка недействительна"
+
+#: templates/accounts/invite_invalid.html
+msgid "This link is not valid"
+msgstr "Эта ссылка недействительна"
+
+#: templates/accounts/login.html
+msgid "Accounts are by invitation only. Ask your head admin for an invite link."
+msgstr "Аккаунты — только по приглашению. Попросите ссылку у старшего админа."
+
+#: templates/accounts/login.html
+#: templates/base_auth.html
+msgid "Sign in"
+msgstr "Войти"
+
+#: templates/accounts/login_2fa.html
+#: templates/accounts/twofa_setup.html
+msgid "Confirm"
+msgstr "Подтвердить"
+
+#: templates/accounts/login_2fa.html
+msgid "Signing in as <b>%(alias)s</b>. Enter the 6-digit code from your authenticator app, or one of your recovery codes."
+msgstr "Вход как <b>%(alias)s</b>. Введите 6-значный код из приложения-аутентификатора или один из резервных кодов."
+
+#: templates/accounts/login_2fa.html
+msgid "Start over"
+msgstr "Начать заново"
+
+#: templates/accounts/login_2fa.html
+msgid "Two-factor check"
+msgstr "Подтверждение входа"
+
+#: templates/accounts/password.html
+msgid "Choose your own password"
+msgstr "Придумайте свой пароль"
+
+#: templates/accounts/password.html
+msgid "You signed in with a one-time password. Set your own (at least 10 characters) to continue."
+msgstr "Вы вошли по одноразовому паролю. Задайте свой (не меньше 10 символов), чтобы продолжить."
+
+#: templates/accounts/twofa_recovery.html
+msgid "Copy all"
+msgstr "Скопировать все"
+
+#: templates/accounts/twofa_recovery.html
+msgid "Each code signs you in once if you lose your phone."
+msgstr "Каждый код даёт один вход, если вы потеряете телефон."
+
+#: templates/accounts/twofa_recovery.html
+msgid "I saved them — continue"
+msgstr "Я сохранил(а) — дальше"
+
+#: templates/accounts/twofa_recovery.html
+msgid "Keep them in a password manager."
+msgstr "Храните их в менеджере паролей."
+
+#: templates/accounts/twofa_recovery.html
+msgid "Save your recovery codes"
+msgstr "Сохраните резервные коды"
+
+#: templates/accounts/twofa_recovery.html
+msgid "They are shown only now."
+msgstr "Они показываются только сейчас."
+
+#: templates/accounts/twofa_setup.html
+msgid "Install an authenticator app (Google Authenticator, Aegis, 2FAS, 1Password, Bitwarden…)."
+msgstr "Установите приложение-аутентификатор (Google Authenticator, Aegis, 2FAS, 1Password, Bitwarden…)."
+
+#: templates/accounts/twofa_setup.html
+msgid "Key for manual entry:"
+msgstr "Ключ для ручного ввода:"
+
+#: templates/accounts/twofa_setup.html
+msgid "Scan this QR code, or enter the key by hand."
+msgstr "Отсканируйте QR-код или введите ключ вручную."
+
+#: templates/accounts/twofa_setup.html
+msgid "Set up two-factor authentication"
+msgstr "Настройка двухфакторной защиты"
+
+#: templates/accounts/twofa_setup.html
+msgid "Turn on 2FA"
+msgstr "Включить 2FA"
+
+#: templates/accounts/twofa_setup.html
+msgid "Two-factor authentication"
+msgstr "Двухфакторная защита"
+
+#: templates/accounts/twofa_setup.html
+msgid "Two-factor authentication is required for every team member."
+msgstr "Двухфакторная защита обязательна для всей команды."
+
+#: templates/accounts/twofa_setup.html
+msgid "Type the 6-digit code the app shows."
+msgstr "Введите 6-значный код из приложения."
+
+#: templates/base.html
+msgid "%(n)s open appeal"
+msgid_plural "%(n)s open appeals"
+msgstr[0] "%(n)s открытая апелляция"
+msgstr[1] "%(n)s открытые апелляции"
+msgstr[2] "%(n)s открытых апелляций"
+
+#: templates/base.html
+msgid "Main"
+msgstr "Главное меню"
+
+#: templates/base.html
+#: templates/base_auth.html
+msgid "PANEL"
+msgstr "ПАНЕЛЬ"
+
+#: templates/base.html
+msgid "Sign out"
+msgstr "Выйти"
+
+#: templates/base.html
+msgid "Skip to content"
+msgstr "К содержимому"
+
+#: templates/checks/_queues.html
+msgid "%(ago)s ago"
+msgstr "%(ago)s назад"
+
+#: templates/checks/_queues.html
+#: templates/checks/detail.html
+msgid "%(done)s of %(total)s parts checked"
+msgstr "Проверено %(done)s из %(total)s разделов"
+
+#: templates/checks/_queues.html
+msgid "Copy code"
+msgstr "Скопировать код"
+
+#: templates/checks/_queues.html
+#: templates/checks/detail.html
+msgid "Message for the player"
+msgstr "Сообщение игроку"
+
+#: templates/checks/_queues.html
+msgid "No checks yet"
+msgstr "Проверок пока нет"
+
+#: templates/checks/_queues.html
+#: templates/checks/detail.html
+msgid "PC"
+msgstr "ПК"
+
+#: templates/checks/_queues.html
+msgid "Press “New check”, send the code to the player and wait: the result appears here by itself."
+msgstr "Нажмите «Новая проверка», отправьте код игроку и ждите: результат появится здесь сам."
+
+#: templates/checks/_queues.html
+msgid "Running now"
+msgstr "Идут сейчас"
+
+#: templates/checks/_queues.html
+#: templates/checks/_session_rows.html
+#: templates/checks/appeals.html
+#: templates/checks/detail.html
+msgid "TEST"
+msgstr "ТЕСТ"
+
+#: templates/checks/_queues.html
+#: templates/checks/detail.html
+msgid "The checker stopped responding"
+msgstr "Чекер перестал отвечать"
+
+#: templates/checks/_queues.html
+msgid "Waiting for players"
+msgstr "Ждут игрока"
+
+#: templates/checks/_queues.html
+msgid "Waiting for your decision"
+msgstr "Ждут вашего решения"
+
+#: templates/checks/_queues.html
+msgid "Watch"
+msgstr "Смотреть"
+
+#: templates/checks/_queues.html
+#: templates/checks/appeals.html
+#: templates/checks/detail.html
+msgid "admin"
+msgstr "админ"
+
+#: templates/checks/_queues.html
+msgid "code valid for"
+msgstr "код действует ещё"
+
+#: templates/checks/_queues.html
+msgid "report needs checking"
+msgstr "отчёт вызывает вопросы"
+
+#: templates/checks/_queues.html
+msgid "started %(ago)s ago"
+msgstr "началась %(ago)s назад"
+
+#: templates/checks/_queues.html
+#: templates/checks/detail.html
+msgid "starting…"
+msgstr "запуск…"
+
+#: templates/checks/_queues.html
+msgid "usually 2–5 minutes"
+msgstr "обычно 2–5 минут"
+
+#: templates/checks/_session_rows.html
+#: templates/checks/dashboard.html
+#: templates/checks/detail.html
+msgid "Checker result"
+msgstr "Итог чекера"
+
+#: templates/checks/_session_rows.html
+#: templates/checks/dashboard.html
+msgid "Decision"
+msgstr "Решение"
+
+#: templates/checks/_session_rows.html
+msgid "Finished checks will appear here."
+msgstr "Здесь появятся завершённые проверки."
+
+#: templates/checks/_session_rows.html
+msgid "Nothing matches the search."
+msgstr "По запросу ничего нет."
+
+#: templates/checks/_session_rows.html
+#: templates/checks/appeals.html
+#: templates/checks/dashboard.html
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "Status"
+msgstr "Статус"
+
+#: templates/checks/_session_rows.html
+msgid "Test check — not a real player"
+msgstr "Тестовая проверка — не настоящий игрок"
+
+#: templates/checks/_session_rows.html
+msgid "The report has trust problems — see the check"
+msgstr "С отчётом есть проблемы — откройте проверку"
+
+#: templates/checks/_session_rows.html
+#: templates/checks/dashboard.html
+#: templates/checks/detail.html
+#: templates/core/audit.html
+#: templates/team/member.html
+msgid "When"
+msgstr "Когда"
+
+#: templates/checks/_session_rows.html
+msgid "not yet"
+msgstr "пока нет"
+
+#: templates/checks/appeals.html
+#: templates/checks/detail.html
+#: templates/core/audit.html
+#: templates/team/member.html
+msgid "Action"
+msgstr "Действие"
+
+#: templates/checks/appeals.html
+msgid "An appeal is resolved by a different admin than the one who decided. Every resolution is recorded in the log."
+msgstr "Апелляцию рассматривает другой админ — не тот, кто принял решение. Каждое решение записывается в журнал."
+
+#: templates/checks/appeals.html
+#: templates/checks/detail.html
+msgid "Appeal #%(n)s"
+msgstr "Апелляция №%(n)s"
+
+#: templates/checks/appeals.html
+msgid "Appeals and player requests"
+msgstr "Апелляции и запросы игроков"
+
+#: templates/checks/appeals.html
+msgid "Apply"
+msgstr "Применить"
+
+#: templates/checks/appeals.html
+msgid "Apply this to the player's data?"
+msgstr "Применить к данным игрока?"
+
+#: templates/checks/appeals.html
+#: templates/checks/detail.html
+#: templates/checks/search.html
+msgid "Check"
+msgstr "Проверка"
+
+#: templates/checks/appeals.html
+msgid "Contact"
+msgstr "Связь"
+
+#: templates/checks/appeals.html
+msgid "Data deletion requests"
+msgstr "Запросы на удаление данных"
+
+#: templates/checks/appeals.html
+msgid "No appeals."
+msgstr "Апелляций нет."
+
+#: templates/checks/appeals.html
+msgid "Reason"
+msgstr "Причина"
+
+#: templates/checks/appeals.html
+msgid "Resolve"
+msgstr "Вынести решение"
+
+#: templates/checks/appeals.html
+msgid "decision when filed"
+msgstr "решение на момент подачи"
+
+#: templates/checks/dashboard.html
+msgid "All admins"
+msgstr "Все админы"
+
+#: templates/checks/dashboard.html
+msgid "Any decision"
+msgstr "Любое решение"
+
+#: templates/checks/dashboard.html
+msgid "Any result"
+msgstr "Любой итог"
+
+#: templates/checks/dashboard.html
+msgid "Any status"
+msgstr "Любой статус"
+
+#: templates/checks/dashboard.html
+msgid "Create a code, send it to the player — the result arrives here by itself."
+msgstr "Создайте код, отправьте игроку — результат появится здесь сам."
+
+#: templates/checks/dashboard.html
+msgid "Filters"
+msgstr "Фильтры"
+
+#: templates/checks/dashboard.html
+#: templates/checks/search.html
+#: templates/core/audit.html
+msgid "Find"
+msgstr "Найти"
+
+#: templates/checks/dashboard.html
+msgid "Finished"
+msgstr "Завершённые"
+
+#: templates/checks/dashboard.html
+#: templates/checks/detail.html
+#: templates/checks/new.html
+msgid "New check"
+msgstr "Новая проверка"
+
+#: templates/checks/dashboard.html
+#: templates/core/audit.html
+msgid "Newer"
+msgstr "Новее"
+
+#: templates/checks/dashboard.html
+msgid "Nickname, code, PC or Steam"
+msgstr "Ник, код, ПК или Steam"
+
+#: templates/checks/dashboard.html
+msgid "No decision yet"
+msgstr "Без решения"
+
+#: templates/checks/dashboard.html
+#: templates/core/audit.html
+msgid "Older"
+msgstr "Старее"
+
+#: templates/checks/dashboard.html
+msgid "Open (waiting or running)"
+msgstr "Открытые (ждут или идут)"
+
+#: templates/checks/dashboard.html
+#: templates/core/audit.html
+msgid "Page %(n)s of %(total)s"
+msgstr "Страница %(n)s из %(total)s"
+
+#: templates/checks/dashboard.html
+#: templates/checks/detail.html
+msgid "Player"
+msgstr "Игрок"
+
+#: templates/checks/dashboard.html
+msgid "Reset"
+msgstr "Сбросить"
+
+#: templates/checks/dashboard.html
+msgid "Search results"
+msgstr "Результаты поиска"
+
+#: templates/checks/detail.html
+msgid "%(n)s important finding"
+msgid_plural "%(n)s important findings"
+msgstr[0] "%(n)s важная находка"
+msgstr[1] "%(n)s важные находки"
+msgstr[2] "%(n)s важных находок"
+
+#: templates/checks/detail.html
+msgid "%(n)s s"
+msgstr "%(n)s с"
+
+#: templates/checks/detail.html
+msgid "%(sev)s and above"
+msgstr "%(sev)s и выше"
+
+#: templates/checks/detail.html
+msgid "Administrator rights"
+msgstr "Права администратора"
+
+#: templates/checks/detail.html
+#: templates/checks/new.html
+msgid "All checks"
+msgstr "Все проверки"
+
+#: templates/checks/detail.html
+msgid "All findings"
+msgstr "Все находки"
+
+#: templates/checks/detail.html
+msgid "All server checks of the report"
+msgstr "Все проверки отчёта сервером"
+
+#: templates/checks/detail.html
+msgid "Any kind"
+msgstr "Любой вид"
+
+#: templates/checks/detail.html
+msgid "Any part"
+msgstr "Любой раздел"
+
+#: templates/checks/detail.html
+msgid "Any severity"
+msgstr "Любая важность"
+
+#: templates/checks/detail.html
+msgid "Build hash"
+msgstr "Хеш сборки"
+
+#: templates/checks/detail.html
+msgid "Cancel check"
+msgstr "Отменить проверку"
+
+#: templates/checks/detail.html
+msgid "Cancel this check? The code stops working."
+msgstr "Отменить проверку? Код перестанет работать."
+
+#: templates/checks/detail.html
+msgid "Category"
+msgstr "Категория"
+
+#: templates/checks/detail.html
+msgid "Check first"
+msgstr "Сначала проверьте"
+
+#: templates/checks/detail.html
+msgid "Checker"
+msgstr "Чекер"
+
+#: templates/checks/detail.html
+msgid "Checking the player's PC…"
+msgstr "Идёт проверка ПК игрока…"
+
+#: templates/checks/detail.html
+msgid "Code for the player"
+msgstr "Код для игрока"
+
+#: templates/checks/detail.html
+msgid "Connect IP"
+msgstr "IP при подключении"
+
+#: templates/checks/detail.html
+msgid "Connected"
+msgstr "Подключился"
+
+#: templates/checks/detail.html
+msgid "Consent"
+msgstr "Согласие"
+
+#: templates/checks/detail.html
+msgid "Copy code only"
+msgstr "Скопировать только код"
+
+#: templates/checks/detail.html
+msgid "Copy message"
+msgstr "Скопировать сообщение"
+
+#: templates/checks/detail.html
+msgid "Coverage is incomplete — no findings cannot be read as “clean”."
+msgstr "Охват неполный — отсутствие находок не значит «чисто»."
+
+#: templates/checks/detail.html
+msgid "Coverage: %(done)s of %(total)s required parts"
+msgstr "Охват: %(done)s из %(total)s обязательных разделов"
+
+#: templates/checks/detail.html
+msgid "Delete check"
+msgstr "Удалить проверку"
+
+#: templates/checks/detail.html
+msgid "Delete this check and all its evidence permanently?"
+msgstr "Удалить проверку и все находки навсегда?"
+
+#: templates/checks/detail.html
+msgid "Deletion request"
+msgstr "Запрос на удаление"
+
+#: templates/checks/detail.html
+msgid "Delivered"
+msgstr "Доставлен"
+
+#: templates/checks/detail.html
+msgid "Detail"
+msgstr "Подробно"
+
+#: templates/checks/detail.html
+#: templates/core/audit.html
+msgid "Details"
+msgstr "Подробности"
+
+#: templates/checks/detail.html
+msgid "Details for experienced admins: coverage, trust, all findings, history"
+msgstr "Подробности для опытных: охват, доверие, все находки, история"
+
+#: templates/checks/detail.html
+msgid "Download report"
+msgstr "Скачать отчёт"
+
+#: templates/checks/detail.html
+msgid "Duration"
+msgstr "Длительность"
+
+#: templates/checks/detail.html
+msgid "Every required part completed with administrator rights."
+msgstr "Все обязательные разделы выполнены с правами администратора."
+
+#: templates/checks/detail.html
+#: templates/checks/search.html
+msgid "Evidence"
+msgstr "Улика"
+
+#: templates/checks/detail.html
+msgid "Filter text"
+msgstr "Фильтр по тексту"
+
+#: templates/checks/detail.html
+msgid "Filter text…"
+msgstr "Фильтр по тексту…"
+
+#: templates/checks/detail.html
+#: templates/checks/search.html
+msgid "Finding"
+msgstr "Находка"
+
+#: templates/checks/detail.html
+msgid "Hi! Please take the MOON check:\n1) Download the checker: %(url)s\n2) Unzip it, right-click MoonCheck.exe → Run as administrator.\n3) Enter the code %(code)s — you will see my nickname “%(alias)s”.\n4) Press “Start check” and don't close the window until it says the results were delivered."
+msgstr "Привет! Пройди, пожалуйста, проверку MOON:\n1) Скачай чекер: %(url)s\n2) Распакуй архив, правый клик по MoonCheck.exe → «Запуск от имени администратора».\n3) Введи код %(code)s — увидишь мой ник «%(alias)s».\n4) Нажми «Начать проверку» и не закрывай окно, пока не появится «Результаты доставлены»."
+
+#: templates/checks/detail.html
+msgid "History of this check"
+msgstr "История проверки"
+
+#: templates/checks/detail.html
+msgid "Issue a new private link for the player? The old one stops working."
+msgstr "Выдать игроку новую личную ссылку? Старая перестанет работать."
+
+#: templates/checks/detail.html
+#: templates/checks/rules.html
+#: templates/checks/search.html
+msgid "Kind"
+msgstr "Вид"
+
+#: templates/checks/detail.html
+msgid "More"
+msgstr "Ещё"
+
+#: templates/checks/detail.html
+msgid "Needs a second look (another admin)"
+msgstr "Нужен второй взгляд (другой админ)"
+
+#: templates/checks/detail.html
+msgid "New player link"
+msgstr "Новая ссылка игроку"
+
+#: templates/checks/detail.html
+msgid "New private link for the player"
+msgstr "Новая личная ссылка для игрока"
+
+#: templates/checks/detail.html
+msgid "No signal for several minutes: the checker was closed, crashed or lost its connection before sending the results. If it reconnects, the check continues by itself."
+msgstr "Нет сигнала несколько минут: чекер закрыли, он упал или потерял связь до отправки результатов. Если он снова подключится, проверка продолжится сама."
+
+#: templates/checks/detail.html
+msgid "Not completed"
+msgstr "Не выполнено"
+
+#: templates/checks/detail.html
+msgid "Nothing important was found, but the check is incomplete — that does not mean the PC is clean."
+msgstr "Важного не нашли, но проверка неполная — это не значит, что ПК чистый."
+
+#: templates/checks/detail.html
+msgid "Nothing important was found."
+msgstr "Ничего важного не найдено."
+
+#: templates/checks/detail.html
+msgid "OS"
+msgstr "ОС"
+
+#: templates/checks/detail.html
+msgid "Only the first %(n)s findings are shown; download the report for all of them."
+msgstr "Показаны первые %(n)s находок; все — в скачанном отчёте."
+
+#: templates/checks/detail.html
+msgid "Other checks of this player or PC"
+msgstr "Другие проверки этого игрока или ПК"
+
+#: templates/checks/detail.html
+msgid "PC name"
+msgstr "Имя ПК"
+
+#: templates/checks/detail.html
+msgid "Part"
+msgstr "Раздел"
+
+#: templates/checks/detail.html
+#: templates/checks/rules.html
+msgid "Parts of the check"
+msgstr "Разделы проверки"
+
+#: templates/checks/detail.html
+msgid "Platform"
+msgstr "Платформа"
+
+#: templates/checks/detail.html
+msgid "Player link"
+msgstr "Ссылка игрока"
+
+#: templates/checks/detail.html
+msgid "Player's PC and the report — technical"
+msgstr "ПК игрока и отчёт — технические данные"
+
+#: templates/checks/detail.html
+msgid "Player's appeals and requests"
+msgstr "Апелляции и запросы игрока"
+
+#: templates/checks/detail.html
+msgid "Record a ban for this player?"
+msgstr "Записать бан этому игроку?"
+
+#: templates/checks/detail.html
+msgid "Remove the decision"
+msgstr "Снять решение"
+
+#: templates/checks/detail.html
+msgid "Report format"
+msgstr "Формат отчёта"
+
+#: templates/checks/detail.html
+msgid "Report id"
+msgstr "ID отчёта"
+
+#: templates/checks/detail.html
+#: templates/checks/rules.html
+msgid "Rule"
+msgstr "Правило"
+
+#: templates/checks/detail.html
+msgid "Rules"
+msgstr "Правила"
+
+#: templates/checks/detail.html
+msgid "Severity"
+msgstr "Важность"
+
+#: templates/checks/detail.html
+msgid "Shown once. The previous link no longer works. Send it privately."
+msgstr "Показывается один раз. Прежняя ссылка больше не работает. Отправьте лично."
+
+#: templates/checks/detail.html
+msgid "Source"
+msgstr "Источник"
+
+#: templates/checks/detail.html
+msgid "TEST CHECK"
+msgstr "ТЕСТОВАЯ ПРОВЕРКА"
+
+#: templates/checks/detail.html
+msgid "The checker reported nothing."
+msgstr "Чекер ничего не сообщил."
+
+#: templates/checks/detail.html
+msgid "The code on the player's screen must match this one — then the report is the one on their screen:"
+msgstr "Код на экране игрока должен совпасть с этим — тогда отчёт тот же, что у него на экране:"
+
+#: templates/checks/detail.html
+msgid "The code was not used in time. Create a new check if you still need one."
+msgstr "Кодом не воспользовались вовремя. Создайте новую проверку, если она ещё нужна."
+
+#: templates/checks/detail.html
+msgid "The full list is under “Details for experienced admins”."
+msgstr "Полный список — в «Подробностях для опытных»."
+
+#: templates/checks/detail.html
+msgid "The player sees the decision on their page and can appeal. A different admin reviews the appeal."
+msgstr "Игрок увидит решение на своей странице и сможет подать апелляцию. Её рассмотрит другой админ."
+
+#: templates/checks/detail.html
+msgid "The rest — %(n)s item, does not affect the result"
+msgid_plural "The rest — %(n)s items, do not affect the result"
+msgstr[0] "Остальное — %(n)s пункт, на итог не влияет"
+msgstr[1] "Остальное — %(n)s пункта, на итог не влияют"
+msgstr[2] "Остальное — %(n)s пунктов, на итог не влияют"
+
+#: templates/checks/detail.html
+msgid "The same trace was also seen as"
+msgstr "Тот же след виден и как"
+
+#: templates/checks/detail.html
+msgid "The server found no problems with the report itself."
+msgstr "Сервер не нашёл проблем с самим отчётом."
+
+#: templates/checks/detail.html
+msgid "This check was cancelled; the code no longer works."
+msgstr "Проверка отменена, код больше не работает."
+
+#: templates/checks/detail.html
+msgid "This page updates by itself when the player connects."
+msgstr "Страница обновится сама, когда игрок подключится."
+
+#: templates/checks/detail.html
+msgid "Time"
+msgstr "Время"
+
+#: templates/checks/detail.html
+msgid "Timeline"
+msgstr "Хронология"
+
+#: templates/checks/detail.html
+msgid "Timestamped evidence, newest first. Times come from files on the player's PC and can be altered there."
+msgstr "Находки со временем, новые сверху. Время берётся из файлов на ПК игрока и может быть подделано."
+
+#: templates/checks/detail.html
+msgid "Trust in the report"
+msgstr "Доверие к отчёту"
+
+#: templates/checks/detail.html
+msgid "Upload IP"
+msgstr "IP при отправке"
+
+#: templates/checks/detail.html
+msgid "Usually 2–5 minutes. The result will open here by itself."
+msgstr "Обычно 2–5 минут. Результат откроется здесь сам."
+
+#: templates/checks/detail.html
+msgid "What was found"
+msgstr "Что нашли"
+
+#: templates/checks/detail.html
+#: templates/core/audit.html
+#: templates/team/member.html
+msgid "Who"
+msgstr "Кто"
+
+#: templates/checks/detail.html
+msgid "Why the checker decided so"
+msgstr "Почему чекер так решил"
+
+#: templates/checks/detail.html
+msgid "Windows user"
+msgstr "Пользователь Windows"
+
+#: templates/checks/detail.html
+msgid "Your decision"
+msgstr "Ваше решение"
+
+#: templates/checks/detail.html
+msgid "Your role cannot record the decision for this check."
+msgstr "Ваша роль не может принимать решение по этой проверке."
+
+#: templates/checks/detail.html
+msgid "it counts once."
+msgstr "это считается один раз."
+
+#: templates/checks/detail.html
+msgid "last signal"
+msgstr "последний сигнал"
+
+#: templates/checks/detail.html
+msgid "low"
+msgstr "низкое"
+
+#: templates/checks/detail.html
+msgid "no"
+msgstr "нет"
+
+#: templates/checks/detail.html
+msgid "normal"
+msgstr "обычное"
+
+#: templates/checks/detail.html
+msgid "not a real player. Left out of statistics; nothing here is evidence against anyone."
+msgstr "не настоящий игрок. Не входит в статистику; ничего здесь не является уликой против кого-либо."
+
+#: templates/checks/detail.html
+msgid "not recorded"
+msgstr "не записано"
+
+#: templates/checks/detail.html
+msgid "not supported"
+msgstr "не поддерживается"
+
+#: templates/checks/detail.html
+msgid "now"
+msgstr "сейчас"
+
+#: templates/checks/detail.html
+msgid "old format"
+msgstr "старый формат"
+
+#: templates/checks/detail.html
+msgid "open the queue"
+msgstr "открыть очередь"
+
+#: templates/checks/detail.html
+msgid "player / checker"
+msgstr "игрок / чекер"
+
+#: templates/checks/detail.html
+msgid "reduced"
+msgstr "снижено"
+
+#: templates/checks/detail.html
+msgid "works once"
+msgstr "работает один раз"
+
+#: templates/checks/detail.html
+msgid "yes"
+msgstr "да"
+
+#: templates/checks/new.html
+msgid "Copy the message and send it to the player in Discord or in the game."
+msgstr "Скопируйте сообщение и отправьте игроку в Discord или в игре."
+
+#: templates/checks/new.html
+msgid "Create code"
+msgstr "Создать код"
+
+#: templates/checks/new.html
+msgid "More: Steam, Discord, note"
+msgstr "Дополнительно: Steam, Discord, заметка"
+
+#: templates/checks/new.html
+msgid "The check runs"
+msgstr "Идёт проверка"
+
+#: templates/checks/new.html
+msgid "The checker shows your nickname, so the player knows who is checking. The code works once."
+msgstr "Чекер покажет ваш ник — игрок будет знать, кто проверяет. Код работает один раз."
+
+#: templates/checks/new.html
+msgid "The player enters the code"
+msgstr "Игрок вводит код"
+
+#: templates/checks/new.html
+msgid "The result arrives by itself. Open it, look at what was found and press “Clean”, “Ban” or “Re-check”."
+msgstr "Результат придёт сам. Откройте его, посмотрите, что нашли, и нажмите «Чисто», «Бан» или «Перепроверить»."
+
+#: templates/checks/new.html
+msgid "Usually 2–5 minutes. You see the progress live."
+msgstr "Обычно 2–5 минут. Прогресс видно в реальном времени."
+
+#: templates/checks/new.html
+msgid "What happens next"
+msgstr "Что будет дальше"
+
+#: templates/checks/new.html
+msgid "Who is being checked"
+msgstr "Кого проверяем"
+
+#: templates/checks/new.html
+msgid "You decide"
+msgstr "Вы принимаете решение"
+
+#: templates/checks/new.html
+msgid "You get a code and a ready message"
+msgstr "Вы получите код и готовое сообщение"
+
+#: templates/checks/rules.html
+msgid "A file matched a known cheat byte for byte (exact SHA-256). Nothing else can produce this result."
+msgstr "Файл побайтно совпал с известным читом (точный SHA-256). Никакая другая находка не даёт этот итог."
+
+#: templates/checks/rules.html
+msgid "A required part failed, ran out of time, was skipped, or the checker had no administrator rights."
+msgstr "Обязательный раздел упал, не успел, был пропущен, или у чекера не было прав администратора."
+
+#: templates/checks/rules.html
+msgid "Every required part ran and nothing needs a look."
+msgstr "Все обязательные разделы прошли, смотреть нечего."
+
+#: templates/checks/rules.html
+msgid "How the checker checks"
+msgstr "Как проверяет чекер"
+
+#: templates/checks/rules.html
+msgid "Named rules — technical reference (English)"
+msgstr "Именованные правила — технический справочник (на английском)"
+
+#: templates/checks/rules.html
+msgid "Rules seen in your checks"
+msgstr "Правила, сработавшие в ваших проверках"
+
+#: templates/checks/rules.html
+msgid "System settings (test signing, weakened boot protection, virtual machines) never change the result — they only lower trust in the report. There is no score."
+msgstr "Настройки системы (тестовая подпись драйверов, ослабленная защита загрузки, виртуальные машины) никогда не меняют итог — они только снижают доверие к отчёту. Баллов нет."
+
+#: templates/checks/rules.html
+msgid "Technical reference (English):"
+msgstr "Технический справочник (на английском):"
+
+#: templates/checks/rules.html
+msgid "The system is not one the checker is built for (supported: Windows 10/11 64-bit, Linux x86-64)."
+msgstr "Чекер не рассчитан на эту систему (поддерживаются Windows 10/11 64-бит и Linux x86-64)."
+
+#: templates/checks/rules.html
+msgid "Traces or signs of hiding of medium importance or higher. Traces of one file seen by several parts count once."
+msgstr "Следы или признаки сокрытия средней важности и выше. Следы одного файла из разных разделов считаются один раз."
+
+#: templates/checks/rules.html
+msgid "What each part of the check looks at, what can look like a cheat without being one, and what it cannot see. The blind spots are why “nothing found” is never proof that a PC is clean."
+msgstr "Что смотрит каждый раздел проверки, что может выглядеть как чит, не являясь им, и чего раздел не видит. Из-за этих слепых зон «ничего не найдено» — никогда не доказательство, что ПК чистый."
+
+#: templates/checks/rules.html
+msgid "What the results mean"
+msgstr "Что означают итоги"
+
+#: templates/checks/rules.html
+msgid "catalogue %(v)s"
+msgstr "справочник %(v)s"
+
+#: templates/checks/rules.html
+msgid "extra"
+msgstr "дополнительный"
+
+#: templates/checks/rules.html
+msgid "required"
+msgstr "обязательный"
+
+#: templates/checks/search.html
+msgid "Most frequent serious findings"
+msgstr "Самые частые серьёзные находки"
+
+#: templates/checks/search.html
+msgid "Nothing found."
+msgstr "Ничего не найдено."
+
+#: templates/checks/search.html
+msgid "Search every finding of the checks you can see: a file name, a hash, a cheat site, a driver, a Steam ID. Handy to spot the same cheat on several players."
+msgstr "Поиск по всем находкам доступных вам проверок: имя файла, хеш, сайт читов, драйвер, Steam ID. Удобно, чтобы заметить один и тот же чит у нескольких игроков."
+
+#: templates/checks/search.html
+msgid "Search in findings"
+msgstr "Поиск по находкам"
+
+#: templates/checks/search.html
+msgid "Showing the first 300 matches."
+msgstr "Показаны первые 300 совпадений."
+
+#: templates/checks/search.html
+msgid "Type at least 3 characters."
+msgstr "Введите хотя бы 3 символа."
+
+#: templates/checks/search.html
+msgid "e.g. loader.exe or a site name"
+msgstr "например, loader.exe или адрес сайта"
+
+#: templates/core/audit.html
+msgid "Action log"
+msgstr "Журнал действий"
+
+#: templates/core/audit.html
+msgid "Admin nickname"
+msgstr "Ник админа"
+
+#: templates/core/audit.html
+msgid "All actions"
+msgstr "Все действия"
+
+#: templates/core/audit.html
+msgid "Everything that happened in the panel: sign-ins, checks, decisions, appeals, settings."
+msgstr "Всё, что происходило в панели: входы, проверки, решения, апелляции, настройки."
+
+#: templates/core/audit.html
+msgid "No events."
+msgstr "Событий нет."
+
+#: templates/core/audit.html
+msgid "Target"
+msgstr "Объект"
+
+#: templates/core/audit.html
+msgid "checker"
+msgstr "чекер"
+
+#: templates/core/error.html
+msgid "Back to the panel"
+msgstr "Вернуться в панель"
+
+#: templates/core/settings.html
+msgid "Add"
+msgstr "Добавить"
+
+#: templates/core/settings.html
+msgid "Add a build"
+msgstr "Добавить сборку"
+
+#: templates/core/settings.html
+msgid "Checks and security"
+msgstr "Проверки и безопасность"
+
+#: templates/core/settings.html
+msgid "No trusted builds yet — every check will show a warning."
+msgstr "Доверенных сборок пока нет — в каждой проверке будет предупреждение."
+
+#: templates/core/settings.html
+msgid "Panel settings"
+msgstr "Настройки панели"
+
+#: templates/core/settings.html
+msgid "Remove"
+msgstr "Убрать"
+
+#: templates/core/settings.html
+msgid "SHA-256 of each official <code>MoonCheck.exe</code> / <code>moon-checker.jar</code> you give to players. Reports from any other file are flagged red (or refused, if blocking is on). The deploy script registers new builds by itself."
+msgstr "SHA-256 каждой официальной сборки <code>MoonCheck.exe</code> / <code>moon-checker.jar</code>, которую вы даёте игрокам. Отчёты от любого другого файла помечаются красным (или отклоняются, если включена блокировка). Скрипт развёртывания добавляет новые сборки сам."
+
+#: templates/core/settings.html
+msgid "Save settings"
+msgstr "Сохранить настройки"
+
+#: templates/core/settings.html
+msgid "Stop trusting %(name)s?"
+msgstr "Больше не доверять «%(name)s»?"
+
+#: templates/core/settings.html
+msgid "Trusted checker builds"
+msgstr "Доверенные сборки чекера"
+
+#: templates/team/member.html
+msgid "Changing the role or disabling the account signs the member out everywhere."
+msgstr "Смена роли или отключение аккаунта завершает все сеансы участника."
+
+#: templates/team/member.html
+msgid "Checks run"
+msgstr "Проведено проверок"
+
+#: templates/team/member.html
+msgid "Create a password reset link for %(name)s?"
+msgstr "Создать ссылку для сброса пароля %(name)s?"
+
+#: templates/team/member.html
+#: templates/team/roles.html
+msgid "Edit"
+msgstr "Изменить"
+
+#: templates/team/member.html
+msgid "Overview"
+msgstr "Обзор"
+
+#: templates/team/member.html
+msgid "Password reset link"
+msgstr "Ссылка для сброса пароля"
+
+#: templates/team/member.html
+msgid "Recent log events"
+msgstr "Последние события журнала"
+
+#: templates/team/member.html
+msgid "Remove 2FA from %(name)s? They must set it up again."
+msgstr "Снять 2FA у %(name)s? Её придётся настроить заново."
+
+#: templates/team/member.html
+msgid "Reset 2FA"
+msgstr "Сбросить 2FA"
+
+#: templates/team/member.html
+msgid "Restore access"
+msgstr "Восстановление доступа"
+
+#: templates/team/member.html
+msgid "Save"
+msgstr "Сохранить"
+
+#: templates/team/member.html
+msgid "Sign out everywhere"
+msgstr "Выйти везде"
+
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "active"
+msgstr "активен"
+
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "disabled"
+msgstr "отключён"
+
+#: templates/team/member.html
+msgid "invited by %(name)s"
+msgstr "пригласил(а) %(name)s"
+
+#: templates/team/member.html
+#: templates/team/team.html
+msgid "never"
+msgstr "никогда"
+
+#: templates/team/member.html
+msgid "rank %(n)s"
+msgstr "ранг %(n)s"
+
+#: templates/team/role_edit.html
+msgid "Delete role"
+msgstr "Удалить роль"
+
+#: templates/team/role_edit.html
+msgid "Delete role %(name)s?"
+msgstr "Удалить роль «%(name)s»?"
+
+#: templates/team/role_edit.html
+msgid "Edit role: %(name)s"
+msgstr "Роль: %(name)s"
+
+#: templates/team/role_edit.html
+#: templates/team/roles.html
+msgid "New role"
+msgstr "Новая роль"
+
+#: templates/team/role_edit.html
+#: templates/team/roles.html
+msgid "Roles"
+msgstr "Роли"
+
+#: templates/team/role_edit.html
+msgid "Save role"
+msgstr "Сохранить роль"
+
+#: templates/team/role_edit.html
+msgid "This role also has permissions you do not hold; they stay unchanged:"
+msgstr "У роли есть права, которых нет у вас; они останутся без изменений:"
+
+#: templates/team/roles.html
+msgid "A member can only manage members and roles ranked below their own, and can only grant permissions they hold. The owner role is fixed."
+msgstr "Участник управляет только участниками и ролями ниже своего ранга и может выдавать только те права, что есть у него. Роль владельца не меняется."
+
+#: templates/team/roles.html
+msgid "Members"
+msgstr "Участники"
+
+#: templates/team/roles.html
+#: templates/team/team.html
+msgid "Roles and permissions"
+msgstr "Роли и права"
+
+#: templates/team/roles.html
+msgid "What each permission allows"
+msgstr "Что даёт каждое право"
+
+#: templates/team/roles.html
+msgid "everything"
+msgstr "всё"
+
+#: templates/team/roles.html
+msgid "none"
+msgstr "нет"
+
+#: templates/team/team.html
+msgid "Create invite link"
+msgstr "Создать приглашение"
+
+#: templates/team/team.html
+msgid "Creates a one-time link. The new admin picks their own nickname and password."
+msgstr "Создаёт одноразовую ссылку. Новый админ сам выберет ник и пароль."
+
+#: templates/team/team.html
+msgid "Invite"
+msgstr "Приглашение"
+
+#: templates/team/team.html
+msgid "Invite an admin"
+msgstr "Пригласить админа"
+
+#: templates/team/team.html
+msgid "Open links"
+msgstr "Активные ссылки"
+
+#: templates/team/team.html
+msgid "Password reset"
+msgstr "Сброс пароля"
+
+#: templates/team/team.html
+msgid "Revoke"
+msgstr "Отозвать"
+
+#: templates/team/team.html
+msgid "by %(name)s, valid until %(until)s"
+msgstr "от %(name)s, действует до %(until)s"
+
+#: templates/team/team.html
+msgid "you"
+msgstr "вы"

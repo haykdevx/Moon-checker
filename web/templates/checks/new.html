@@ -1,22 +1,31 @@
 {% extends "base.html" %}
-{% block title %}New check{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "New check" %}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>New check</h1><a class="btn" href="{% url 'checks:dashboard' %}">← Checks</a></div>
+<a class="back" href="{% url 'checks:dashboard' %}">← {% translate "All checks" %}</a>
+<h1>{% translate "New check" %}</h1>
 <div class="grid two">
-  <div class="card">
-    <form method="post" novalidate>{% csrf_token %}{% include "_form.html" %}
-      <button class="btn primary big" type="submit">Create code</button>
-    </form>
-  </div>
-  <div class="card">
-    <h2>How it works</h2>
-    <ol>
-      <li>Create the check here — you get a one-time code like <code>K7MQ-4X2P</code>.</li>
-      <li>The player downloads the checker from <a href="{% url 'core:download' %}">{{ public_url }}{% url 'core:download' %}</a> and runs it as administrator.</li>
-      <li>They type the code. The checker shows <b>your alias</b> so they know who is checking them.</li>
-      <li>You watch the progress live on the check page; the verdict and all evidence arrive only in your panel.</li>
+  <form class="card stack" method="post" novalidate>{% csrf_token %}
+    <div class="step-title"><span class="num">1</span><h2>{% translate "Who is being checked" %}</h2></div>
+    {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    {% include "_field.html" with field=form.player_name %}
+    <details class="extra"{% if form.player_steam.errors or form.player_discord.errors or form.note.errors %} open{% endif %}>
+      <summary>{% translate "More: Steam, Discord, note" %}</summary>
+      {% include "_field.html" with field=form.player_steam %}
+      {% include "_field.html" with field=form.player_discord %}
+      {% include "_field.html" with field=form.note %}
+    </details>
+    {% include "_field.html" with field=form.is_test %}
+    <button class="btn primary big" type="submit">{% translate "Create code" %}</button>
+  </form>
+  <div class="card stack">
+    <div class="step-title"><span class="num">2</span><h2>{% translate "What happens next" %}</h2></div>
+    <ol class="steps">
+      <li><b>{% translate "You get a code and a ready message" %}</b><div class="muted small">{% translate "Copy the message and send it to the player in Discord or in the game." %}</div></li>
+      <li><b>{% translate "The player enters the code" %}</b><div class="muted small">{% translate "The checker shows your nickname, so the player knows who is checking. The code works once." %}</div></li>
+      <li><b>{% translate "The check runs" %}</b><div class="muted small">{% translate "Usually 2–5 minutes. You see the progress live." %}</div></li>
+      <li><b>{% translate "You decide" %}</b><div class="muted small">{% translate "The result arrives by itself. Open it, look at what was found and press “Clean”, “Ban” or “Re-check”." %}</div></li>
     </ol>
-    <p class="muted small">Codes expire if unused and work only once. Ask for screen share as usual — the verification code on their screen must match the one on the check page.</p>
   </div>
 </div>
 {% endblock %}

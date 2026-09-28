@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class TrustedBuild(models.Model):
@@ -31,29 +32,30 @@ class CheckSession(models.Model):
     ABANDONED = "ABANDONED"
     EXPIRED = "EXPIRED"
     CANCELLED = "CANCELLED"
-    STATUS_CHOICES = [(s, s.title()) for s in
-                      (WAITING, CONNECTED, SCANNING, COMPLETED, ABANDONED, EXPIRED, CANCELLED)]
+    STATUS_CHOICES = [(WAITING, _("Waiting for the player")), (CONNECTED, _("Checker connected")),
+                      (SCANNING, _("Checking")), (COMPLETED, _("Done")), (ABANDONED, _("Checker lost")),
+                      (EXPIRED, _("Code expired")), (CANCELLED, _("Cancelled"))]
     LIVE_STATUSES = (CONNECTED, SCANNING)
     OPEN_STATUSES = (WAITING, CONNECTED, SCANNING)
 
     DECISION_NONE = ""
     DECISION_CHOICES = [
-        ("", "Not decided"),
-        ("CLEARED", "Cleared — no cheats"),
-        ("BANNED", "Banned"),
-        ("REVIEW", "Needs another review"),
-        ("RECHECK", "Re-check required"),
+        ("", _("Not decided")),
+        ("CLEARED", _("Clean")),
+        ("BANNED", _("Ban")),
+        ("REVIEW", _("Needs a second look")),
+        ("RECHECK", _("Re-check")),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=9, unique=True)
     admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="check_sessions")
     player_name = models.CharField(max_length=64)
-    player_steam = models.CharField("Steam profile / ID", max_length=100, blank=True)
+    player_steam = models.CharField(_("Steam (link or ID)"), max_length=100, blank=True)
     player_discord = models.CharField(max_length=64, blank=True)
     note = models.CharField(max_length=500, blank=True)
-    is_test = models.BooleanField("Test run", default=False, db_index=True,
-                                  help_text="Not a real player: shown with a TEST label and left out of statistics.")
+    is_test = models.BooleanField(_("Test check"), default=False, db_index=True,
+                                  help_text=_("Not a real player: shown with a TEST label and left out of statistics."))
     # the player's private status link; only the hash is stored
     player_token_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
@@ -161,8 +163,8 @@ class Appeal(models.Model):
     """A player's appeal against a decision, resolved by a different admin than the one who decided."""
 
     OPEN, UPHELD, OVERTURNED, RECHECK = "OPEN", "UPHELD", "OVERTURNED", "RECHECK"
-    STATUS_CHOICES = [(OPEN, "Open"), (UPHELD, "Decision upheld"), (OVERTURNED, "Overturned — cleared"),
-                      (RECHECK, "Re-check ordered")]
+    STATUS_CHOICES = [(OPEN, _("Under review")), (UPHELD, _("Decision upheld")),
+                      (OVERTURNED, _("Overturned — cleared")), (RECHECK, _("Re-check ordered"))]
 
     session = models.ForeignKey(CheckSession, on_delete=models.CASCADE, related_name="appeals")
     statement = models.TextField(max_length=4000)
@@ -184,7 +186,7 @@ class DataRequest(models.Model):
     """A player asking for their check data to be deleted (export is self-service)."""
 
     OPEN, DONE, REFUSED = "OPEN", "DONE", "REFUSED"
-    STATUS_CHOICES = [(OPEN, "Open"), (DONE, "Deleted"), (REFUSED, "Refused (kept, with reason)")]
+    STATUS_CHOICES = [(OPEN, _("Open")), (DONE, _("Deleted")), (REFUSED, _("Refused (kept, with reason)"))]
 
     session = models.ForeignKey(CheckSession, on_delete=models.SET_NULL, null=True, related_name="data_requests")
     session_label = models.CharField(max_length=120)  # survives the deletion it asks for

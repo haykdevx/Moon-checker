@@ -1,12 +1,13 @@
 {% extends "base_auth.html" %}
-{% block title %}Two-factor check{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Two-factor check" %}{% endblock %}
 {% block content %}
-<h2>Two-factor check</h2>
-<p class="muted">Signing in as <b>{{ alias }}</b>. Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+<h2>{% translate "Two-factor check" %}</h2>
+<p class="muted">{% blocktranslate %}Signing in as <b>{{ alias }}</b>. Enter the 6-digit code from your authenticator app, or one of your recovery codes.{% endblocktranslate %}</p>
 <form method="post" novalidate>
   {% csrf_token %}
   {% include "_form.html" %}
-  <button class="btn primary" type="submit">Verify</button>
+  <button class="btn primary" type="submit">{% translate "Confirm" %}</button>
 </form>
-<p class="small"><a href="{% url 'accounts:login' %}">← Start over</a></p>
+<p class="small"><a href="{% url 'accounts:login' %}">← {% translate "Start over" %}</a></p>
 {% endblock %}

@@ -25,6 +25,7 @@ class LoginTests(TestCase):
         cache.clear()
         no_2fa()
         self.user = make_user("shadow")
+        self.client.cookies["moon_lang"] = "en"  # assertions below read the English texts
 
     def login(self, alias="shadow", password=PW):
         return self.client.post("/login/", {"username": alias, "password": password})
@@ -103,6 +104,7 @@ class RoleTests(TestCase):
         self.head = make_user("head", "head-admin")
         self.admin = make_user("adm", "admin")
         self.observer = make_user("obs", "observer")
+        self.client.cookies["moon_lang"] = "en"
 
     def as_user(self, user):
         self.client.force_login(user)
@@ -216,7 +218,7 @@ class RoleTests(TestCase):
     def test_detail_renders_with_partial_client_info(self):
         s = make_session(self.admin, status=CheckSession.SCANNING, client={"hostname": "PC"}, progress_total=5)
         self.as_user(self.owner)
-        self.assertContains(self.client.get(f"/checks/{s.pk}/"), "Scanning the player")
+        self.assertContains(self.client.get(f"/checks/{s.pk}/"), "Checking the player")
 
     def test_pages_render_for_owner(self):
         self.as_user(self.owner)

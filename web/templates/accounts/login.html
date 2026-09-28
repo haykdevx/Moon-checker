@@ -1,11 +1,12 @@
 {% extends "base_auth.html" %}
-{% block title %}Sign in{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Sign in" %}{% endblock %}
 {% block content %}
 <form method="post" novalidate>
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   {% include "_form.html" %}
-  <button class="btn primary" type="submit">Sign in</button>
+  <button class="btn primary" type="submit">{% translate "Sign in" %}</button>
 </form>
-<p class="muted small">Accounts are invite-only. Ask your head admin for an invite link.</p>
+<p class="muted small">{% translate "Accounts are by invitation only. Ask your head admin for an invite link." %}</p>
 {% endblock %}

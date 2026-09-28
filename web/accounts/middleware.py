@@ -4,7 +4,7 @@ from django.urls import reverse
 from core.models import SiteSettings
 
 # Paths a signed-in member may reach while a mandatory step is outstanding.
-_ALWAYS_ALLOWED = ("/static/", "/api/", "/logout/", "/download/")
+_ALWAYS_ALLOWED = ("/static/", "/api/", "/logout/", "/download/", "/language/")
 
 
 class AccountGateMiddleware:

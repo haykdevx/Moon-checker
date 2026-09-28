@@ -1,0 +1,65 @@
+{% load i18n moon %}
+{% if queues.decide %}
+<section class="queue queue-decide" aria-labelledby="q-decide">
+  <div class="queue-head"><span class="dot"></span><h2 id="q-decide">{% translate "Waiting for your decision" %}</h2><span class="muted">{{ queues.decide|length }}</span></div>
+  {% for s in queues.decide %}
+  <div class="queue-row">
+    <div class="queue-main">
+      <a class="player" href="{% url 'checks:detail' s.pk %}">{{ s.player_name }}</a>{% if s.is_test %} <span class="badge test">{% translate "TEST" %}</span>{% endif %}
+      <div class="muted small">{% blocktranslate with ago=s.completed_at|timesince %}{{ ago }} ago{% endblocktranslate %}{% if s.client.hostname %} · {% translate "PC" %} {{ s.client.hostname }}{% endif %}{% if show_admin and s.admin_id != user.pk %} · {% translate "admin" %} {{ s.admin.username }}{% endif %}{% if s.trust == "bad" %} · <span class="t-bad">{% translate "report needs checking" %}</span>{% endif %}</div>
+    </div>
+    <span class="badge tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</span>
+    <a class="btn" href="{% url 'checks:detail' s.pk %}">{% translate "Open" %}</a>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if queues.running %}
+<section class="queue queue-running" aria-labelledby="q-running">
+  <div class="queue-head"><span class="dot"></span><h2 id="q-running">{% translate "Running now" %}</h2><span class="muted">{{ queues.running|length }}</span></div>
+  {% for s in queues.running %}
+  <div class="queue-row">
+    <div class="queue-main">
+      <a class="player" href="{% url 'checks:detail' s.pk %}">{{ s.player_name }}</a>{% if s.is_test %} <span class="badge test">{% translate "TEST" %}</span>{% endif %}
+      <div class="muted small">{% if s.client.hostname %}{% translate "PC" %} {{ s.client.hostname }} · {% endif %}{% blocktranslate with ago=s.claimed_at|timesince %}started {{ ago }} ago{% endblocktranslate %}</div>
+    </div>
+    <div class="queue-progress">
+      {% if s.status == "ABANDONED" %}<span class="t-bad">{% translate "The checker stopped responding" %}</span>
+      {% else %}
+      <div class="progress"><div data-width="{{ s.progress_percent }}"></div></div>
+      <div class="muted small">{% if s.progress_total %}{% blocktranslate with done=s.progress_done total=s.progress_total %}{{ done }} of {{ total }} parts checked{% endblocktranslate %}{% else %}{% translate "starting…" %}{% endif %} · {% translate "usually 2–5 minutes" %}</div>
+      {% endif %}
+    </div>
+    <a class="btn" href="{% url 'checks:detail' s.pk %}">{% translate "Watch" %}</a>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if queues.waiting %}
+<section class="queue queue-waiting" aria-labelledby="q-waiting">
+  <div class="queue-head"><span class="dot"></span><h2 id="q-waiting">{% translate "Waiting for players" %}</h2><span class="muted">{{ queues.waiting|length }}</span></div>
+  {% for s in queues.waiting %}
+  <div class="queue-row">
+    <div class="queue-main">
+      <a class="player" href="{% url 'checks:detail' s.pk %}">{{ s.player_name }}</a>{% if s.is_test %} <span class="badge test">{% translate "TEST" %}</span>{% endif %}
+      <div class="muted small" data-expiry>{% translate "code valid for" %} <span data-expires="{{ s.expires_at.isoformat }}">…</span></div>
+    </div>
+    <span class="code-inline" id="code-{{ s.pk }}">{{ s.code }}</span>
+    <div class="actions">
+      <button class="btn" type="button" data-copy="#code-{{ s.pk }}">{% translate "Copy code" %}</button>
+      <a class="btn" href="{% url 'checks:detail' s.pk %}#message">{% translate "Message for the player" %}</a>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if not queues.decide and not queues.running and not queues.waiting and not page.object_list %}
+<div class="card empty-state">
+  <h2>{% translate "No checks yet" %}</h2>
+  <p class="muted">{% translate "Press “New check”, send the code to the player and wait: the result appears here by itself." %}</p>
+</div>
+{% endif %}
+<span class="hidden" data-any-open="{% if any_open %}1{% else %}0{% endif %}"></span>

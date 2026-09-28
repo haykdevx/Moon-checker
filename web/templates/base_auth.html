@@ -1,10 +1,10 @@
-{% load static %}<!doctype html>
-<html lang="en">
+{% load static i18n %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="same-origin">
-  <title>{% block title %}Sign in{% endblock %} · Moon Panel</title>
+  <title>{% block title %}{% translate "Sign in" %}{% endblock %} · Moon Panel</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="icon" href="data:,">
   <script src="{% static 'js/app.js' %}" defer></script>
@@ -12,8 +12,8 @@
 <body>
 <div class="auth">
   <div class="card">
-    <div class="brand"><span class="moon"></span>MOON <b>PANEL</b></div>
-    {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    <div class="auth-head"><div class="brand"><span class="moon"></span>MOON <b>{% translate "PANEL" %}</b></div>{% include "_lang_switch.html" %}</div>
+    {% if messages %}<ul class="messages" role="status">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}
   </div>
 </div>

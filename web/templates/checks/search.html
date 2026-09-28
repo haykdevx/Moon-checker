@@ -1,36 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Evidence search{% endblock %}
+{% load i18n moon %}
+{% block title %}{% translate "Search" %}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Evidence search</h1></div>
-<p class="muted">Search every finding in the checks you can see — a file name, hash, cheat site, driver, Steam ID… Useful to spot the same cheat across several players.</p>
-<form class="filters" method="get">
-  <input type="search" name="q" value="{{ q }}" placeholder="e.g. loader.exe, 3f2a…, cheat-site.com" autofocus>
-  <button class="btn primary" type="submit">Search</button>
+<div class="page-head"><div><h1>{% translate "Search in findings" %}</h1>
+<p class="lead">{% translate "Search every finding of the checks you can see: a file name, a hash, a cheat site, a driver, a Steam ID. Handy to spot the same cheat on several players." %}</p></div></div>
+<form class="filters" method="get" role="search">
+  <label class="sr-only" for="q">{% translate "Search" %}</label>
+  <input type="search" id="q" name="q" value="{{ q }}" placeholder="{% translate 'e.g. loader.exe or a site name' %}" autofocus>
+  <button class="btn primary" type="submit">{% translate "Find" %}</button>
 </form>
-{% if too_short %}<p class="t-warn">Type at least 3 characters.</p>{% endif %}
+{% if too_short %}<p class="t-warn">{% translate "Type at least 3 characters." %}</p>{% endif %}
 {% if q and not too_short %}
 <div class="table-wrap"><table class="cards-sm">
-  <thead><tr><th>Check</th><th>Severity</th><th>Finding</th><th>Evidence</th></tr></thead>
+  <thead><tr><th>{% translate "Check" %}</th><th>{% translate "Kind" %}</th><th>{% translate "Finding" %}</th><th>{% translate "Evidence" %}</th></tr></thead>
   <tbody>
   {% for f in results %}
     <tr class="clickable" data-href="{% url 'checks:detail' f.session.pk %}">
-      <td class="c-player"><a href="{% url 'checks:detail' f.session.pk %}"><b>{{ f.session.player_name }}</b></a><div class="muted small">{{ f.session.created_at|date:"Y-m-d" }} · {{ f.session.admin.username }}</div></td>
-      <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
-      <td class="c-wide">{{ f.title }}</td>
+      <td class="c-player"><a href="{% url 'checks:detail' f.session.pk %}"><b>{{ f.session.player_name }}</b></a><div class="muted small">{{ f.session.created_at|date:"j E Y" }} · {{ f.session.admin.username }}</div></td>
+      <td>{% if f.kind %}<span class="badge tone-{{ f.kind|kind_tone }}">{{ f.kind|kind_label }}</span>{% else %}<span class="badge sev-{{ f.severity }}">{{ f.severity }}</span>{% endif %}</td>
+      <td class="c-wide">{{ f.title|loc }}</td>
       <td class="evidence c-wide">{{ f.evidence|truncatechars:200 }}</td>
     </tr>
   {% empty %}
-    <tr><td colspan="4" class="empty">Nothing found.</td></tr>
+    <tr><td colspan="4" class="empty">{% translate "Nothing found." %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
-{% if results|length == 300 %}<p class="muted small">Showing the first 300 matches.</p>{% endif %}
+{% if results|length == 300 %}<p class="muted small">{% translate "Showing the first 300 matches." %}</p>{% endif %}
 {% elif top %}
 <div class="card">
-  <h2>Most common serious findings</h2>
+  <h2>{% translate "Most frequent serious findings" %}</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>Finding</th><th>Checks</th></tr></thead>
-    <tbody>{% for t in top %}<tr><td>{{ t.title }}</td><td>{{ t.n }}</td></tr>{% endfor %}</tbody>
+    <thead><tr><th>{% translate "Finding" %}</th><th>{% translate "Checks" %}</th></tr></thead>
+    <tbody>{% for t in top %}<tr><td>{{ t.title|loc }}</td><td>{{ t.n }}</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
 {% endif %}

@@ -1,10 +1,10 @@
-{% if flash_link %}
+{% load i18n %}{% if flash_link %}
 <div class="card">
   <h2>{{ flash_link.label }}</h2>
-  <p class="muted">Copy it now — it is shown only once and works a single time. Send it privately (Discord DM).</p>
+  <p class="muted">{% translate "Copy it now — it is shown only once and works a single time. Send it privately (a Discord DM)." %}</p>
   <div class="link-box">
-    <input type="text" id="flash-link" value="{{ flash_link.url }}" readonly>
-    <button class="btn primary" data-copy="#flash-link">Copy</button>
+    <input type="text" id="flash-link" value="{{ flash_link.url }}" readonly aria-label="{% translate 'Link' %}">
+    <button class="btn primary" type="button" data-copy="#flash-link">{% translate "Copy" %}</button>
   </div>
 </div>
 {% endif %}

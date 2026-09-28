@@ -127,18 +127,19 @@ class PlayerFlowTests(TestCase):
         self.assertEqual(anon.get(f"/p/{token}/").status_code, 404)
         self.assertEqual(anon.get(new_link.replace("http://testserver", "")).status_code, 200)
 
-    def test_test_runs_are_labelled_and_left_out_of_statistics(self):
+    def test_test_runs_are_labelled_in_the_queues(self):
         make_session(self.admin, is_test=True, status=CheckSession.COMPLETED, verdict="REVIEW_REQUIRED")
         self.client.force_login(self.admin)
         page = self.client.get("/")
-        self.assertEqual(page.context["stats"]["waiting"], 1, "only the real waiting check counts")
+        self.assertEqual(len(page.context["queues"]["decide"]), 1)
+        self.assertEqual(len(page.context["queues"]["waiting"]), 1)
         self.assertContains(page, "badge test")
 
     def test_detail_shows_timeline_and_history(self):
         s, token = self.complete_check()
         self.client.force_login(self.admin)
         page = self.client.get(f"/checks/{s.pk}/")
-        self.assertContains(page, "History of this check")
+        self.assertContains(page, "История проверки")
         self.assertContains(page, "check.completed")
 
     def test_player_forms_work_like_a_real_browser(self):

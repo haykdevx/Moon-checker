@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Recovery codes{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Recovery codes" %}{% endblock %}
 {% block content %}
 <div class="grid two"><div class="card">
-  <h1>Save your recovery codes</h1>
-  <p>Each code signs you in once if you lose your phone. <b>They are shown only now.</b> Store them in a password manager.</p>
+  <h1>{% translate "Save your recovery codes" %}</h1>
+  <p>{% translate "Each code signs you in once if you lose your phone." %} <b>{% translate "They are shown only now." %}</b> {% translate "Keep them in a password manager." %}</p>
   <div class="recovery" id="recovery">{% for c in codes %}<div>{{ c }}</div>{% endfor %}</div>
   <p></p>
   <div class="actions">
-    <button class="btn" data-copy-text="{{ codes|join:' ' }}">Copy all</button>
-    <a class="btn primary" href="{% url 'checks:dashboard' %}">I saved them — continue</a>
+    <button class="btn" type="button" data-copy-text="{{ codes|join:' ' }}">{% translate "Copy all" %}</button>
+    <a class="btn primary" href="{% url 'checks:dashboard' %}">{% translate "I saved them — continue" %}</a>
   </div>
 </div></div>
 {% endblock %}

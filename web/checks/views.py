@@ -12,6 +12,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _t, gettext_lazy as _
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
@@ -19,7 +20,7 @@ from accounts.views import perm_required
 from core.audit import record
 from core.models import SiteSettings
 
-from . import codes
+from . import codes, policy
 from .models import Appeal, CheckSession, DataRequest, FindingRow
 from .templatetags.moon import OUTCOMES as OUTCOME_LABELS
 
@@ -36,17 +37,29 @@ class NewCheckForm(forms.ModelForm):
     class Meta:
         model = CheckSession
         fields = ["player_name", "player_steam", "player_discord", "note", "is_test"]
+        labels = {
+            "player_name": _("Player's nickname"),
+            "player_steam": _("Steam (link or ID)"),
+            "player_discord": _("Discord"),
+            "note": _("Note for admins"),
+            "is_test": _("Test check — left out of statistics"),
+        }
+        help_texts = {"player_name": _("As on the server. Nothing else is required."), "is_test": ""}
         widgets = {
-            "player_name": forms.TextInput(attrs={"autofocus": True, "placeholder": "In-game nickname"}),
-            "player_steam": forms.TextInput(attrs={"placeholder": "https://steamcommunity.com/profiles/… or STEAM_…"}),
-            "player_discord": forms.TextInput(attrs={"placeholder": "discord name"}),
-            "note": forms.Textarea(attrs={"rows": 2, "placeholder": "Why is this player being checked?"}),
+            "player_name": forms.TextInput(attrs={"autofocus": True, "autocomplete": "off"}),
+            "player_steam": forms.TextInput(attrs={"placeholder": "https://steamcommunity.com/id/…"}),
+            "player_discord": forms.TextInput(),
+            "note": forms.Textarea(attrs={"rows": 2}),
         }
 
 
+DECISION_BUTTONS = ("CLEARED", "BANNED", "RECHECK", "REVIEW")
+
+
 class DecisionForm(forms.Form):
-    decision = forms.ChoiceField(choices=CheckSession.DECISION_CHOICES, required=False)
-    note = forms.CharField(max_length=1000, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    decision = forms.ChoiceField(choices=[("", "—")] + [(d, d) for d in DECISION_BUTTONS], required=False)
+    note = forms.CharField(label=_("Comment — only admins see it"), max_length=1000, required=False,
+                           widget=forms.Textarea(attrs={"rows": 3}))
 
 
 def visible_sessions(user):
@@ -96,33 +109,36 @@ def _filtered(request):
 
 @login_required
 def dashboard(request):
+    """Work queues first — waiting for your decision, running, waiting for the player — then history.
+    Any search or filter switches to one flat, filterable list."""
     user = request.user
     qs, f = _filtered(request)
-    page = Paginator(qs, 30).get_page(request.GET.get("page"))
-    base = visible_sessions(user).filter(is_test=False)  # test runs never count
-    since = timezone.now() - timedelta(days=7)
-    stats = {
-        "live": base.filter(status__in=CheckSession.LIVE_STATUSES).count(),
-        "waiting": base.filter(status=CheckSession.WAITING).count(),
-        "week": base.filter(status=CheckSession.COMPLETED, completed_at__gte=since).count(),
-        # exact detections only (v2), plus what checker < 1.1 called CHEAT
-        "week_detected": base.filter(status=CheckSession.COMPLETED, completed_at__gte=since,
-                                     verdict__in=("VALIDATED_DETECTION", "CHEAT")).count(),
-        "undecided": base.filter(status=CheckSession.COMPLETED, decision="").count(),
-        "appeals": Appeal.objects.filter(session__in=visible_sessions(user), status=Appeal.OPEN).count(),
+    filtering = any(f[k] for k in ("q", "status", "verdict", "decision", "admin", "mine"))
+    visible = visible_sessions(user)
+    queues = {
+        "decide": list(visible.filter(status=CheckSession.COMPLETED, decision="").order_by("-completed_at")[:50]),
+        "running": list(visible.filter(status__in=CheckSession.LIVE_STATUSES + (CheckSession.ABANDONED,))
+                        .order_by("-claimed_at")[:50]),
+        "waiting": list(visible.filter(status=CheckSession.WAITING).order_by("-created_at")[:50]),
     }
+    history = qs if filtering else qs.exclude(status__in=CheckSession.OPEN_STATUSES + (CheckSession.ABANDONED,)) \
+        .exclude(status=CheckSession.COMPLETED, decision="")
+    page = Paginator(history, 25).get_page(request.GET.get("page"))
     admins = User.objects.filter(check_sessions__isnull=False).distinct().order_by("username") \
         if user.can("checks.view_all") else []
     params = request.GET.copy()
     params.pop("page", None)
     params.pop("fragment", None)
-    ctx = {"page": page, "f": f, "stats": stats, "admins": admins, "qs": params.urlencode(),
-           "can_create": user.can("checks.create"),
-           "outcomes": [(k, v[0]) for k, v in OUTCOME_LABELS.items()],
-           "statuses": CheckSession.STATUS_CHOICES, "decisions": CheckSession.DECISION_CHOICES[1:],
-           "any_open": any(s.is_open for s in page)}
+    from .templatetags.moon import DECISIONS, STATUSES
+    ctx = {"page": page, "f": f, "filtering": filtering, "queues": queues, "admins": admins,
+           "qs": params.urlencode(), "can_create": user.can("checks.create"),
+           "show_admin": user.can("checks.view_all"),
+           "appeals_open": Appeal.objects.filter(session__in=visible, status=Appeal.OPEN).count(),
+           "outcomes": [(k, v[0]) for k, v in OUTCOME_LABELS.items() if k in policy.OUTCOMES],
+           "statuses": list(STATUSES.items()), "decisions": list(DECISIONS.items()),
+           "any_open": bool(queues["running"] or queues["waiting"]) or any(s.is_open for s in page)}
     if request.GET.get("fragment") == "1":
-        return render(request, "checks/_session_rows.html", ctx)
+        return render(request, "checks/_queues.html", ctx)
     return render(request, "checks/dashboard.html", ctx)
 
 
@@ -143,11 +159,39 @@ def new_check(request):
             except IntegrityError:
                 continue
         else:  # pragma: no cover - 32^8 space
-            messages.error(request, "Could not allocate a code, try again.")
+            messages.error(request, _t("Could not allocate a code, try again."))
             return redirect("checks:new")
         record(request, "check.created", str(session.pk), player=session.player_name, code=session.code)
         return redirect("checks:detail", pk=session.pk)
     return render(request, "checks/new.html", {"form": form})
+
+
+SEVERITY_RANK = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+
+
+def moves_outcome(f):
+    """The evidence the outcome rests on — as VerdictEngine counts it."""
+    return f.kind == "DETECTION" or (f.kind in ("INDICATOR", "CONCEALMENT") and SEVERITY_RANK.get(f.severity, 0) >= 2)
+
+
+def split_findings(findings):
+    """(important groups, the rest). Traces of one file seen by several collectors form one group."""
+    groups, by_subject, other = [], {}, []
+    for f in findings:
+        if not moves_outcome(f):
+            other.append(f)
+            continue
+        subject = (f.evidence or f.title).strip().lower()
+        if subject in by_subject:
+            by_subject[subject]["also"].append(f)
+            continue
+        group = {"main": f, "also": []}
+        by_subject[subject] = group
+        groups.append(group)
+    order = {"DETECTION": 0, "CONCEALMENT": 1, "INDICATOR": 2}
+    groups.sort(key=lambda g: (order.get(g["main"].kind, 3), -SEVERITY_RANK.get(g["main"].severity, 0),
+                               g["main"].idx))
+    return groups, other
 
 
 @login_required
@@ -174,8 +218,12 @@ def detail(request, pk):
         if user.can("audit.view") or session.admin_id == user.pk else []
     coverage = meta.get("coverage") or {}
     coverage_done = sum(1 for m in coverage.get("required", []) if coverage.get("modules", {}).get(m) == "OK")
+    important, other = split_findings(findings)
     return render(request, "checks/detail.html", {
         "s": session, "findings": findings, "truncated": truncated, "modules": sorted(modules.items()),
+        "important": important, "other": other,
+        "warnings": [fl for fl in session.flags if fl.get("level") in ("bad", "warn")],
+        "signals_ok": [fl for fl in session.flags if fl.get("level") not in ("bad", "warn")],
         "env": env, "meta": meta, "related": related, "coverage_done": coverage_done,
         "kinds": sorted({f.kind for f in findings if f.kind}),
         "timeline": timeline, "audit_trail": audit_trail,
@@ -187,7 +235,8 @@ def detail(request, pk):
         "can_cancel": can_cancel(user, session),
         "can_export": user.can("checks.export") and session.status == CheckSession.COMPLETED,
         "can_delete": user.can("checks.delete"),
-        "decision_form": DecisionForm(initial={"decision": session.decision, "note": session.decision_note}),
+        "decision_form": DecisionForm(initial={"note": session.decision_note}),
+        "decision_buttons": DECISION_BUTTONS,
         "severities": FindingRow.SEVERITIES,
         "module_names": sorted({f.module for f in findings}),
     })
@@ -222,7 +271,7 @@ def decide(request, pk):
         s.save(update_fields=["decision", "decision_note", "decision_by", "decision_at"])
         record(request, "check.decision", str(s.pk), player=s.player_name, old=old, new=s.decision,
                override=s.admin_id != request.user.pk)
-        messages.success(request, "Decision saved.")
+        messages.success(request, _t("Decision saved."))
     return redirect("checks:detail", pk=s.pk)
 
 
@@ -239,7 +288,7 @@ def cancel(request, pk):
             s.status = CheckSession.CANCELLED
             s.save(update_fields=["status"])
             record(request, "check.cancelled", str(s.pk), player=s.player_name)
-    messages.success(request, "Check cancelled; the code no longer works.")
+    messages.success(request, _t("Check cancelled; the code no longer works."))
     return redirect("checks:detail", pk=s.pk)
 
 
@@ -250,7 +299,7 @@ def delete(request, pk):
     record(request, "check.deleted", str(s.pk), player=s.player_name, verdict=s.verdict, admin=s.admin.username,
            code=s.code)
     s.delete()
-    messages.success(request, "Check deleted.")
+    messages.success(request, _t("Check deleted."))
     return redirect("checks:dashboard")
 
 
@@ -297,14 +346,19 @@ def rules(request):
 
 class ResolveAppealForm(forms.Form):
     # no preselected answer: a slip must not uphold (or overturn) an appeal
-    status = forms.ChoiceField(choices=[("", "Choose…")] + [c for c in Appeal.STATUS_CHOICES if c[0] != Appeal.OPEN])
-    resolution = forms.CharField(max_length=2000, min_length=10, widget=forms.Textarea(attrs={"rows": 3}))
+    status = forms.ChoiceField(label=_("Outcome"),
+                               choices=[("", _("Choose…"))] + [c for c in Appeal.STATUS_CHOICES if c[0] != Appeal.OPEN])
+    resolution = forms.CharField(label=_("Answer to the player"), max_length=2000, min_length=10,
+                                 widget=forms.Textarea(attrs={"rows": 3}),
+                                 help_text=_("The player sees it on their page."))
 
 
 class HandleRequestForm(forms.Form):
-    status = forms.ChoiceField(choices=[("", "Choose…")] + [c for c in DataRequest.STATUS_CHOICES
-                                                            if c[0] != DataRequest.OPEN])
-    note = forms.CharField(max_length=1000, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    status = forms.ChoiceField(label=_("What to do"),
+                               choices=[("", _("Choose…"))] + [c for c in DataRequest.STATUS_CHOICES
+                                                               if c[0] != DataRequest.OPEN])
+    note = forms.CharField(label=_("Reason (required when refusing)"), max_length=1000, required=False,
+                           widget=forms.Textarea(attrs={"rows": 2}))
 
 
 @login_required
@@ -327,11 +381,11 @@ def resolve_appeal(request, pk):
                                session__in=visible_sessions(request.user))
     s = appeal.session
     if s.decision_by_id == request.user.pk and not request.user.is_owner:
-        messages.error(request, "An appeal must be resolved by a different admin than the one who decided.")
+        messages.error(request, _t("An appeal must be resolved by a different admin than the one who decided."))
         return redirect("checks:appeals")
     form = ResolveAppealForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Choose an outcome and explain it (at least 10 characters).")
+        messages.error(request, _t("Choose an outcome and explain it (at least 10 characters)."))
         return redirect("checks:appeals")
     with transaction.atomic():
         appeal.status, appeal.resolution = form.cleaned_data["status"], form.cleaned_data["resolution"]
@@ -343,7 +397,7 @@ def resolve_appeal(request, pk):
             s.decision_by, s.decision_at = request.user, timezone.now()
             s.save(update_fields=["decision", "decision_note", "decision_by", "decision_at"])
     record(request, "appeal.resolved", str(s.pk), appeal=appeal.pk, outcome=appeal.status, decision=s.decision)
-    messages.success(request, "Appeal resolved.")
+    messages.success(request, _t("Appeal resolved."))
     return redirect("checks:appeals")
 
 
@@ -355,7 +409,7 @@ def handle_request(request, pk):
         raise Http404
     form = HandleRequestForm(request.POST)
     if not form.is_valid() or (form.cleaned_data["status"] == DataRequest.REFUSED and not form.cleaned_data["note"]):
-        messages.error(request, "Choose what to do with the request. Refusing it needs a reason.")
+        messages.error(request, _t("Choose what to do with the request. Refusing it needs a reason."))
         return redirect("checks:appeals")
     target = str(req.session_id)
     req.status, req.note = form.cleaned_data["status"], form.cleaned_data["note"]
@@ -365,7 +419,7 @@ def handle_request(request, pk):
         req.session.delete()  # report, findings and appeals go with it; the request row stays as the record
     record(request, "data.deletion_" + ("done" if req.status == DataRequest.DONE else "refused"), target,
            note=req.note)
-    messages.success(request, "Request handled.")
+    messages.success(request, _t("Request handled."))
     return redirect("checks:appeals")
 
 

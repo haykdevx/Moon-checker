@@ -1,0 +1,5 @@
+{% load i18n %}<form method="post" action="{% url 'core:set_language' %}" class="lang-switch">{% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% if LANGUAGE_CODE == "ru" %}<button class="btn small" type="submit" name="lang" value="en" lang="en" title="Switch to English">EN</button>
+  {% else %}<button class="btn small" type="submit" name="lang" value="ru" lang="ru" title="Переключить на русский">RU</button>{% endif %}
+</form>

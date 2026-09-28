@@ -1,39 +1,40 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}{{ member.username }}{% endblock %}
 {% block content %}
+<a class="back" href="{% url 'accounts:team' %}">← {% translate "Team" %}</a>
 <div class="page-head">
   <h1>{{ member.username }}{% if member.display_name %} <span class="muted">· {{ member.display_name }}</span>{% endif %}</h1>
-  <a class="btn" href="{% url 'accounts:team' %}">← Team</a>
 </div>
 {% include "_flash_link.html" %}
 <div class="grid two">
   <div class="card">
-    <h2>Overview</h2>
+    <h2>{% translate "Overview" %}</h2>
     <dl class="kv">
-      <dt>Role</dt><dd><span class="role-dot" data-color="{{ member.role.color }}"></span>{{ member.role.name }} <span class="muted">(rank {{ member.role.rank }})</span></dd>
-      <dt>Status</dt><dd>{% if member.is_active %}<span class="t-ok">active</span>{% else %}<span class="t-bad">disabled</span>{% endif %}</dd>
-      <dt>Two-factor</dt><dd>{% if member.totp_enabled %}<span class="t-ok">enabled</span>{% else %}<span class="t-bad">not enabled</span>{% endif %}</dd>
+      <dt>{% translate "Role" %}</dt><dd><span class="role-dot" data-color="{{ member.role.color }}"></span>{{ member.role.label }} <span class="muted">({% blocktranslate with n=member.role.rank %}rank {{ n }}{% endblocktranslate %})</span></dd>
+      <dt>{% translate "Status" %}</dt><dd>{% if member.is_active %}<span class="t-ok">{% translate "active" %}</span>{% else %}<span class="t-bad">{% translate "disabled" %}</span>{% endif %}</dd>
+      <dt>{% translate "Two-factor" %}</dt><dd>{% if member.totp_enabled %}<span class="t-ok">{% translate "on" %}</span>{% else %}<span class="t-bad">{% translate "off" %}</span>{% endif %}</dd>
       <dt>Discord</dt><dd>{{ member.discord|default:"—" }}</dd>
-      <dt>Checks run</dt><dd><a href="{% url 'checks:dashboard' %}?admin={{ member.username }}">{{ check_count }}</a></dd>
-      <dt>Last sign-in</dt><dd>{{ member.last_login|default:"never" }}</dd>
-      <dt>Joined</dt><dd>{{ member.date_joined|date:"Y-m-d" }}{% if member.created_by %} · invited by {{ member.created_by.username }}{% endif %}</dd>
+      <dt>{% translate "Checks run" %}</dt><dd><a href="{% url 'checks:dashboard' %}?admin={{ member.username }}">{{ check_count }}</a></dd>
+      <dt>{% translate "Last sign-in" %}</dt><dd>{% if member.last_login %}{{ member.last_login|date:"j E Y, H:i" }}{% else %}{% translate "never" %}{% endif %}</dd>
+      <dt>{% translate "Joined" %}</dt><dd>{{ member.date_joined|date:"j E Y" }}{% if member.created_by %} · {% blocktranslate with name=member.created_by.username %}invited by {{ name }}{% endblocktranslate %}{% endif %}</dd>
     </dl>
   </div>
   {% if manageable %}
   <div>
     <div class="card">
-      <h2>Edit</h2>
+      <h2>{% translate "Edit" %}</h2>
       <form method="post" novalidate>{% csrf_token %}{% include "_form.html" %}
-        <button class="btn primary" type="submit">Save</button>
+        <button class="btn primary" type="submit">{% translate "Save" %}</button>
       </form>
-      <p class="muted small">Changing the role or disabling the account signs the member out everywhere.</p>
+      <p class="muted small">{% translate "Changing the role or disabling the account signs the member out everywhere." %}</p>
     </div>
     <div class="card">
-      <h2>Access recovery</h2>
+      <h2>{% translate "Restore access" %}</h2>
       <div class="actions">
-        <form method="post" action="{% url 'accounts:member_action' member.username 'reset-password' %}" data-confirm="Create a password reset link for {{ member.username }}?">{% csrf_token %}<button class="btn" type="submit">Password reset link</button></form>
-        <form method="post" action="{% url 'accounts:member_action' member.username 'reset-2fa' %}" data-confirm="Remove 2FA from {{ member.username }}? They must enroll again.">{% csrf_token %}<button class="btn danger" type="submit">Reset 2FA</button></form>
-        <form method="post" action="{% url 'accounts:member_action' member.username 'signout' %}">{% csrf_token %}<button class="btn" type="submit">Sign out everywhere</button></form>
+        <form method="post" action="{% url 'accounts:member_action' member.username 'reset-password' %}" data-confirm="{% blocktranslate with name=member.username %}Create a password reset link for {{ name }}?{% endblocktranslate %}">{% csrf_token %}<button class="btn" type="submit">{% translate "Password reset link" %}</button></form>
+        <form method="post" action="{% url 'accounts:member_action' member.username 'reset-2fa' %}" data-confirm="{% blocktranslate with name=member.username %}Remove 2FA from {{ name }}? They must set it up again.{% endblocktranslate %}">{% csrf_token %}<button class="btn danger" type="submit">{% translate "Reset 2FA" %}</button></form>
+        <form method="post" action="{% url 'accounts:member_action' member.username 'signout' %}">{% csrf_token %}<button class="btn" type="submit">{% translate "Sign out everywhere" %}</button></form>
       </div>
     </div>
   </div>
@@ -41,10 +42,10 @@
 </div>
 {% if events %}
 <div class="card">
-  <h2>Recent audit events</h2>
-  <div class="table-wrap"><table>
-    <thead><tr><th>When</th><th>Who</th><th>Action</th><th>IP</th></tr></thead>
-    <tbody>{% for e in events %}<tr><td class="nowrap">{{ e.at|date:"Y-m-d H:i:s" }}</td><td>{{ e.actor_label|default:"—" }}</td><td><code>{{ e.action }}</code></td><td class="mono">{{ e.ip|default:"" }}</td></tr>{% endfor %}</tbody>
+  <h2>{% translate "Recent log events" %}</h2>
+  <div class="table-wrap"><table class="cards-sm tight">
+    <thead><tr><th>{% translate "When" %}</th><th>{% translate "Who" %}</th><th>{% translate "Action" %}</th><th>IP</th></tr></thead>
+    <tbody>{% for e in events %}<tr><td class="nowrap">{{ e.at|date:"Y-m-d H:i:s" }}</td><td>{{ e.actor_label|default:"—" }}</td><td class="c-wide"><code>{{ e.action }}</code></td><td class="mono c-wide">{{ e.ip|default:"" }}</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
 {% endif %}

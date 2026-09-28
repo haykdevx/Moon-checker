@@ -1,32 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Roles{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Roles" %}{% endblock %}
 {% block content %}
+<a class="back" href="{% url 'accounts:team' %}">← {% translate "Team" %}</a>
 <div class="page-head">
-  <h1>Roles &amp; permissions</h1>
-  <div class="actions">
-    <a class="btn" href="{% url 'accounts:team' %}">← Team</a>
-    {% if can_create %}<a class="btn primary" href="{% url 'accounts:role_new' %}">New role</a>{% endif %}
-  </div>
+  <div><h1>{% translate "Roles and permissions" %}</h1>
+  <p class="lead">{% translate "A member can only manage members and roles ranked below their own, and can only grant permissions they hold. The owner role is fixed." %}</p></div>
+  {% if can_create %}<a class="btn primary" href="{% url 'accounts:role_new' %}">{% translate "New role" %}</a>{% endif %}
 </div>
-<p class="muted">A member can only manage members and roles ranked <b>below</b> their own rank, and can only grant permissions they hold. The owner role is fixed.</p>
 <div class="table-wrap">
-<table>
-  <thead><tr><th>Role</th><th>Rank</th><th>Members</th><th>Permissions</th><th></th></tr></thead>
+<table class="cards-sm">
+  <thead><tr><th>{% translate "Role" %}</th><th>{% translate "Rank" %}</th><th>{% translate "Members" %}</th><th>{% translate "Permissions" %}</th><th></th></tr></thead>
   <tbody>
   {% for role, editable in roles %}
     <tr>
-      <td><span class="role-dot" data-color="{{ role.color }}"></span><b>{{ role.name }}</b>{% if role.description %}<div class="muted small">{{ role.description }}</div>{% endif %}</td>
-      <td>{{ role.rank }}</td>
-      <td>{{ role.member_count }}</td>
-      <td class="small">{% if role.is_owner_role %}<span class="t-warn">everything</span>{% else %}{% for code in role.permissions %}<code>{{ code }}</code>{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">none</span>{% endfor %}{% endif %}</td>
-      <td class="right nowrap">{% if editable %}<a class="btn small" href="{% url 'accounts:role_edit' role.slug %}">Edit</a>{% endif %}</td>
+      <td class="c-player"><span class="role-dot" data-color="{{ role.color }}"></span><b>{{ role.label }}</b>{% if role.description %}<div class="muted small">{{ role.label_description }}</div>{% endif %}</td>
+      <td data-label="{% translate 'Rank' %}">{{ role.rank }}</td>
+      <td data-label="{% translate 'Members' %}">{{ role.member_count }}</td>
+      <td class="small c-wide">{% if role.is_owner_role %}<span class="t-warn">{% translate "everything" %}</span>{% else %}{% for code in role.permissions %}<code>{{ code }}</code>{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">{% translate "none" %}</span>{% endfor %}{% endif %}</td>
+      <td class="right nowrap">{% if editable %}<a class="btn small" href="{% url 'accounts:role_edit' role.slug %}">{% translate "Edit" %}</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
 <div class="card">
-  <h3>Permission reference</h3>
+  <h2>{% translate "What each permission allows" %}</h2>
   <dl class="kv">{% for code, text in permissions.items %}<dt><code>{{ code }}</code></dt><dd>{{ text }}</dd>{% endfor %}</dl>
 </div>
 {% endblock %}
