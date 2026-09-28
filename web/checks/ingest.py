@@ -21,6 +21,7 @@ VERDICTS = set(policy.LEGACY_VERDICTS)
 SEVERITIES = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
 MODULE_STATES = {"PENDING", "RUNNING", "OK", "SKIPPED", "ERROR", "TIMEOUT"}
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_CHECK_ID = re.compile(r"MOON-[0-9]{6}-[A-Z0-9]{4,8}")  # fullmatch: no trailing newline, ASCII digits only
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}$")
 
 
@@ -31,12 +32,20 @@ class IngestError(Exception):
 
 
 def clip(value, limit):
-    if value is None:
-        return ""
+    """Text for a column: NULs dropped, unpaired surrogates replaced (neither can be stored), at most ``limit``."""
+    if value is None or isinstance(value, (dict, list)):
+        return ""  # a container where text belongs is malformed; str() of a deep one also exhausts the stack
     if not isinstance(value, str):
         value = str(value)
     value = value.replace("\x00", "")
+    if not value.isascii():
+        value = value.encode("utf-8", "replace").decode("utf-8")
     return value[:limit]
+
+
+def _one_of(value, allowed):
+    """Membership that cannot raise: JSON lists and objects are unhashable."""
+    return isinstance(value, str) and value in allowed
 
 
 def version_tuple(value):
@@ -79,8 +88,9 @@ def decode_report_body(request):
 
 def parse_json_object(raw):
     try:
-        obj = json.loads(raw)
-    except (ValueError, UnicodeDecodeError):
+        # strict UTF-8: json.loads(bytes) would let UTF-8-encoded surrogates through
+        obj = json.loads(raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw)
+    except (ValueError, UnicodeDecodeError, RecursionError):  # RecursionError: nesting deeper than the stack
         raise IngestError(400, "bad_json", "Body is not valid JSON.") from None
     if not isinstance(obj, dict):
         raise IngestError(400, "bad_json", "Expected a JSON object.")
@@ -143,13 +153,13 @@ def validate_report(obj):
 
 def _validate_v1(obj):
     bad = _bad
-    if obj.get("verdict") not in VERDICTS:
+    if not _one_of(obj.get("verdict"), VERDICTS):
         bad("Unknown verdict.")
     score = obj.get("score")
     if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
         bad("Score must be 0-100.")
     check_id = obj.get("checkId")
-    if not isinstance(check_id, str) or not re.match(r"^MOON-\d{6}-[A-Z0-9]{4,8}$", check_id):
+    if not isinstance(check_id, str) or not _CHECK_ID.fullmatch(check_id):
         bad("Bad checkId.")
     env = obj.get("environment")
     if not isinstance(env, dict):
@@ -165,7 +175,7 @@ def _validate_v1(obj):
 
     clean_findings = []
     for i, f in enumerate(findings):
-        if not isinstance(f, dict) or f.get("severity") not in SEVERITIES or not isinstance(f.get("title"), str):
+        if not isinstance(f, dict) or not _one_of(f.get("severity"), SEVERITIES) or not isinstance(f.get("title"), str):
             bad(f"Finding #{i} is malformed.")
         clean_findings.append({
             "idx": i,
@@ -202,7 +212,7 @@ def _validate_v1(obj):
             "selfHash": clip(env.get("selfHash"), 16),
             "jvm": clip(env.get("jvm"), 100),
         },
-        "modules": {clip(k, 40): (v if v in MODULE_STATES else "ERROR") for k, v in modules.items()},
+        "modules": {clip(k, 40): (v if _one_of(v, MODULE_STATES) else "ERROR") for k, v in modules.items()},
         "findings": clean_findings,
     }
 
@@ -229,7 +239,7 @@ def _validate_v2(obj):
             bad(f"Missing {name} section.")
 
     check_id = session.get("checkId")
-    if not isinstance(check_id, str) or not re.match(r"^MOON-\d{6}-[A-Z0-9]{4,8}$", check_id):
+    if not isinstance(check_id, str) or not _CHECK_ID.fullmatch(check_id):
         bad("Bad checkId.")
     duration = session.get("durationSeconds")
 
@@ -239,8 +249,8 @@ def _validate_v2(obj):
         bad("Too many evidence items.")
     items = []
     for i, e in enumerate(evidence):
-        if (not isinstance(e, dict) or e.get("id") != f"E{i + 1}" or e.get("kind") not in policy.KINDS
-                or e.get("severity") not in SEVERITIES or not isinstance(e.get("title"), str)):
+        if (not isinstance(e, dict) or e.get("id") != f"E{i + 1}" or not _one_of(e.get("kind"), policy.KINDS)
+                or not _one_of(e.get("severity"), SEVERITIES) or not isinstance(e.get("title"), str)):
             bad(f"Evidence item #{i + 1} is malformed.")
         items.append({
             "idx": i,
@@ -263,7 +273,7 @@ def _validate_v2(obj):
     if len(errors) > 200:
         bad("Too many collection errors.")
     cov = {
-        "modules": {clip(k, 40): (v if v in MODULE_STATES else "ERROR") for k, v in modules.items()},
+        "modules": {clip(k, 40): (v if _one_of(v, MODULE_STATES) else "ERROR") for k, v in modules.items()},
         "required": _str_list(coverage.get("required", []), 200, 40, "coverage.required"),
         "errors": {clip(k, 40): clip(v, 300) for k, v in errors.items()},
         "elevated": coverage.get("elevated") is True,
@@ -282,7 +292,7 @@ def _validate_v2(obj):
     cov["missing"] = sorted(m for m in cov["required"] if cov["modules"].get(m) != "OK")
 
     level = assurance.get("level")
-    if level not in ("STANDARD", "REDUCED", "LOW"):
+    if not _one_of(level, ("STANDARD", "REDUCED", "LOW")):
         bad("Bad assurance level.")
     notes = assurance.get("reasons", [])
     if not isinstance(notes, list) or len(notes) > 200:
@@ -291,7 +301,7 @@ def _validate_v2(obj):
                                          for n in notes if isinstance(n, dict)]}
 
     outcome = verdict.get("outcome")
-    if outcome not in policy.OUTCOMES:
+    if not _one_of(outcome, policy.OUTCOMES):
         bad("Unknown verdict outcome.")
     raw_reasons = verdict.get("reasons", [])
     if not isinstance(raw_reasons, list) or len(raw_reasons) > 500:
@@ -335,7 +345,7 @@ def _validate_v2(obj):
         "consent": {
             "textVersion": clip(consent.get("textVersion"), 20),
             "acceptedAt": clip(consent.get("acceptedAt"), 40),
-            "channel": channel if channel in ("gui", "cli", "none") else "none",
+            "channel": channel if _one_of(channel, ("gui", "cli", "none")) else "none",
         },
     }
 
