@@ -1,0 +1,13 @@
+<Project>
+  <!-- Picks up the NuGet WDK/SDK when restored into .\packages (CI). No-op under the EWDK. -->
+  <PropertyGroup>
+    <MoonKitVersion>10.0.28000.2526</MoonKitVersion>
+    <MoonPackages>$(MSBuildThisFileDirectory)packages\</MoonPackages>
+  </PropertyGroup>
+  <Import Project="$(MoonPackages)Microsoft.Windows.WDK.x64.$(MoonKitVersion)\build\native\Microsoft.Windows.WDK.x64.props"
+          Condition="Exists('$(MoonPackages)Microsoft.Windows.WDK.x64.$(MoonKitVersion)\build\native\Microsoft.Windows.WDK.x64.props')" />
+  <Import Project="$(MoonPackages)Microsoft.Windows.SDK.CPP.x64.$(MoonKitVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props"
+          Condition="Exists('$(MoonPackages)Microsoft.Windows.SDK.CPP.x64.$(MoonKitVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props')" />
+  <Import Project="$(MoonPackages)Microsoft.Windows.SDK.CPP.$(MoonKitVersion)\build\native\Microsoft.Windows.SDK.cpp.props"
+          Condition="Exists('$(MoonPackages)Microsoft.Windows.SDK.CPP.$(MoonKitVersion)\build\native\Microsoft.Windows.SDK.cpp.props')" />
+</Project>

@@ -20,8 +20,15 @@ from core.models import SiteSettings
 
 from . import codes
 from .models import CheckSession, FindingRow
+from .templatetags.moon import OUTCOMES as OUTCOME_LABELS
 
 FINDINGS_RENDER_LIMIT = 5000
+CATALOG_PATH = __import__("pathlib").Path(__file__).resolve().parent / "data" / "coverage.json"
+
+
+def load_catalog():
+    import json
+    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
 
 
 class NewCheckForm(forms.ModelForm):
@@ -107,6 +114,7 @@ def dashboard(request):
     params.pop("fragment", None)
     ctx = {"page": page, "f": f, "stats": stats, "admins": admins, "qs": params.urlencode(),
            "can_create": user.can("checks.create"),
+           "outcomes": [(k, v[0]) for k, v in OUTCOME_LABELS.items()],
            "statuses": CheckSession.STATUS_CHOICES, "decisions": CheckSession.DECISION_CHOICES[1:],
            "any_open": any(s.is_open for s in page)}
     if request.GET.get("fragment") == "1":
@@ -156,9 +164,12 @@ def detail(request, pk):
     if session.client.get("hostname"):
         same_player |= Q(client__hostname=session.client["hostname"])
     related = visible_sessions(user).filter(same_player).exclude(pk=session.pk)[:10]
+    coverage = meta.get("coverage") or {}
+    coverage_done = sum(1 for m in coverage.get("required", []) if coverage.get("modules", {}).get(m) == "OK")
     return render(request, "checks/detail.html", {
         "s": session, "findings": findings, "truncated": truncated, "modules": sorted(modules.items()),
-        "env": env, "meta": meta, "related": related,
+        "env": env, "meta": meta, "related": related, "coverage_done": coverage_done,
+        "kinds": sorted({f.kind for f in findings if f.kind}),
         "can_decide": can_decide(user, session) and session.status == CheckSession.COMPLETED,
         "can_cancel": can_cancel(user, session),
         "can_export": user.can("checks.export") and session.status == CheckSession.COMPLETED,
@@ -260,3 +271,12 @@ def search(request):
         top = (FindingRow.objects.filter(session__in=visible_sessions(user), severity__in=["CRITICAL", "HIGH"])
                .values("title").annotate(n=Count("session", distinct=True)).order_by("-n")[:15])
     return render(request, "checks/search.html", {"q": q, "results": results, "too_short": too_short, "top": top})
+
+
+@login_required
+def rules(request):
+    """What every collector inspects, its blind spots, and what each named rule means."""
+    catalog = load_catalog()
+    seen = (FindingRow.objects.filter(session__in=visible_sessions(request.user)).exclude(rule_id="")
+            .values("rule_id", "kind").annotate(n=Count("session", distinct=True)).order_by("-n")[:100])
+    return render(request, "checks/rules.html", {"catalog": catalog, "seen": seen})

@@ -1,0 +1,481 @@
+{
+  "version": "2026-09-28",
+  "note": "Single source for the coverage matrix (docs/coverage-matrix.md) and the panel's rules page. CoverageCatalogTest fails if a registered collector is missing here. Detection windows are typical defaults, not guarantees.",
+  "modules": [
+    {
+      "id": "files",
+      "name": "Files on disk",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator for raw NTFS/MFT reads; without it a slower filesystem walk sees only what the user can list.",
+      "sources": [
+        "NTFS master file table of every fixed drive (names)",
+        "Content of binaries in user-writable locations: SHA-256, embedded CS2 offset strings, PE imports, alternate data streams, entropy"
+      ],
+      "kinds": [
+        "DETECTION: SHA-256 equals a classified sample",
+        "INDICATOR: name, strings, imports, disguised PE, entropy"
+      ],
+      "window": "Files present at the moment of the scan.",
+      "lookalikes": "Game-modding tools, overlays, trainers for single-player games, and packers used by legitimate software share names, imports and high entropy.",
+      "blindSpots": "Anything not on a fixed NTFS drive at scan time (removable media, network shares, memory-only payloads, renamed and re-hashed builds of a known cheat).",
+      "tests": [
+        "FileInspectionTest",
+        "EntropyTest",
+        "ParsersTest",
+        "AlternateStreamsTest",
+        "WordBoundaryTest",
+        "AllowlistTest"
+      ]
+    },
+    {
+      "id": "deleted",
+      "name": "Deleted and renamed files",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator (USN journal is read through the volume handle).",
+      "sources": [
+        "NTFS USN change journal delete/rename records",
+        "Recycle Bin $I index files"
+      ],
+      "kinds": [
+        "INDICATOR: a deleted/renamed file whose name matches a signature"
+      ],
+      "window": "USN journal: size-bound, typically days to a few weeks on a system drive. Recycle Bin: until emptied.",
+      "lookalikes": "Legitimate uninstallers and updaters delete files with similar names.",
+      "blindSpots": "Journal already wrapped or deleted (the concealment collector reports a reset), files deleted on other volumes, content of deleted files (names only).",
+      "tests": [
+        "ParsersTest"
+      ]
+    },
+    {
+      "id": "execution",
+      "name": "Execution history",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator for other users' hives and the Prefetch folder.",
+      "sources": [
+        "Prefetch (incl. loaded-module lists)",
+        "BAM",
+        "UserAssist",
+        "MUICache",
+        "Program Compatibility Assistant store",
+        "RunMRU",
+        "Recent shortcuts"
+      ],
+      "kinds": [
+        "INDICATOR: a program that matches a signature was executed"
+      ],
+      "window": "Prefetch: last ~1024 programs, 8 run times each (disabled by default on Windows Server). BAM: about one week. The others: until cleared.",
+      "lookalikes": "A program with a matching name is not necessarily the cheat; name-only evidence.",
+      "blindSpots": "Execution from memory without an image on disk, Prefetch disabled, artefacts wiped (reported by the concealment collector when detectable).",
+      "tests": [
+        "PrefetchBodyTest",
+        "XpressTest",
+        "UserAssistTest",
+        "ParsersTest",
+        "AnalysisTest"
+      ]
+    },
+    {
+      "id": "amcache",
+      "name": "AmCache",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator (Amcache.hve is locked; mounted from a copy).",
+      "sources": [
+        "Amcache.hve file and driver inventory (path, SHA-1 of the first 30 MB)"
+      ],
+      "kinds": [
+        "INDICATOR: path/name match of a program or driver seen by Windows"
+      ],
+      "window": "Months; survives deletion of the file itself.",
+      "lookalikes": "Name matches only; the stored SHA-1 is not compared against the SHA-256 sample set.",
+      "blindSpots": "Hive reset or deleted, programs never inventoried by Windows.",
+      "tests": [
+        "AmCacheTest",
+        "AmCacheRecordsTest"
+      ]
+    },
+    {
+      "id": "persistence",
+      "name": "Startup and scheduled tasks",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator for all users' Run keys, services and tasks.",
+      "sources": [
+        "Run/RunOnce keys (all users)",
+        "Services",
+        "Scheduled Tasks XML",
+        "Startup folders"
+      ],
+      "kinds": [
+        "INDICATOR: autostart entry launching a signature match or running from Temp/Public/Recycle Bin/drive root"
+      ],
+      "window": "Entries present at scan time.",
+      "lookalikes": "Game launchers, RGB and peripheral software autostart from unusual folders.",
+      "blindSpots": "One-shot loaders that never register autostart, WMI subscriptions and other rarer persistence points.",
+      "tests": [
+        "ScheduledTaskTest"
+      ]
+    },
+    {
+      "id": "kernel",
+      "name": "Kernel state",
+      "platforms": [
+        "windows",
+        "linux"
+      ],
+      "required": true,
+      "privileges": "Administrator/root. With the Moon kernel component loaded it also reads the kernel's own module/task lists.",
+      "sources": [
+        "Windows: loaded kernel services, boot options, test-signing; optional MoonMon.sys report",
+        "Linux: /proc/modules, kernel taint, /etc/ld.so.preload; optional moonmon.ko task list"
+      ],
+      "kinds": [
+        "INDICATOR: vulnerable/mapper driver or module name, ld.so.preload injection",
+        "CONCEALMENT: object hidden from one view",
+        "CONFIGURATION: test signing, weakened boot integrity",
+        "CONTEXT: tainted kernel"
+      ],
+      "window": "State at scan time.",
+      "lookalikes": "Old vendor utilities (hardware monitors, overclocking tools) legitimately load drivers listed as vulnerable; NVIDIA's proprietary driver taints most Linux gaming kernels.",
+      "blindSpots": "Manually mapped drivers are absent from every module list, including the kernel component's; firmware, hypervisor and DMA-based cheats are outside what a guest OS can observe.",
+      "tests": [
+        "HiddenObjectsTest",
+        "LinuxInfoTest"
+      ]
+    },
+    {
+      "id": "environment",
+      "name": "Processes, drivers and hardware",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator to read other processes' image paths.",
+      "sources": [
+        "Running processes and image hashes",
+        "Visible window titles",
+        "PCI device enumeration",
+        "Test-signing and virtual-machine detection"
+      ],
+      "kinds": [
+        "INDICATOR: process/window/PCI device matches",
+        "CONFIGURATION: test signing, virtual machine"
+      ],
+      "window": "Processes and devices present during the scan.",
+      "lookalikes": "Window titles and process names are trivially renamed and can collide with legitimate tools; FPGA/PCIe development boards match DMA patterns.",
+      "blindSpots": "Cheats not running during the scan; DMA hardware that impersonates an ordinary device ID.",
+      "tests": []
+    },
+    {
+      "id": "antiforensic",
+      "name": "Signs of cleaning",
+      "platforms": [
+        "windows"
+      ],
+      "required": true,
+      "privileges": "Administrator for the Security event log and system settings.",
+      "sources": [
+        "Event-log clear events",
+        "Prefetch/SysMain disabled",
+        "Recent OS reinstall",
+        "Cleaner tools installed or run"
+      ],
+      "kinds": [
+        "CONCEALMENT: evidence was removed or collection was disabled"
+      ],
+      "window": "Varies per source; event logs are size-bound.",
+      "lookalikes": "Privacy-minded users run cleaners; a fresh Windows install is common after hardware changes.",
+      "blindSpots": "Careful cleaning that leaves no meta-trace.",
+      "tests": []
+    },
+    {
+      "id": "cs2",
+      "name": "CS2 installation integrity",
+      "platforms": [
+        "windows",
+        "linux"
+      ],
+      "required": true,
+      "privileges": "Read access to the Steam library.",
+      "sources": [
+        "gameinfo.gi search paths",
+        "Foreign or unsigned binaries in CS2 bin directories",
+        "Client-side addon/plugin folders",
+        "Launch options",
+        "Config scripts"
+      ],
+      "kinds": [
+        "INDICATOR: tampering with the game's load paths, foreign binaries, VAC-disabling launch options"
+      ],
+      "window": "Installation state at scan time.",
+      "lookalikes": "Workshop map makers and community-server developers modify the install; some overlays drop DLLs next to games.",
+      "blindSpots": "Cheats that never touch the install (external or kernel readers); per-file verification against Steam's depot manifest is not implemented yet.",
+      "tests": [
+        "GameInfoTest"
+      ]
+    },
+    {
+      "id": "browser",
+      "name": "Browser history matches",
+      "platforms": [
+        "windows"
+      ],
+      "required": false,
+      "privileges": "User; administrator to read other profiles.",
+      "sources": [
+        "Chromium-family and Firefox history databases — only URLs matching the signature domain list leave the PC"
+      ],
+      "kinds": [
+        "INDICATOR: visits to listed domains (count, most recent)"
+      ],
+      "window": "Browser retention (often ~90 days).",
+      "lookalikes": "Visiting a site is not using a product; reviews, news and anti-cheat research land on the same domains.",
+      "blindSpots": "Private windows, other browsers, cleared history.",
+      "tests": [
+        "BrowserHistoryTest"
+      ]
+    },
+    {
+      "id": "steam",
+      "name": "Steam accounts",
+      "platforms": [
+        "windows",
+        "linux"
+      ],
+      "required": false,
+      "privileges": "User.",
+      "sources": [
+        "config/loginusers.vdf",
+        "Public VAC status from the Steam Community profile XML (network request per account)"
+      ],
+      "kinds": [
+        "CONTEXT: accounts on this PC, VAC history"
+      ],
+      "window": "Accounts ever remembered by this Steam client.",
+      "lookalikes": "Shared family PCs have several accounts.",
+      "blindSpots": "Accounts used on other PCs; VAC status is history, not evidence of current cheating.",
+      "tests": [
+        "VdfTest"
+      ]
+    },
+    {
+      "id": "peripherals",
+      "name": "Macro software and USB history",
+      "platforms": [
+        "windows"
+      ],
+      "required": false,
+      "privileges": "User; administrator for system-wide registry.",
+      "sources": [
+        "Installed programs, processes and scripts of macro tools",
+        "USBSTOR history"
+      ],
+      "kinds": [
+        "INDICATOR/CONTEXT: macro software present, removable storage used"
+      ],
+      "window": "Installed state; USB history persists in the registry.",
+      "lookalikes": "Gaming-mouse vendor software ships macro engines by default.",
+      "blindSpots": "Hardware macros stored on the device itself.",
+      "tests": []
+    },
+    {
+      "id": "defender",
+      "name": "Windows Defender history",
+      "platforms": [
+        "windows"
+      ],
+      "required": false,
+      "privileges": "Administrator for full detection history.",
+      "sources": [
+        "Get-MpThreatDetection",
+        "Real-time protection state"
+      ],
+      "kinds": [
+        "INDICATOR: past HackTool/injector detections",
+        "CONFIGURATION: protection disabled"
+      ],
+      "window": "Until Defender purges its history.",
+      "lookalikes": "Defender flags legitimate tools (key generators, admin utilities) as HackTool.",
+      "blindSpots": "PCs using another antivirus; history purged.",
+      "tests": []
+    },
+    {
+      "id": "linuxproc",
+      "name": "Linux processes",
+      "platforms": [
+        "linux"
+      ],
+      "required": true,
+      "privileges": "Root to read other users' /proc entries and the CS2 process's maps.",
+      "sources": [
+        "/proc/<pid>: name, command line, image path",
+        "CS2 process: memory maps, environment (LD_PRELOAD, deleted or temp-path libraries)"
+      ],
+      "kinds": [
+        "INDICATOR: signature matches, injected or deleted libraries in CS2"
+      ],
+      "window": "During the scan; CS2 must be running for the in-game checks.",
+      "lookalikes": "Overlays (MangoHud, OBS vkcapture) inject via LD_PRELOAD legitimately.",
+      "blindSpots": "External readers that use ptrace/process_vm_readv only while the game runs and exit before the scan — only continuous monitoring could see them.",
+      "tests": [
+        "LinuxInfoTest"
+      ]
+    },
+    {
+      "id": "linuxfiles",
+      "name": "Linux files",
+      "platforms": [
+        "linux"
+      ],
+      "required": true,
+      "privileges": "Root to read every home directory.",
+      "sources": [
+        "Home folders, .local/share, .steam, /tmp, /var/tmp, /dev/shm — content inspection shared with the Windows collector"
+      ],
+      "kinds": [
+        "DETECTION: SHA-256 equals a classified sample",
+        "INDICATOR: strings, ELF/PE content, entropy"
+      ],
+      "window": "Files present at scan time.",
+      "lookalikes": "As for the Windows file collector.",
+      "blindSpots": "Locations outside the listed roots; memfd-only payloads.",
+      "tests": [
+        "FileInspectionTest"
+      ]
+    },
+    {
+      "id": "linuxhist",
+      "name": "Linux browser and shell history",
+      "platforms": [
+        "linux"
+      ],
+      "required": false,
+      "privileges": "User; root for other users.",
+      "sources": [
+        "Browser histories/downloads",
+        ".bash_history, .zsh_history — matches only"
+      ],
+      "kinds": [
+        "INDICATOR: listed domains, download or execution of a signature match"
+      ],
+      "window": "History retention.",
+      "lookalikes": "Research and news visits; history lines are unauthenticated text.",
+      "blindSpots": "Cleared or disabled history.",
+      "tests": []
+    },
+    {
+      "id": "linuxpersist",
+      "name": "Linux autostart",
+      "platforms": [
+        "linux"
+      ],
+      "required": true,
+      "privileges": "Root for every user's files.",
+      "sources": [
+        "XDG autostart",
+        "systemd user units",
+        "Shell rc files",
+        "User crontabs"
+      ],
+      "kinds": [
+        "INDICATOR: autostart of a signature match, LD_PRELOAD or curl|bash lines"
+      ],
+      "window": "Entries present at scan time.",
+      "lookalikes": "Developers keep LD_PRELOAD and curl|bash in shell configs.",
+      "blindSpots": "System-wide units, udev rules, other persistence points.",
+      "tests": []
+    }
+  ],
+  "rules": [
+    {
+      "id": "files:known-cheat-hash",
+      "kind": "DETECTION",
+      "meaning": "The file's SHA-256 equals a sample a maintainer classified as a cheat.",
+      "lookalikes": "None for the exact file; a hash identifies content, not who put it there.",
+      "limits": "Possession, not proof of use. Any rebuild of the cheat has a new hash."
+    },
+    {
+      "id": "environment:test-signing",
+      "kind": "CONFIGURATION",
+      "meaning": "Windows accepts test-signed kernel drivers.",
+      "lookalikes": "Driver developers and some hardware tools.",
+      "limits": "Lowers the assurance of the scan; never a verdict."
+    },
+    {
+      "id": "environment:virtual-machine",
+      "kind": "CONFIGURATION",
+      "meaning": "The checker ran inside a virtual machine.",
+      "lookalikes": "Players testing the checker; the gaming PC may be a different machine.",
+      "limits": "Lowers assurance: the inspected system may not be the one used to play."
+    },
+    {
+      "id": "kernel:boot-integrity-weakened",
+      "kind": "CONFIGURATION",
+      "meaning": "Boot options weaken kernel integrity (e.g. integrity checks disabled).",
+      "lookalikes": "Debugging setups, old tweak guides.",
+      "limits": "Lowers assurance; never a verdict."
+    },
+    {
+      "id": "kernel:dse-off",
+      "kind": "CONFIGURATION",
+      "meaning": "Driver signature enforcement is off.",
+      "lookalikes": "Driver development.",
+      "limits": "Lowers assurance; never a verdict."
+    },
+    {
+      "id": "kernel:tainted",
+      "kind": "CONTEXT",
+      "meaning": "The Linux kernel reports taint flags.",
+      "lookalikes": "NVIDIA's proprietary driver on almost every gaming PC.",
+      "limits": "Context only."
+    },
+    {
+      "id": "kernel:hidden-process",
+      "kind": "CONCEALMENT",
+      "meaning": "A process the Linux kernel component lists is absent from /proc, re-checked after the diff.",
+      "lookalikes": "PID namespaces (the checker running inside a container) and races the re-check did not catch.",
+      "limits": "Review required. A kernel-mode rootkit can hide from both views, so an empty diff proves nothing."
+    },
+    {
+      "id": "kernel:driver-outside-windows",
+      "kind": "INDICATOR",
+      "meaning": "A Windows kernel module was loaded from outside the Windows folder (from the kernel component's module list).",
+      "lookalikes": "Anti-cheats of other games, VPN, virtualisation and peripheral drivers under Program Files.",
+      "limits": "LOW severity: listed for the reviewer, never a reason to review on its own."
+    },
+    {
+      "id": "kernel:module-hidden",
+      "kind": "CONCEALMENT",
+      "meaning": "A kernel module appears in one view and not another.",
+      "lookalikes": "Modules loading or unloading during the scan.",
+      "limits": "Review required."
+    },
+    {
+      "id": "steam:vac-ban",
+      "kind": "CONTEXT",
+      "meaning": "An account that logged in on this PC has a VAC ban on record.",
+      "lookalikes": "Shared PCs, bought second-hand accounts.",
+      "limits": "History, not evidence of current cheating."
+    },
+    {
+      "id": "steam:multiple-accounts",
+      "kind": "CONTEXT",
+      "meaning": "Several Steam accounts have logged in on this PC.",
+      "lookalikes": "Family PCs, internet cafés.",
+      "limits": "Context only."
+    }
+  ]
+}

@@ -22,20 +22,18 @@ import static org.junit.jupiter.api.Assertions.*;
 /** End-to-end proof that the evidence bundle is genuinely tamper-evident. */
 class EvidenceVerifierTest {
 
-    private ScanResult sample(Verdict verdict, int score, String title) {
+    private ScanResult sample(String title) {
         EnvironmentInfo env = new EnvironmentInfo("PC", "Windows 11", "player", true,
                 "1.0.0", "abc123", "jvm");
         Finding f = Finding.builder(Category.FILES, Severity.CRITICAL, title)
                 .module("files").evidence("C:\\x\\cheat.dll").source("sha256")
                 .when(Instant.parse("2026-01-01T00:00:00Z")).build();
-        return new ScanResult(CheckId.generate(), env, verdict, score, List.of(f),
-                Map.of("files", ModuleStatus.OK), "2026.09.13b", "bundled",
-                Instant.parse("2026-01-01T00:05:00Z"), Duration.ofSeconds(42));
+        return ru.moon.checker.core.TestResults.of(List.of(f), ru.moon.checker.core.TestResults.complete("files"), env);
     }
 
     @Test
     void freshBundleVerifiesAsAuthentic() {
-        byte[] json = JsonReport.renderBytes(sample(Verdict.CHEAT, 100, "cheat found"));
+        byte[] json = JsonReport.renderBytes(sample("cheat found"));
         EvidenceVerifier.Result r = EvidenceVerifier.verify(json);
         assertTrue(r.wellFormed(), r.detail());
         assertTrue(r.hashOk(), "sha-256 must match: " + r.detail());
@@ -46,13 +44,12 @@ class EvidenceVerifierTest {
     @Test
     void editingTheVerdictIsDetected() throws Exception {
         ObjectMapper om = new ObjectMapper();
-        byte[] json = JsonReport.renderBytes(sample(Verdict.CHEAT, 100, "cheat found"));
+        byte[] json = JsonReport.renderBytes(sample("cheat found"));
         @SuppressWarnings("unchecked")
         Map<String, Object> doc = om.readValue(json, Map.class);
 
-        // a cheater edits the saved report to say they were clean
-        doc.put("verdict", "CLEAN");
-        doc.put("score", 0);
+        // a cheater edits the saved report to say nothing was found
+        doc.put("verdict", Map.of("outcome", "NO_EVIDENCE", "reasons", List.of()));
         byte[] tampered = om.writeValueAsBytes(doc);
 
         EvidenceVerifier.Result r = EvidenceVerifier.verify(tampered);
@@ -65,11 +62,11 @@ class EvidenceVerifierTest {
     @Test
     void editingAFindingIsDetected() throws Exception {
         ObjectMapper om = new ObjectMapper();
-        byte[] json = JsonReport.renderBytes(sample(Verdict.CHEAT, 100, "cheat found"));
+        byte[] json = JsonReport.renderBytes(sample("cheat found"));
         @SuppressWarnings("unchecked")
         Map<String, Object> doc = om.readValue(json, Map.class);
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> findings = (List<Map<String, Object>>) doc.get("findings");
+        List<Map<String, Object>> findings = (List<Map<String, Object>>) doc.get("evidence");
         findings.clear(); // delete the evidence
         byte[] tampered = om.writeValueAsBytes(doc);
 
@@ -79,10 +76,10 @@ class EvidenceVerifierTest {
     @Test
     void forgedIntegrityBlockIsDetected() throws Exception {
         ObjectMapper om = new ObjectMapper();
-        byte[] json = JsonReport.renderBytes(sample(Verdict.CHEAT, 100, "cheat found"));
+        byte[] json = JsonReport.renderBytes(sample("cheat found"));
         @SuppressWarnings("unchecked")
         Map<String, Object> doc = om.readValue(json, Map.class);
-        doc.put("verdict", "CLEAN");
+        doc.put("verdict", Map.of("outcome", "NO_EVIDENCE", "reasons", List.of()));
         // recompute only the sha (attacker without the HMAC key)
         @SuppressWarnings("unchecked")
         Map<String, Object> integrity = (Map<String, Object>) doc.get("integrity");

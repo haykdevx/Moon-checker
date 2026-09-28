@@ -2,6 +2,7 @@ package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
 import ru.moon.checker.core.CheckModule;
+import ru.moon.checker.core.EvidenceKind;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
@@ -41,6 +42,11 @@ public final class SteamAccountsCheck implements CheckModule {
     }
 
     @Override
+    public boolean required() {
+        return false; // context for the reviewer, not coverage the verdict depends on
+    }
+
+    @Override
     public String displayName() {
         return I18n.t("module.steam");
     }
@@ -75,7 +81,7 @@ public final class SteamAccountsCheck implements CheckModule {
         if (accounts.size() > 1) {
             ctx.emit(Finding.builder(Category.STEAM, Severity.LOW,
                             "Несколько Steam-аккаунтов на ПК / Multiple Steam accounts on PC")
-                    .module(ID)
+                    .module(ID).kind(EvidenceKind.CONTEXT).rule("steam:multiple-accounts")
                     .detail(accounts.size() + " accounts have logged in on this machine")
                     .source("loginusers.vdf")
                     .openPath(vdf.getParent().toString())
@@ -100,7 +106,7 @@ public final class SteamAccountsCheck implements CheckModule {
                     + (acc.personaName() != null ? ", nick=" + acc.personaName() : "")
                     + (vac.checked ? (vac.banned ? "  — VAC BANNED" : "  — no VAC ban") : "  — статус не проверен");
             ctx.emit(Finding.builder(Category.STEAM, sev, title)
-                    .module(ID)
+                    .module(ID).kind(EvidenceKind.CONTEXT).rule(vac.banned ? "steam:vac-ban" : "steam:account")
                     .detail(detail)
                     .evidence("https://steamcommunity.com/profiles/" + acc.steamId64())
                     .source("Steam + VAC lookup")

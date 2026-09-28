@@ -2,12 +2,15 @@
 /*
  * moonmon — kernel-level inspection module for the Moon anti-cheat checker.
  * ---------------------------------------------------------------------------
- * Exposes /proc/moonmon. On read it walks the kernel task list
- * (for_each_process) and prints one "KPID <pid> <comm>" line per task. Because
- * this list comes straight from the scheduler, a user-mode rootkit that hides a
- * PID from /proc cannot hide it here — the Java checker (KernelBridge +
- * KernelCheck) can diff this against /proc to reveal hidden processes, and also
- * matches each comm against the cheat signatures.
+ * Exposes /proc/moonmon (root-only, 0440). On read it walks the kernel task list
+ * (for_each_process) and prints:
+ *     MOONMON 2
+ *     KPID <pid> <comm>     one per task; comm bytes outside 0x21..0x7e become '?'
+ *     END <n>               n = number of KPID lines, so truncation is detectable
+ * The list comes from the scheduler, so user-mode hiding (an LD_PRELOAD rootkit
+ * filtering readdir on /proc — which would also fool the JVM reading /proc) does
+ * not affect it; the checker diffs the two views. A kernel-mode rootkit can hide
+ * from both, so an empty diff is not proof of absence.
  *
  * BUILD (on Linux, needs kernel headers for the running kernel):
  *   sudo apt install linux-headers-$(uname -r)   # or your distro equivalent
@@ -34,15 +37,26 @@
 static int moon_show(struct seq_file *m, void *v)
 {
     struct task_struct *task;
+    unsigned long n = 0;
+    char comm[TASK_COMM_LEN];
+    int i;
 
-    seq_printf(m, "MOONMON kernel report\n");
+    seq_puts(m, "MOONMON 2\n");
 
     rcu_read_lock();
     for_each_process(task) {
-        seq_printf(m, "KPID %d %s\n", task->pid, task->comm);
+        /* comm is set by the process itself (prctl): never let it forge a line */
+        get_task_comm(comm, task);
+        for (i = 0; i < TASK_COMM_LEN && comm[i]; i++) {
+            if (comm[i] < 0x21 || comm[i] > 0x7e)
+                comm[i] = '?';
+        }
+        seq_printf(m, "KPID %d %s\n", task_pid_nr(task), comm);
+        n++;
     }
     rcu_read_unlock();
 
+    seq_printf(m, "END %lu\n", n);
     return 0;
 }
 
@@ -88,4 +102,4 @@ module_exit(moon_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cs2-moon.ru / shadow");
 MODULE_DESCRIPTION("Moon anti-cheat kernel-level inspection helper");
-MODULE_VERSION("1.0.0");
+MODULE_VERSION("2.0.0");

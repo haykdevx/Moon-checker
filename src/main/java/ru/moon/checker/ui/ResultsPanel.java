@@ -137,18 +137,44 @@ public final class ResultsPanel extends JPanel {
         left.add(titleRow);
         left.add(Box.createVerticalStrut(10));
         left.add(chips());
+        left.add(Box.createVerticalStrut(8));
+        left.add(coverageLine());
 
         hero.add(left, BorderLayout.CENTER);
 
-        ArcGauge gauge = new ArcGauge(132, 10,
-                vc, vc == MoonTheme.CHEAT ? MoonTheme.HIGH : vc,
-                result.score(), 100, "/ 100");
+        // the gauge shows coverage — a measured quantity — not a "cheat score"
+        ru.moon.checker.core.Coverage cov = result.coverage();
+        Color gc = cov.complete() ? MoonTheme.CLEAN : MoonTheme.ACCENT2;
+        ArcGauge gauge = new ArcGauge(132, 10, gc, gc,
+                (int) cov.completed(), Math.max(1, cov.required().size()),
+                "/ " + cov.required().size());
         JPanel gaugeWrap = new JPanel(new BorderLayout());
         gaugeWrap.setOpaque(false);
         gaugeWrap.add(gauge, BorderLayout.CENTER);
         gaugeWrap.setPreferredSize(new Dimension(140, 132));
         hero.add(gaugeWrap, BorderLayout.EAST);
         return hero;
+    }
+
+    /** "Coverage 11/13 · admin rights: yes · assurance: standard" under the chips. */
+    private JComponent coverageLine() {
+        ru.moon.checker.core.Coverage cov = result.coverage();
+        String text = I18n.t("coverage.summary", cov.completed(), cov.required().size(),
+                cov.elevated() ? I18n.t("header.admin.yes") : I18n.t("header.admin.no"))
+                + "   ·   " + I18n.t("assurance.summary",
+                I18n.t("assurance." + result.assessment().assurance().level().name()));
+        JLabel l = new JLabel(text);
+        l.setFont(MoonTheme.font(Font.PLAIN, 12));
+        l.setForeground(cov.complete() ? MoonTheme.MUTED : MoonTheme.SUSPICIOUS);
+        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        l.setToolTipText(result.assessment().reasons().isEmpty() ? null
+                : "<html>" + String.join("<br>", result.assessment().reasons().stream()
+                .map(r -> escape(r.text())).toList()) + "</html>");
+        return l;
+    }
+
+    private static String escape(String s) {
+        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /** The glowing severity bar beside the verdict. */
@@ -394,7 +420,7 @@ public final class ResultsPanel extends JPanel {
             subject.setForeground(MoonTheme.TEXT);
             subject.setAlignmentX(Component.LEFT_ALIGNMENT);
             JLabel meta = new JLabel(I18n.t("summary.meta",
-                    group.count(), group.weight(), String.join(", ", group.modules())));
+                    group.count(), I18n.t("kind." + group.topKind().name()), String.join(", ", group.modules())));
             meta.setFont(MoonTheme.font(Font.PLAIN, 11));
             meta.setForeground(MoonTheme.MUTED);
             meta.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -638,30 +664,21 @@ public final class ResultsPanel extends JPanel {
     }
 
     private static String verdictText(Verdict v) {
-        return switch (v) {
-            case CLEAN -> I18n.t("verdict.clean");
-            case SUSPICIOUS -> I18n.t("verdict.suspicious");
-            case CHEAT -> I18n.t("verdict.cheat");
-            case INCONCLUSIVE -> I18n.t("verdict.inconclusive");
-        };
+        return I18n.t(v.key());
     }
 
     /** Latin sub-line under the verdict (Orbitron has no Cyrillic). */
     private static String verdictLatin(Verdict v) {
-        return switch (v) {
-            case CLEAN -> "CLEAN";
-            case SUSPICIOUS -> "SUSPICIOUS";
-            case CHEAT -> "CHEAT DETECTED";
-            case INCONCLUSIVE -> "INCONCLUSIVE";
-        };
+        return v.name().replace('_', ' ');
     }
 
     private static Color verdictColor(Verdict v) {
         return switch (v) {
-            case CLEAN -> MoonTheme.CLEAN;
-            case SUSPICIOUS -> MoonTheme.SUSPICIOUS;
-            case CHEAT -> MoonTheme.CHEAT;
-            case INCONCLUSIVE -> MoonTheme.INFO;
+            case VALIDATED_DETECTION -> MoonTheme.CHEAT;
+            case REVIEW_REQUIRED -> MoonTheme.SUSPICIOUS;
+            case UNSUPPORTED_CONFIGURATION -> MoonTheme.INFO;
+            case INCOMPLETE_SCAN -> MoonTheme.ACCENT2;
+            case NO_EVIDENCE -> MoonTheme.CLEAN;
         };
     }
 }

@@ -75,7 +75,7 @@ class CheckSession(models.Model):
     # result
     completed_at = models.DateTimeField(null=True, blank=True)
     report_ip = models.GenericIPAddressField(null=True, blank=True)
-    verdict = models.CharField(max_length=12, blank=True, db_index=True)
+    verdict = models.CharField(max_length=32, blank=True, db_index=True)  # v2 outcome or legacy v1 verdict
     score = models.PositiveSmallIntegerField(null=True, blank=True)
     counts = models.JSONField(default=dict, blank=True)
     verification_code = models.CharField(max_length=12, blank=True)
@@ -138,13 +138,14 @@ class FindingRow(models.Model):
     session = models.ForeignKey(CheckSession, on_delete=models.CASCADE, related_name="findings")
     idx = models.PositiveIntegerField()
     severity = models.CharField(max_length=8, db_index=True)
+    kind = models.CharField(max_length=16, blank=True, db_index=True)  # DETECTION/INDICATOR/... (v2)
+    rule_id = models.CharField(max_length=100, blank=True, db_index=True)
     category = models.CharField(max_length=24)
     module = models.CharField(max_length=40)
     title = models.CharField(max_length=300)
     detail = models.TextField(blank=True)
     evidence = models.TextField(blank=True)
     source = models.CharField(max_length=120, blank=True)
-    weight = models.IntegerField(default=0)
     when = models.CharField(max_length=40, blank=True)
 
     class Meta:

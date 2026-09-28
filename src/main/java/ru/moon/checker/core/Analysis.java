@@ -26,7 +26,7 @@ public final class Analysis {
     }
 
     /** Correlated evidence about one subject (usually one cheat). */
-    public record Group(String subject, Severity topSeverity, int weight,
+    public record Group(String subject, Severity topSeverity, EvidenceKind topKind,
                         List<Finding> findings, Set<String> modules) {
         public int count() {
             return findings.size();
@@ -80,7 +80,7 @@ public final class Analysis {
     /**
      * Group findings by subject, merging subjects where one is a prefix of the
      * other ("Nixware" and "Nixware CS2 cheat" are the same case). Ordered by
-     * severity then accumulated weight, so the strongest case is first.
+     * severity, then by how many traces support it, so the strongest case is first.
      */
     public static List<Group> group(List<Finding> findings) {
         Map<String, List<Finding>> bySubject = new LinkedHashMap<>();
@@ -92,20 +92,22 @@ public final class Analysis {
         List<Group> groups = new ArrayList<>();
         for (var e : bySubject.entrySet()) {
             Severity top = Severity.INFO;
-            int weight = 0;
+            EvidenceKind kind = EvidenceKind.CONTEXT;
             Set<String> modules = new LinkedHashSet<>();
             for (Finding f : e.getValue()) {
                 if (f.severity().rank() > top.rank()) {
                     top = f.severity();
                 }
-                weight += f.weight();
+                if (f.kind().ordinal() < kind.ordinal()) {
+                    kind = f.kind(); // DETECTION < INDICATOR < CONCEALMENT < CONFIGURATION < CONTEXT
+                }
                 modules.add(f.module());
             }
-            groups.add(new Group(e.getKey(), top, weight, List.copyOf(e.getValue()), modules));
+            groups.add(new Group(e.getKey(), top, kind, List.copyOf(e.getValue()), modules));
         }
         groups.sort(Comparator
                 .comparingInt((Group g) -> g.topSeverity().rank()).reversed()
-                .thenComparing(Comparator.comparingInt(Group::weight).reversed()));
+                .thenComparing(Comparator.comparingInt(Group::count).reversed()));
         return groups;
     }
 
@@ -144,69 +146,27 @@ public final class Analysis {
     }
 
     /**
-     * Why the verdict is what it is, in plain language: the rule that decided
-     * it and the evidence that carried the most weight.
+     * Why the verdict is what it is, in plain language: the engine's reasons with
+     * the evidence ids they cite, then what was covered and how far to trust it.
      */
     public static String explain(ScanResult r) {
+        Assessment a = r.assessment();
         StringBuilder sb = new StringBuilder();
-        List<Finding> findings = r.findings();
-
-        switch (r.verdict()) {
-            case CHEAT -> {
-                Finding critical = firstOf(findings, Severity.CRITICAL);
-                if (critical != null) {
-                    sb.append("ЧИТ: одна улика уровня CRITICAL решает вердикт сама по себе.\n")
-                      .append("CHEAT: a single CRITICAL finding decides this on its own.\n\n")
-                      .append("  → ").append(critical.title());
-                    if (critical.evidence() != null) {
-                        sb.append("\n     ").append(critical.evidence());
-                    }
-                } else {
-                    sb.append("ЧИТ: сумма улик ").append(r.score())
-                      .append(" ≥ порога ").append(ScoreCalculator.CHEAT_THRESHOLD).append(".\n")
-                      .append("CHEAT: accumulated weight ").append(r.score())
-                      .append(" reached the threshold of ").append(ScoreCalculator.CHEAT_THRESHOLD).append(".");
-                }
+        sb.append(I18n.t(a.outcome().key())).append(" — ").append(I18n.t(a.outcome().key() + ".help"));
+        for (Assessment.Reason reason : a.reasons()) {
+            sb.append("\n  • ").append(reason.text());
+            if (!reason.evidence().isEmpty()) {
+                sb.append("  [").append(String.join(", ",
+                        reason.evidence().stream().map(i -> "E" + i).toList())).append(']');
             }
-            case SUSPICIOUS -> sb.append("ПОДОЗРИТЕЛЬНО: сумма ").append(r.score())
-                    .append(" ≥ ").append(ScoreCalculator.SUSPICIOUS_THRESHOLD)
-                    .append(", но нет прямой улики. Решает администратор.\n")
-                    .append("SUSPICIOUS: weight ").append(r.score())
-                    .append(" passed ").append(ScoreCalculator.SUSPICIOUS_THRESHOLD)
-                    .append(" with no single decisive finding — admin judgement required.");
-            case CLEAN -> sb.append("ЧИСТО: значимых улик не найдено (").append(r.score())
-                    .append("/100).\nCLEAN: nothing of weight was found.");
-            case INCONCLUSIVE -> sb.append("НЕ ЗАВЕРШЕНО: проверка шла без прав администратора, ")
-                    .append("часть модулей недоступна — чистому результату доверять нельзя.\n")
-                    .append("INCONCLUSIVE: ran without administrator rights, so a clean result is not trustworthy.");
         }
-
-        List<Group> groups = group(findings);
-        if (!groups.isEmpty()) {
-            sb.append("\n\nОсновные улики / main evidence:");
-            int shown = 0;
-            for (Group g : groups) {
-                if (g.topSeverity().rank() < Severity.MEDIUM.rank() || shown >= 5) {
-                    continue;
-                }
-                sb.append("\n  • ").append(g.subject())
-                  .append("  — ").append(g.count()).append(" улик(и), вес ").append(g.weight())
-                  .append(", модули: ").append(String.join(", ", g.modules()));
-                shown++;
-            }
-            if (shown == 0) {
-                sb.append("\n  (только информационные записи / informational only)");
-            }
+        Coverage c = a.coverage();
+        sb.append("\n\n").append(I18n.t("coverage.summary", c.completed(), c.required().size(),
+                c.elevated() ? I18n.t("header.admin.yes") : I18n.t("header.admin.no")));
+        sb.append("\n").append(I18n.t("assurance.summary", I18n.t("assurance." + a.assurance().level().name())));
+        for (Assurance.Note n : a.assurance().reasons()) {
+            sb.append("\n  – ").append(n.text());
         }
         return sb.toString();
-    }
-
-    private static Finding firstOf(List<Finding> findings, Severity severity) {
-        for (Finding f : findings) {
-            if (f.severity() == severity) {
-                return f;
-            }
-        }
-        return null;
     }
 }

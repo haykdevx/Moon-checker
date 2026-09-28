@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load moon %}
+{% block title %}Rules & coverage{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Rules &amp; coverage</h1><span class="muted small">catalogue {{ catalog.version }}</span></div>
+<p class="muted">What each collector inspects, what can look like a hit without being one, and what it cannot see. A collector's blind spots are why “no evidence found” is never proof that a PC is clean.</p>
+
+<div class="card">
+  <h2>How outcomes are decided</h2>
+  <dl class="kv small">
+    <dt><span class="badge tone-bad">Validated detection</span></dt><dd>At least one exact detection: a file whose SHA-256 equals a classified sample. Nothing else can produce it.</dd>
+    <dt><span class="badge tone-review">Review required</span></dt><dd>Indicators or concealment of medium severity or higher. Traces of one subject seen by several collectors are one reason, not several.</dd>
+    <dt><span class="badge tone-muted">Unsupported configuration</span></dt><dd>The OS/architecture is not one the checker is validated on (supported: Windows 10/11 x64, Linux x86-64 with /proc).</dd>
+    <dt><span class="badge tone-incomplete">Incomplete scan</span></dt><dd>A required collector failed, timed out, was skipped, or the checker lacked administrator/root rights.</dd>
+    <dt><span class="badge tone-ok">No evidence found</span></dt><dd>Every required collector completed and nothing needs review.</dd>
+  </dl>
+  <p class="muted small">Security settings (test signing, weakened boot integrity, virtual machines) never change the outcome; they lower the report's assurance. There is no score and no weighting.</p>
+</div>
+
+<h2>Collectors</h2>
+{% for m in catalog.modules %}
+<div class="card" id="{{ m.id }}">
+  <div class="page-head">
+    <h3 class="plain">{{ m.name }} <code class="muted">{{ m.id }}</code></h3>
+    <span class="chips">{% for p in m.platforms %}<span class="badge">{{ p }}</span>{% endfor %}{% if m.required %}<span class="badge tone-ok">required</span>{% else %}<span class="badge">context</span>{% endif %}</span>
+  </div>
+  <dl class="kv small">
+    <dt>Reads</dt><dd>{{ m.sources|join:" · " }}</dd>
+    <dt>Evidence</dt><dd>{{ m.kinds|join:" · " }}</dd>
+    <dt>Rights</dt><dd>{{ m.privileges }}</dd>
+    <dt>Window</dt><dd>{{ m.window }}</dd>
+    <dt>Lookalikes</dt><dd>{{ m.lookalikes }}</dd>
+    <dt>Cannot see</dt><dd>{{ m.blindSpots }}</dd>
+    <dt>Tests</dt><dd>{% if m.tests %}<span class="mono">{{ m.tests|join:", " }}</span>{% else %}<span class="t-warn">no collector-level tests yet</span>{% endif %}</dd>
+  </dl>
+</div>
+{% endfor %}
+
+<h2>Named rules</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Rule</th><th>Kind</th><th>Meaning</th><th>Legitimate lookalikes</th><th>Limits</th></tr></thead>
+  <tbody>{% for r in catalog.rules %}
+    <tr id="{{ r.id|slugify }}"><td class="mono nowrap">{{ r.id }}</td><td><span class="badge tone-{{ r.kind|kind_tone }}">{{ r.kind|kind_label }}</span></td><td>{{ r.meaning }}</td><td class="small">{{ r.lookalikes }}</td><td class="small">{{ r.limits }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+<p class="muted small">Rules without an entry here are signature matches named after their collector (e.g. <code>files:…</code>); their meaning and limits are the collector's above.</p>
+
+{% if seen %}
+<h2>Rules seen in your checks</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Rule</th><th>Kind</th><th>Checks</th></tr></thead>
+  <tbody>{% for r in seen %}<tr><td class="mono">{{ r.rule_id }}</td><td><span class="badge tone-{{ r.kind|kind_tone }}">{{ r.kind|kind_label }}</span></td><td>{{ r.n }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+{% endblock %}

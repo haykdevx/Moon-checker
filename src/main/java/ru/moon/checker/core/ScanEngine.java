@@ -41,6 +41,8 @@ public final class ScanEngine {
     private final Duration moduleTimeout;
     private final Duration overallTimeout;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final Map<String, String> errors = new ConcurrentHashMap<>();
+    private Platform.Support platformSupport = Platform.support();
 
     public ScanEngine(List<CheckModule> modules, ScanListener listener) {
         this(modules, listener, DEFAULT_MODULE_TIMEOUT, DEFAULT_OVERALL_TIMEOUT);
@@ -58,7 +60,17 @@ public final class ScanEngine {
         cancelled.set(true);
     }
 
+    /** Overrides the detected platform support (tests; CI runners are Windows Server). */
+    public ScanEngine platformSupport(Platform.Support support) {
+        this.platformSupport = support;
+        return this;
+    }
+
     public ScanResult run(SignatureDb signatures, CheckId checkId, EnvironmentInfo env) {
+        return run(signatures, checkId, env, Consent.none());
+    }
+
+    public ScanResult run(SignatureDb signatures, CheckId checkId, EnvironmentInfo env, Consent consent) {
         Instant start = Instant.now();
         List<Finding> findings = new CopyOnWriteArrayList<>();
         Map<String, ModuleStatus> status = new ConcurrentHashMap<>();
@@ -82,6 +94,7 @@ public final class ScanEngine {
                 Future<?> fut = futures.get(module.id());
                 if (fut != null && !fut.isDone()) {
                     fut.cancel(true); // interrupt the module thread
+                    errors.putIfAbsent(module.id(), "time budget of " + moduleTimeout.toSeconds() + "s exceeded");
                     settle(module, ModuleStatus.TIMEOUT, status, reported, latch, 0);
                 }
             }, moduleTimeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -101,6 +114,9 @@ public final class ScanEngine {
                 if (f != null) {
                     f.cancel(true);
                 }
+                if (!reported.contains(module.id())) {
+                    errors.putIfAbsent(module.id(), "overall scan deadline of " + overallTimeout.toSeconds() + "s reached");
+                }
                 settle(module, ModuleStatus.TIMEOUT, status, reported, latch, 0);
             }
         }
@@ -112,13 +128,20 @@ public final class ScanEngine {
                 .comparingInt((Finding f) -> f.severity().rank()).reversed()
                 .thenComparing(Finding::module));
 
-        ScoreCalculator.Score score = ScoreCalculator.calculate(sorted);
-        Verdict verdict = adjustForReliability(score.verdict(), env);
+        java.util.Set<String> required = new java.util.LinkedHashSet<>();
+        for (CheckModule m : modules) {
+            if (m.required() && (!m.windowsOnly() || Platform.isWindows())) {
+                required.add(m.id());
+            }
+        }
+        Coverage coverage = new Coverage(status, required, env.elevated(),
+                platformSupport.supported(), platformSupport.note(), errors);
+        Assessment assessment = VerdictEngine.assess(sorted, coverage, env);
 
         ScanResult result = new ScanResult(
-                checkId, env, verdict, score.value(), List.copyOf(sorted),
+                checkId, env, assessment, List.copyOf(sorted),
                 new LinkedHashMap<>(status),
-                signatures.version(), originLabel(signatures),
+                signatures.version(), originLabel(signatures), consent,
                 Instant.now(), Duration.between(start, Instant.now()));
         listener.onComplete(result);
         return result;
@@ -128,6 +151,7 @@ public final class ScanEngine {
                         EnvironmentInfo env, List<Finding> findings, Map<String, ModuleStatus> status,
                         java.util.Set<String> reported, CountDownLatch latch) {
         if (cancelled.get()) {
+            errors.putIfAbsent(module.id(), "scan was cancelled before this collector ran");
             settle(module, ModuleStatus.SKIPPED, status, reported, latch, 0);
             return;
         }
@@ -158,6 +182,8 @@ public final class ScanEngine {
                 outcome = ModuleStatus.TIMEOUT;
             } else {
                 outcome = ModuleStatus.ERROR;
+                String msg = t.getClass().getSimpleName() + (t.getMessage() != null ? ": " + t.getMessage() : "");
+                errors.putIfAbsent(module.id(), msg.length() > 200 ? msg.substring(0, 200) : msg);
                 Log.warn("module " + module.id() + " failed", t);
                 ctx.log(module.displayName() + ": " + I18n.t("status.error") + " — " + t.getMessage());
             }
@@ -189,17 +215,6 @@ public final class ScanEngine {
         };
     }
 
-    /**
-     * A "clean" result from a scan that never had admin rights is not
-     * trustworthy — downgrade it to INCONCLUSIVE. Real cheat evidence still
-     * stands regardless of elevation.
-     */
-    private Verdict adjustForReliability(Verdict verdict, EnvironmentInfo env) {
-        if (verdict == Verdict.CLEAN && !env.elevated()) {
-            return Verdict.INCONCLUSIVE;
-        }
-        return verdict;
-    }
 
     private String originLabel(SignatureDb db) {
         return "v" + db.version() + " (" + db.ruleCount() + " rules)";

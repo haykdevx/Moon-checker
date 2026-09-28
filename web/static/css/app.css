@@ -199,3 +199,17 @@ footer.foot { text-align: center; color: var(--muted); font-size: 12px; padding:
   main { padding: 14px; }
   .code-box .code { font-size: 32px; }
 }
+
+/* ---- outcome / evidence-kind tones (v2) ---- */
+.tone-bad { color: var(--cheat); border-color: #ff5a5a66; }
+.tone-review { color: var(--suspicious); border-color: #f6b94966; }
+.tone-incomplete { color: var(--accent2); border-color: #6f78ef88; }
+.tone-muted { color: var(--info); }
+.tone-ok { color: var(--clean); border-color: #37d67a55; }
+.verdict-banner.tone-bad { border-left-color: var(--cheat); }
+.verdict-banner.tone-review { border-left-color: var(--suspicious); }
+.verdict-banner.tone-incomplete { border-left-color: var(--accent2); }
+.verdict-banner.tone-ok { border-left-color: var(--clean); }
+.verdict-banner .verdict { font-size: 26px; }
+h3.plain { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 15px; margin: 0; }
+tr:target td { background: #3a3f5c !important; }

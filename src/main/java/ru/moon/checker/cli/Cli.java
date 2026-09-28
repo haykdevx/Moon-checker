@@ -137,7 +137,8 @@ public final class Cli {
 
         ScanResult result;
         try {
-            result = engine.run(db, checkId, env);
+            result = engine.run(db, checkId, env,
+                    selftest ? ru.moon.checker.core.Consent.none() : ru.moon.checker.core.Consent.cli());
         } catch (Throwable t) {
             System.err.println("ENGINE FAILED: " + t);
             t.printStackTrace();
@@ -212,7 +213,9 @@ public final class Cli {
 
     private static void printSummary(ScanResult r) {
         System.out.println();
-        System.out.println("VERDICT: " + r.verdict() + "   score " + r.score() + "/100"
+        var cov = r.coverage();
+        System.out.println("OUTCOME: " + r.verdict() + "   coverage " + cov.completed() + "/" + cov.required().size()
+                + (cov.elevated() ? "" : " (not elevated)") + "   assurance " + r.assessment().assurance().level()
                 + "   (" + r.duration().toSeconds() + "s)");
         System.out.println("  CRITICAL=" + r.countBySeverity(Severity.CRITICAL)
                 + " HIGH=" + r.countBySeverity(Severity.HIGH)
@@ -220,9 +223,15 @@ public final class Cli {
                 + " LOW=" + r.countBySeverity(Severity.LOW)
                 + " INFO=" + r.countBySeverity(Severity.INFO));
         System.out.println("  verification " + JsonReport.verificationCode(r));
-        for (Finding f : r.findings()) {
+        for (var reason : r.assessment().reasons()) {
+            System.out.println("  - " + reason.text() + (reason.evidence().isEmpty() ? ""
+                    : "  [" + String.join(",", reason.evidence().stream().map(i -> "E" + i).toList()) + "]"));
+        }
+        java.util.List<Finding> fs = r.findings();
+        for (int i = 0; i < fs.size(); i++) {
+            Finding f = fs.get(i);
             if (f.severity() == Severity.CRITICAL || f.severity() == Severity.HIGH) {
-                System.out.println("  [" + f.severity() + "] " + f.title()
+                System.out.println("  E" + (i + 1) + " [" + f.kind() + "/" + f.severity() + "] " + f.title()
                         + (f.evidence() == null ? "" : "  -> " + f.evidence()));
             }
         }

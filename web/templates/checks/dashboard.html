@@ -19,11 +19,8 @@
   <input type="search" name="q" value="{{ f.q }}" placeholder="Player, Steam, Discord, code, PC name…">
   <select name="status"><option value="">Any status</option><option value="open" {% if f.status == 'open' %}selected{% endif %}>Open (waiting / running)</option>
     {% for v, l in statuses %}<option value="{{ v }}" {% if f.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-  <select name="verdict"><option value="">Any verdict</option>
-    <option value="CHEAT" {% if f.verdict == 'CHEAT' %}selected{% endif %}>Cheat</option>
-    <option value="SUSPICIOUS" {% if f.verdict == 'SUSPICIOUS' %}selected{% endif %}>Suspicious</option>
-    <option value="CLEAN" {% if f.verdict == 'CLEAN' %}selected{% endif %}>Clean</option>
-    <option value="INCONCLUSIVE" {% if f.verdict == 'INCONCLUSIVE' %}selected{% endif %}>Inconclusive</option></select>
+  <select name="verdict" aria-label="Outcome"><option value="">Any outcome</option>
+    {% for v, label in outcomes %}<option value="{{ v }}" {% if f.verdict == v %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   <select name="decision"><option value="">Any decision</option><option value="none" {% if f.decision == 'none' %}selected{% endif %}>Not decided</option>
     {% for v, l in decisions %}<option value="{{ v }}" {% if f.decision == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
   {% if admins %}<select name="admin"><option value="">All admins</option>{% for a in admins %}<option value="{{ a.username }}" {% if f.admin == a.username %}selected{% endif %}>{{ a.username }}</option>{% endfor %}</select>{% endif %}

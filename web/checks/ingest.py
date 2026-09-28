@@ -13,8 +13,11 @@ import zlib
 
 from django.conf import settings
 
-SCHEMA = "moon-check/1"
-VERDICTS = {"CLEAN", "SUSPICIOUS", "CHEAT", "INCONCLUSIVE"}
+from . import policy
+
+SCHEMA = "moon-check/1"          # checker 1.0/1.1-pre: flat findings + weighted score
+SCHEMA_V2 = "moon-evidence/2"    # evidence / coverage / assurance / verdict sections
+VERDICTS = set(policy.LEGACY_VERDICTS)
 SEVERITIES = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
 MODULE_STATES = {"PENDING", "RUNNING", "OK", "SKIPPED", "ERROR", "TIMEOUT"}
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -124,13 +127,22 @@ def sanitize_progress(obj):
     }
 
 
-def validate_report(obj):
-    """Returns a normalised dict; raises IngestError(422) on anything unexpected."""
-    def bad(msg):
-        raise IngestError(422, "invalid_report", msg)
+def _bad(msg):
+    raise IngestError(422, "invalid_report", msg)
 
-    if obj.get("schema") != SCHEMA:
-        bad("Unsupported report schema.")
+
+def validate_report(obj):
+    """Returns a normalised dict (same shape for both schemas); raises IngestError(422)."""
+    schema = obj.get("schema")
+    if schema == SCHEMA_V2:
+        return _validate_v2(obj)
+    if schema != SCHEMA:
+        _bad("Unsupported report schema.")
+    return _validate_v1(obj)
+
+
+def _validate_v1(obj):
+    bad = _bad
     if obj.get("verdict") not in VERDICTS:
         bad("Unknown verdict.")
     score = obj.get("score")
@@ -164,15 +176,18 @@ def validate_report(obj):
             "detail": clip(f.get("detail"), 4000),
             "evidence": clip(f.get("evidence"), 4000),
             "source": clip(f.get("source"), 120),
-            "weight": _int(f.get("weight"), -1000, 1000),
+            "kind": "",
+            "rule": "",
             "when": clip(f.get("when"), 40),
         })
 
     duration = obj.get("durationSeconds")
     return {
+        "schema": SCHEMA,
         "checkId": check_id,
         "verdict": obj["verdict"],
         "score": score,
+        "coverage": None, "assurance": None, "reasons": [], "consent": None,
         "startedAt": clip(obj.get("startedAt"), 40),
         "finishedAt": clip(obj.get("finishedAt"), 40),
         "durationSeconds": duration if isinstance(duration, int) and not isinstance(duration, bool) else None,
@@ -189,6 +204,130 @@ def validate_report(obj):
         },
         "modules": {clip(k, 40): (v if v in MODULE_STATES else "ERROR") for k, v in modules.items()},
         "findings": clean_findings,
+    }
+
+
+def _str_list(value, limit, item_len, what):
+    if not isinstance(value, list) or len(value) > limit or not all(isinstance(x, str) for x in value):
+        _bad(f"{what} must be a list of strings.")
+    return [clip(x, item_len) for x in value]
+
+
+def _validate_v2(obj):
+    bad = _bad
+    session = obj.get("session")
+    collector = obj.get("collector")
+    env = obj.get("environment")
+    consent = obj.get("consent")
+    evidence = obj.get("evidence")
+    coverage = obj.get("coverage")
+    assurance = obj.get("assurance")
+    verdict = obj.get("verdict")
+    for name, value in (("session", session), ("collector", collector), ("environment", env), ("consent", consent),
+                        ("coverage", coverage), ("assurance", assurance), ("verdict", verdict)):
+        if not isinstance(value, dict):
+            bad(f"Missing {name} section.")
+
+    check_id = session.get("checkId")
+    if not isinstance(check_id, str) or not re.match(r"^MOON-\d{6}-[A-Z0-9]{4,8}$", check_id):
+        bad("Bad checkId.")
+    duration = session.get("durationSeconds")
+
+    if not isinstance(evidence, list):
+        bad("Missing evidence list.")
+    if len(evidence) > settings.MOON_MAX_FINDINGS:
+        bad("Too many evidence items.")
+    items = []
+    for i, e in enumerate(evidence):
+        if (not isinstance(e, dict) or e.get("id") != f"E{i + 1}" or e.get("kind") not in policy.KINDS
+                or e.get("severity") not in SEVERITIES or not isinstance(e.get("title"), str)):
+            bad(f"Evidence item #{i + 1} is malformed.")
+        items.append({
+            "idx": i,
+            "kind": e["kind"],
+            "rule": clip(e.get("rule"), 100),
+            "severity": e["severity"],
+            "category": clip(e.get("category"), 24),
+            "module": clip(e.get("module"), 40),
+            "title": clip(e.get("title"), 300),
+            "detail": clip(e.get("detail"), 4000),
+            "evidence": clip(e.get("evidence"), 4000),
+            "source": clip(e.get("source"), 120),
+            "when": clip(e.get("when"), 40),
+        })
+
+    modules = coverage.get("modules")
+    if not isinstance(modules, dict) or len(modules) > 200:
+        bad("Bad coverage.modules.")
+    errors = coverage.get("errors") if isinstance(coverage.get("errors"), dict) else {}
+    if len(errors) > 200:
+        bad("Too many collection errors.")
+    cov = {
+        "modules": {clip(k, 40): (v if v in MODULE_STATES else "ERROR") for k, v in modules.items()},
+        "required": _str_list(coverage.get("required", []), 200, 40, "coverage.required"),
+        "errors": {clip(k, 40): clip(v, 300) for k, v in errors.items()},
+        "elevated": coverage.get("elevated") is True,
+        "platformSupported": coverage.get("platformSupported") is True,
+        "platformNote": clip(coverage.get("platformNote"), 200),
+    }
+    cov["complete"] = policy.coverage_complete(cov)
+    cov["missing"] = sorted(m for m in cov["required"] if cov["modules"].get(m) != "OK")
+
+    level = assurance.get("level")
+    if level not in ("STANDARD", "REDUCED", "LOW"):
+        bad("Bad assurance level.")
+    notes = assurance.get("reasons", [])
+    if not isinstance(notes, list) or len(notes) > 200:
+        bad("Bad assurance reasons.")
+    assur = {"level": level, "reasons": [{"code": clip(n.get("code"), 100), "text": clip(n.get("text"), 400)}
+                                         for n in notes if isinstance(n, dict)]}
+
+    outcome = verdict.get("outcome")
+    if outcome not in policy.OUTCOMES:
+        bad("Unknown verdict outcome.")
+    raw_reasons = verdict.get("reasons", [])
+    if not isinstance(raw_reasons, list) or len(raw_reasons) > 500:
+        bad("Bad verdict reasons.")
+    valid_ids = {f"E{i + 1}" for i in range(len(items))}
+    reasons = []
+    for r in raw_reasons:
+        if not isinstance(r, dict):
+            bad("Bad verdict reason.")
+        refs = _str_list(r.get("evidence", []), 5000, 12, "verdict.reasons.evidence")
+        if any(ref not in valid_ids for ref in refs):
+            bad("Verdict reason cites evidence that is not in the report.")
+        reasons.append({"code": clip(r.get("code"), 100), "text": clip(r.get("text"), 2000), "evidence": refs})
+
+    channel = consent.get("channel")
+    return {
+        "schema": SCHEMA_V2,
+        "checkId": check_id,
+        "verdict": outcome,
+        "score": None,
+        "startedAt": clip(session.get("startedAt"), 40),
+        "finishedAt": clip(session.get("finishedAt"), 40),
+        "durationSeconds": duration if isinstance(duration, int) and not isinstance(duration, bool) else None,
+        "signatureVersion": clip(collector.get("rulesVersion"), 40),
+        "signatureOrigin": clip(collector.get("rulesOrigin"), 80),
+        "environment": {
+            "hostname": clip(env.get("hostname"), 100),
+            "os": clip(env.get("os"), 100),
+            "user": clip(env.get("user"), 100),
+            "elevated": env.get("elevated") is True,
+            "appVersion": clip(collector.get("appVersion"), 20),
+            "selfHash": clip(collector.get("selfHash"), 16),
+            "jvm": clip(collector.get("jvm"), 100),
+        },
+        "modules": cov["modules"],
+        "findings": items,
+        "coverage": cov,
+        "assurance": assur,
+        "reasons": reasons,
+        "consent": {
+            "textVersion": clip(consent.get("textVersion"), 20),
+            "acceptedAt": clip(consent.get("acceptedAt"), 40),
+            "channel": channel if channel in ("gui", "cli", "none") else "none",
+        },
     }
 
 

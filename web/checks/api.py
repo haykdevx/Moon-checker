@@ -205,10 +205,12 @@ def report(request, session_id):
         Report.objects.create(
             session=session, raw_gzip=ingest.gzip_bytes(raw), sha256=sha, size_bytes=len(raw),
             environment=data["environment"], modules=data["modules"],
-            meta={k: data[k] for k in ("checkId", "startedAt", "finishedAt", "durationSeconds",
-                                       "signatureVersion", "signatureOrigin")})
+            meta={k: data[k] for k in ("schema", "checkId", "startedAt", "finishedAt", "durationSeconds",
+                                       "signatureVersion", "signatureOrigin", "coverage", "assurance",
+                                       "reasons", "consent")})
         FindingRow.objects.bulk_create(
-            [FindingRow(session=session, **f) for f in data["findings"]], batch_size=1000)
+            [FindingRow(session=session, rule_id=f["rule"], **{k: v for k, v in f.items() if k != "rule"})
+             for f in data["findings"]], batch_size=1000)
         counts = {s.lower(): 0 for s in ingest.SEVERITIES}
         for f in data["findings"]:
             counts[f["severity"].lower()] += 1

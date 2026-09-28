@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load moon %}
 {% block title %}{{ s.player_name }} · {{ s.code }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -51,19 +52,35 @@
 {% endif %}
 
 {% if s.status == 'COMPLETED' %}
-<div class="card verdict-banner v-{{ s.verdict }}">
+<div class="card verdict-banner tone-{{ s.verdict|outcome_tone }}">
   <div>
-    <h3>Automatic verdict</h3>
-    <div class="verdict v-{{ s.verdict }}">{{ s.verdict }}</div>
+    <h3>Automatic outcome</h3>
+    <div class="verdict tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</div>
+    {% if s.verdict|outcome_help %}<p class="muted small">{{ s.verdict|outcome_help }}</p>{% endif %}
   </div>
   <div class="chips">{% for sev, n in s.severity_counts %}<span class="badge sev-{{ sev }}">{{ n }} {{ sev }}</span>{% endfor %}</div>
-  <div class="score">{{ s.score }}<span class="muted small"> / 100</span></div>
+  {% if meta.coverage %}
+  <div class="score" title="Required collectors that completed">{{ coverage_done }}<span class="muted small"> / {{ meta.coverage.required|length }} coverage</span></div>
+  {% elif s.score is not None %}
+  <div class="score">{{ s.score }}<span class="muted small"> / 100 (legacy score)</span></div>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="layout-side">
   <div>
     {% if s.status == 'COMPLETED' %}
+    {% if meta.reasons %}
+    <div class="card">
+      <h2>Why this outcome</h2>
+      <ul class="flags">
+        {% for r in meta.reasons %}
+        <li><span class="icon t-info">›</span><span>{{ r.text }}{% for e in r.evidence %}{% if forloop.first %} — {% endif %}<a href="#{{ e }}" class="mono">{{ e }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
     <div class="card">
       <h2>Trust signals</h2>
       <ul class="flags">
@@ -78,27 +95,31 @@
       {% if findings %}
       <div class="filters">
         <select id="f-sev"><option value="">All severities</option>{% for sev in severities %}<option value="{{ sev }}">{{ sev }} and above</option>{% endfor %}</select>
+        <select id="f-kind" aria-label="Evidence kind"><option value="">All kinds</option>{% for k in kinds %}<option value="{{ k }}">{{ k|kind_label }}</option>{% endfor %}</select>
         <select id="f-mod"><option value="">All modules</option>{% for m in module_names %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
         <input type="search" id="f-text" placeholder="Filter text…">
       </div>
       <div class="table-wrap">
         <table id="findings">
-          <thead><tr><th>Severity</th><th>Module</th><th>Finding</th><th>Evidence</th><th>Source</th></tr></thead>
+          <thead><tr><th>ID</th><th>Kind</th><th>Severity</th><th>Module</th><th>Finding</th><th>Evidence</th><th>Source</th></tr></thead>
           <tbody>
           {% for f in findings %}
-            <tr data-sev="{{ f.severity }}" data-mod="{{ f.module }}" class="clickable">
+            <tr data-sev="{{ f.severity }}" data-mod="{{ f.module }}" data-kind="{{ f.kind }}" class="clickable" id="E{{ f.idx|add:1 }}">
+              <td class="mono small">E{{ f.idx|add:1 }}</td>
+              <td>{% if f.kind %}<span class="badge tone-{{ f.kind|kind_tone }}">{{ f.kind|kind_label }}</span>{% else %}<span class="muted small">legacy</span>{% endif %}</td>
               <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
               <td class="small">{{ f.module }}</td>
               <td>{{ f.title }}</td>
               <td class="evidence">{{ f.evidence|truncatechars:160 }}</td>
               <td class="small muted">{{ f.source }}</td>
             </tr>
-            <tr class="detail-row hidden"><td colspan="5">
+            <tr class="detail-row hidden"><td colspan="7">
               <dl class="kv small">
                 {% if f.detail %}<dt>Detail</dt><dd>{{ f.detail|linebreaksbr }}</dd>{% endif %}
                 {% if f.evidence %}<dt>Evidence</dt><dd class="mono break">{{ f.evidence }}</dd>{% endif %}
                 {% if f.when %}<dt>Time</dt><dd>{{ f.when }}</dd>{% endif %}
-                <dt>Category</dt><dd>{{ f.category }} · weight {{ f.weight }}</dd>
+                <dt>Category</dt><dd>{{ f.category }}</dd>
+                {% if f.rule_id %}<dt>Rule</dt><dd class="mono"><a href="{% url 'checks:rules' %}#{{ f.rule_id|slugify }}">{{ f.rule_id }}</a></dd>{% endif %}
               </dl>
             </td></tr>
           {% endfor %}
@@ -108,6 +129,26 @@
       {% if truncated %}<p class="t-warn small">Only the first {{ findings|length }} findings are shown; download the evidence JSON for all of them.</p>{% endif %}
       {% else %}<p class="muted">The checker found nothing to report.</p>{% endif %}
     </div>
+
+    {% if meta.coverage %}
+    <div class="card">
+      <h2>Coverage</h2>
+      <p class="small {% if meta.coverage.complete %}t-ok{% else %}t-warn{% endif %}">
+        {% if meta.coverage.complete %}Every required collector completed with administrator rights.{% else %}Coverage is incomplete — absence of findings cannot be read as “clean”.{% endif %}
+      </p>
+      <dl class="kv small">
+        <dt>Admin rights</dt><dd>{% if meta.coverage.elevated %}<span class="t-ok">yes</span>{% else %}<span class="t-bad">no</span>{% endif %}</dd>
+        <dt>Platform</dt><dd>{% if meta.coverage.platformSupported %}{{ meta.coverage.platformNote }}{% else %}<span class="t-bad">unsupported — {{ meta.coverage.platformNote }}</span>{% endif %}</dd>
+        {% if meta.coverage.missing %}<dt>Not completed</dt><dd class="t-warn">{{ meta.coverage.missing|join:", " }}</dd>{% endif %}
+        {% for mod, err in meta.coverage.errors.items %}<dt class="mono">{{ mod }}</dt><dd class="small">{{ err }}</dd>{% endfor %}
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Report assurance: <span class="t-{% if meta.assurance.level == 'STANDARD' %}ok{% elif meta.assurance.level == 'REDUCED' %}warn{% else %}bad{% endif %}">{{ meta.assurance.level|lower }}</span></h2>
+      {% if meta.assurance.reasons %}<ul class="flags">{% for n in meta.assurance.reasons %}<li><span class="icon t-warn">!</span><span>{{ n.text }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="muted small">Nothing on the player's side lowered trust in this report (the server's own checks are under Trust signals).</p>{% endif %}
+    </div>
+    {% endif %}
 
     {% if modules %}
     <div class="card">
@@ -165,6 +206,8 @@
         {% if meta.durationSeconds is not None %}<dt>Scan time</dt><dd>{{ meta.durationSeconds }} s (checker)</dd>{% endif %}
         {% if meta.signatureVersion %}<dt>Signatures</dt><dd>v{{ meta.signatureVersion }}</dd>{% endif %}
         {% if meta.checkId %}<dt>Report id</dt><dd class="mono">{{ meta.checkId }}</dd>{% endif %}
+        <dt>Report format</dt><dd class="mono">{{ meta.schema|default:"moon-check/1" }}</dd>
+        {% if meta.consent %}<dt>Consent</dt><dd>{% if meta.consent.acceptedAt %}{{ meta.consent.channel }} · notice {{ meta.consent.textVersion }} · {{ meta.consent.acceptedAt }}{% else %}<span class="t-warn">not recorded</span>{% endif %}</dd>{% endif %}
       </dl>
     </div>
     {% endif %}
@@ -173,7 +216,7 @@
       <h3>Other checks of this player / PC</h3>
       <ul class="flags">
         {% for r in related %}<li><span><a href="{% url 'checks:detail' r.pk %}">{{ r.created_at|date:"Y-m-d" }} · {{ r.player_name }}</a>
-          {% if r.verdict %}<span class="badge v-{{ r.verdict }}">{{ r.verdict }}</span>{% else %}<span class="badge st-{{ r.status }}">{{ r.get_status_display }}</span>{% endif %}
+          {% if r.verdict %}<span class="badge tone-{{ r.verdict|outcome_tone }}">{{ r.verdict|outcome_label }}</span>{% else %}<span class="badge st-{{ r.status }}">{{ r.get_status_display }}</span>{% endif %}
           {% if r.decision %}<span class="d-{{ r.decision }} small">{{ r.get_decision_display }}</span>{% endif %}</span></li>{% endfor %}
       </ul>
     </div>

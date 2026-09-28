@@ -2,6 +2,7 @@ package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
 import ru.moon.checker.core.CheckModule;
+import ru.moon.checker.core.EvidenceKind;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
@@ -157,7 +158,6 @@ public final class EnvironmentCheck implements CheckModule {
                                 + (desc != null ? " — " + desc : "") + " — проверьте вручную")
                         .evidence(device)
                         .source("PCI enumeration")
-                        .weight(20)
                         .build());
             }
         }
@@ -169,6 +169,7 @@ public final class EnvironmentCheck implements CheckModule {
                 ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.HIGH,
                                 "Включён тестовый режим подписи / Test-signing mode enabled")
                         .module(ID)
+                        .kind(EvidenceKind.CONFIGURATION).rule("environment:test-signing")
                         .detail("Allows unsigned kernel drivers — common precondition for kernel cheats.")
                         .source("bcdedit")
                         .build());
@@ -178,6 +179,7 @@ public final class EnvironmentCheck implements CheckModule {
                 ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.MEDIUM,
                                 "Проверка запущена в виртуальной машине / Running inside a virtual machine")
                         .module(ID)
+                        .kind(EvidenceKind.CONFIGURATION).rule("environment:virtual-machine")
                         .detail(vm + " — игрок может проходить проверку не на игровом ПК")
                         .source("VM detection")
                         .build()));

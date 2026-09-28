@@ -20,41 +20,45 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EvidenceTest {
 
-    private ScanResult sample(int score, String title) {
-        CheckId id = CheckId.generate();
-        EnvironmentInfo env = new EnvironmentInfo("PC", "Windows 11", "player", true, "1.0.0", "abc123", "jvm");
+    private ScanResult sample(boolean elevated, String title) {
+        EnvironmentInfo env = new EnvironmentInfo("PC", "Windows 11", "player", elevated, "1.0.0", "abc123", "jvm");
         Finding f = Finding.builder(Category.FILES, Severity.CRITICAL, title)
                 .module("files").evidence("C:\\x\\cheat.dll").source("sha256")
                 .when(Instant.parse("2026-01-01T00:00:00Z")).build();
-        return new ScanResult(id, env, Verdict.CHEAT, score, List.of(f),
-                Map.of("files", ModuleStatus.OK), "2026.09.13", "bundled",
-                Instant.parse("2026-01-01T00:05:00Z"), Duration.ofSeconds(42));
+        return ru.moon.checker.core.TestResults.of(List.of(f), ru.moon.checker.core.TestResults.complete("files"), env);
     }
 
     @Test
     void jsonBundleContainsIntegrityBlock() {
-        String json = JsonReport.render(sample(100, "cheat"));
+        String json = JsonReport.render(sample(true, "cheat"));
         assertTrue(json.contains("\"integrity\""));
         assertTrue(json.contains("\"sha256\""));
         assertTrue(json.contains("\"hmac\""));
         assertTrue(json.contains("\"code\""));
-        assertTrue(json.contains("\"schema\" : \"moon-check/1\""));
+        assertTrue(json.contains("\"schema\" : \"moon-evidence/2\""));
+        for (String section : new String[]{"\"evidence\"", "\"coverage\"", "\"assurance\"", "\"verdict\"",
+                "\"consent\"", "\"collector\"", "\"session\""}) {
+            assertTrue(json.contains(section), "missing section " + section);
+        }
+        assertTrue(json.contains("\"id\" : \"E1\""), "evidence items carry stable ids");
+        assertFalse(json.contains("\"score\""), "no score in the bundle");
+        assertFalse(json.contains("\"weight\""), "no weights in the bundle");
     }
 
     @Test
     void canonicalBytesAreDeterministic() {
-        ScanResult r = sample(100, "cheat");
+        ScanResult r = sample(true, "cheat");
         assertArrayEquals(JsonReport.canonicalBytes(r), JsonReport.canonicalBytes(r));
         assertEquals(JsonReport.verificationCode(r), JsonReport.verificationCode(r));
     }
 
     @Test
     void tamperingChangesTheCode() {
-        String codeA = JsonReport.verificationCode(sample(100, "cheat A"));
-        String codeB = JsonReport.verificationCode(sample(100, "cheat B"));
-        String codeC = JsonReport.verificationCode(sample(50, "cheat A"));
+        String codeA = JsonReport.verificationCode(sample(true, "cheat A"));
+        String codeB = JsonReport.verificationCode(sample(true, "cheat B"));
+        String codeC = JsonReport.verificationCode(sample(false, "cheat A"));
         assertNotEquals(codeA, codeB, "different finding must change the code");
-        assertNotEquals(codeA, codeC, "different score must change the code");
+        assertNotEquals(codeA, codeC, "different coverage/assurance must change the code");
     }
 
     @Test

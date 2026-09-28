@@ -1,6 +1,7 @@
 package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
+import ru.moon.checker.core.EvidenceKind;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.Hashing;
 import ru.moon.checker.core.ScanContext;
@@ -170,6 +171,7 @@ public final class FileInspection {
                 ctx.signatures().matchHash(hash).ifPresent(rule ->
                         ctx.emit(Finding.builder(category, Severity.CRITICAL,
                                         "Точное совпадение хеша чит-файла / Known cheat file hash")
+                                .kind(EvidenceKind.DETECTION).rule("files:known-cheat-hash")
                                 .module(module)
                                 .detail(rule.label() + "  [sha256=" + h.substring(0, 16) + "…]")
                                 .evidence(pathStr)
@@ -219,7 +221,6 @@ public final class FileInspection {
                     .evidence(pathStr)
                     .source("binary strings · heuristic")
                     .openPath(parent(file))
-                    .weight(sev == Severity.HIGH ? 40 : 12)
                     .build());
         }
 
@@ -249,7 +250,6 @@ public final class FileInspection {
                         .evidence(pathStr)
                         .source("entropy · heuristic")
                         .openPath(parent(file))
-                        .weight(6)
                         .build());
             }
         }

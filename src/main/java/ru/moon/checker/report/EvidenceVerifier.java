@@ -30,7 +30,9 @@ public final class EvidenceVerifier {
     /**
      * @param wellFormed the file parsed and carried an integrity block
      * @param hashOk     the SHA-256 over the payload matches
-     * @param hmacOk     the HMAC matches (proves it came from the real build)
+     * @param hmacOk     the HMAC matches this build's key. The key ships inside the
+     *                   client, so this shows the file was not hand-edited — it is
+     *                   not proof that the official checker produced it
      * @param code       verification code recomputed from the payload
      * @param detail     human explanation
      */
@@ -66,11 +68,11 @@ public final class EvidenceVerifier {
 
             String detail;
             if (hashOk && hmacOk) {
-                detail = "authentic and unmodified";
+                detail = "unmodified since it was written (integrity only; origin is judged by the panel)";
             } else if (!hashOk) {
                 detail = "CONTENT MODIFIED — the report no longer matches its own hash";
             } else {
-                detail = "HMAC mismatch — not produced by this build (or key rotated)";
+                detail = "HMAC mismatch — edited, or produced with a different key";
             }
             return new Result(true, hashOk, hmacOk, code, detail);
         } catch (Exception e) {

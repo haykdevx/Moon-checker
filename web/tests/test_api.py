@@ -11,7 +11,8 @@ from checks import housekeeping, ingest
 from checks.models import CheckSession, FindingRow, TrustedBuild
 from core.models import SiteSettings
 
-from .helpers import HASH, canonical, client_info, gz, make_session, make_user, report_payload
+from .helpers import (HASH, canonical, client_info, evidence_item, gz, make_session, make_user, report_payload,
+                      report_v2)
 
 
 class ApiFlowTests(TestCase):
@@ -177,6 +178,79 @@ class ApiFlowTests(TestCase):
 
     def test_ping(self):
         self.assertEqual(self.client.get("/api/v1/ping").json()["api"], 1)
+
+
+class EvidenceV2Tests(ApiFlowTests):
+    """moon-evidence/2: sections stored, outcome re-derived server-side."""
+
+    def deliver(self, payload):
+        d = self.claim().json()
+        r = self.upload(d["sessionId"], d["token"], canonical(payload))
+        return r, CheckSession.objects.get(pk=d["sessionId"])
+
+    def test_v2_is_stored_with_kinds_rules_and_sections(self):
+        payload = report_v2("VALIDATED_DETECTION", [evidence_item(1, "DETECTION", "CRITICAL"),
+                                                    evidence_item(2, "INDICATOR", "HIGH", module="execution")],
+                            reasons=[{"code": "detection.exact", "text": "hash", "evidence": ["E1"]}])
+        r, s = self.deliver(payload)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((s.verdict, s.score), ("VALIDATED_DETECTION", None))
+        rows = list(s.findings.order_by("idx").values_list("kind", "rule_id"))
+        self.assertEqual(rows, [("DETECTION", "files:sample"), ("INDICATOR", "execution:sample")])
+        self.assertEqual(s.report.meta["schema"], "moon-evidence/2")
+        self.assertEqual(s.report.meta["reasons"][0]["evidence"], ["E1"])
+        self.assertTrue(s.report.meta["coverage"]["complete"])
+        self.assertNotIn("verdict", {f["key"] for f in s.flags if f["level"] == "bad"})
+
+    def test_forged_no_evidence_over_a_detection_is_flagged(self):
+        payload = report_v2("NO_EVIDENCE", [evidence_item(1, "DETECTION", "CRITICAL")])
+        _, s = self.deliver(payload)
+        bad = {f["key"]: f["text"] for f in s.flags if f["level"] == "bad"}
+        self.assertIn("verdict", bad)
+        self.assertIn("VALIDATED_DETECTION", bad["verdict"])
+
+    def test_claiming_no_evidence_with_a_failed_collector_is_flagged(self):
+        modules = {m: "OK" for m in report_v2()["coverage"]["required"]}
+        modules["execution"] = "TIMEOUT"
+        _, s = self.deliver(report_v2("NO_EVIDENCE", modules=modules))
+        self.assertIn("verdict", {f["key"] for f in s.flags if f["level"] == "bad"})
+        self.assertEqual(s.report.meta["coverage"]["missing"], ["execution"])
+
+    def test_shrunk_required_list_is_flagged(self):
+        required = [m for m in report_v2()["coverage"]["required"] if m != "execution"]
+        _, s = self.deliver(report_v2("NO_EVIDENCE", required=required))
+        bad = {f["key"]: f["text"] for f in s.flags if f["level"] == "bad"}
+        self.assertIn("required", bad)
+        self.assertIn("execution", bad["required"])
+
+    def test_missing_consent_is_a_warning(self):
+        _, s = self.deliver(report_v2("NO_EVIDENCE", consent_channel="none"))
+        self.assertIn("consent", {f["key"] for f in s.flags if f["level"] == "warn"})
+
+    def test_reason_citing_missing_evidence_is_rejected(self):
+        payload = report_v2("REVIEW_REQUIRED", [evidence_item(1)],
+                            reasons=[{"code": "review.indicator", "text": "x", "evidence": ["E7"]}])
+        r, s = self.deliver(payload)
+        self.assertEqual(r.status_code, 422)
+        self.assertNotEqual(s.status, CheckSession.COMPLETED)
+
+    def test_malformed_v2_is_rejected(self):
+        for mutate in (lambda p: p.pop("coverage"),
+                       lambda p: p["verdict"].update(outcome="CLEAN"),
+                       lambda p: p["evidence"].append(evidence_item(5)),          # id out of sequence
+                       lambda p: p["evidence"].append(dict(evidence_item(1), kind="PROOF")),
+                       lambda p: p["assurance"].update(level="PERFECT"),
+                       lambda p: p["coverage"].update(errors={f"m{i}": "x" for i in range(201)})):
+            d = self.claim(code=make_session(self.admin).code).json()
+            payload = report_v2()
+            mutate(payload)
+            r = self.upload(d["sessionId"], d["token"], canonical(payload))
+            self.assertEqual(r.status_code, 422, payload)
+
+    def test_legacy_v1_still_accepted_and_labelled(self):
+        _, s = self.deliver(report_payload())
+        self.assertEqual(s.verdict, "CHEAT")
+        self.assertIn("schema", {f["key"] for f in s.flags if f["level"] == "info"})
 
 
 class VerificationCodeParity(TestCase):

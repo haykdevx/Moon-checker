@@ -37,6 +37,11 @@ public final class BrowserHistoryCheck implements CheckModule {
     }
 
     @Override
+    public boolean required() {
+        return false; // context for the reviewer, not coverage the verdict depends on
+    }
+
+    @Override
     public String displayName() {
         return I18n.t("module.browser");
     }

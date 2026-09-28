@@ -43,16 +43,20 @@ class ScanEngineTest {
             public void onComplete(ScanResult r) { completed.incrementAndGet(); }
         };
 
-        ScanEngine engine = new ScanEngine(List.of(emitter, thrower), listener);
+        ScanEngine engine = new ScanEngine(List.of(emitter, thrower), listener)
+                .platformSupport(new Platform.Support(true, "test"));
         EnvironmentInfo env = new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm");
         ScanResult result = engine.run(SignatureDb.empty(), CheckId.generate(), env);
 
         assertEquals(1, findings.get());
         assertEquals(1, completed.get());
         assertEquals(1, result.findings().size());
-        assertEquals(Verdict.CHEAT, result.verdict());
+        // a CRITICAL *indicator* asks for review; it is not a validated detection
+        assertEquals(Verdict.REVIEW_REQUIRED, result.verdict());
         assertEquals(ModuleStatus.OK, result.moduleStatus().get("emit"));
         assertEquals(ModuleStatus.ERROR, result.moduleStatus().get("boom"));
+        assertEquals("RuntimeException: kaboom", result.coverage().errors().get("boom"));
+        assertEquals(List.of("boom"), result.coverage().missing());
     }
 
     @Test
@@ -77,14 +81,29 @@ class ScanEngineTest {
         assertTrue(elapsed < 5_000, "engine must not block on a hung module, took " + elapsed + "ms");
         assertEquals(ModuleStatus.TIMEOUT, r.moduleStatus().get("sleeper"));
         assertEquals(ModuleStatus.OK, r.moduleStatus().get("fast"));
+        assertTrue(r.coverage().errors().get("sleeper").contains("time budget"), r.coverage().errors().toString());
+        assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict(), "a timed-out collector must not read as clean");
     }
 
     @Test
-    void cleanScanWithoutAdminIsInconclusive() {
+    void cleanScanWithoutAdminIsIncomplete() {
         CheckModule noop = module("noop", false, () -> {});
-        ScanEngine engine = new ScanEngine(List.of(noop), ScanListener.NOOP);
+        ScanEngine engine = new ScanEngine(List.of(noop), ScanListener.NOOP)
+                .platformSupport(new Platform.Support(true, "test"));
         EnvironmentInfo notElevated = new EnvironmentInfo("PC", "os", "user", false, "1.0.0", "abc", "jvm");
         ScanResult result = engine.run(SignatureDb.empty(), CheckId.generate(), notElevated);
-        assertEquals(Verdict.INCONCLUSIVE, result.verdict());
+        assertEquals(Verdict.INCOMPLETE_SCAN, result.verdict());
+    }
+
+    @Test
+    void consentIsCarriedIntoTheResult() {
+        CheckModule noop = module("noop", false, () -> {});
+        ScanResult r = new ScanEngine(List.of(noop), ScanListener.NOOP)
+                .platformSupport(new Platform.Support(true, "test"))
+                .run(SignatureDb.empty(), CheckId.generate(),
+                        new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm"), Consent.gui());
+        assertEquals("gui", r.consent().channel());
+        assertEquals(Consent.TEXT_VERSION, r.consent().textVersion());
+        assertEquals(Verdict.NO_EVIDENCE, r.verdict());
     }
 }

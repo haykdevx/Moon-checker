@@ -49,3 +49,36 @@ def canonical(obj):
 
 def gz(data):
     return gzip.compress(data)
+
+
+WINDOWS_REQUIRED = ["amcache", "antiforensic", "cs2", "deleted", "environment", "execution", "files", "kernel",
+                    "persistence"]
+
+
+def evidence_item(i, kind="INDICATOR", severity="HIGH", title="Sample loader", module="files"):
+    return {"id": f"E{i}", "kind": kind, "rule": f"{module}:sample", "module": module, "category": "FILES",
+            "severity": severity, "title": title, "detail": title, "evidence": "C:\\sample\\loader.bin",
+            "source": "test", "when": None}
+
+
+def report_v2(outcome="NO_EVIDENCE", evidence=(), check_id="MOON-260928-ABCD", required=None, modules=None,
+              elevated=True, reasons=None, consent_channel="gui", **env_over):
+    required = list(WINDOWS_REQUIRED if required is None else required)
+    modules = modules if modules is not None else {m: "OK" for m in required}
+    env = {"hostname": "DESKTOP-1", "os": "Windows 11", "user": "player", "elevated": elevated}
+    env.update(env_over)
+    return {
+        "schema": "moon-evidence/2",
+        "session": {"checkId": check_id, "startedAt": "2026-09-28T10:00:00",
+                    "finishedAt": timezone.now().isoformat().replace("+00:00", "Z"), "durationSeconds": 0},
+        "collector": {"appVersion": "1.1.0", "selfHash": HASH[:12], "jvm": "Temurin 21",
+                      "rulesVersion": "7", "rulesOrigin": "bundled"},
+        "environment": env,
+        "consent": {"textVersion": "2026-09-28", "acceptedAt": "2026-09-28T10:00:00Z", "channel": consent_channel},
+        "evidence": list(evidence),
+        "coverage": {"modules": modules, "required": required, "missing": [], "errors": {},
+                     "elevated": elevated, "platformSupported": True, "platformNote": "Windows 11",
+                     "complete": True},
+        "assurance": {"level": "STANDARD", "reasons": []},
+        "verdict": {"outcome": outcome, "reasons": reasons if reasons is not None else []},
+    }

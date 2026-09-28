@@ -95,8 +95,7 @@ class MoonApiTest {
     }
 
     private static ScanResult result() {
-        return new ScanResult(CheckId.generate(), ENV, Verdict.CLEAN, 0, List.of(),
-                Map.of("files", ModuleStatus.OK), "7", "bundled", Instant.now(), Duration.ofSeconds(42));
+        return ru.moon.checker.core.TestResults.of(List.of());
     }
 
     @Test

@@ -30,4 +30,14 @@ public interface CheckModule {
     default boolean windowsOnly() {
         return true;
     }
+
+    /**
+     * Whether a trustworthy result depends on this collector. If a required
+     * collector does not complete, the scan is {@link Verdict#INCOMPLETE_SCAN},
+     * never {@link Verdict#NO_EVIDENCE}. Context-only collectors (accounts,
+     * browser matches, macro software, Defender history) return false.
+     */
+    default boolean required() {
+        return true;
+    }
 }

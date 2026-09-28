@@ -69,16 +69,19 @@ public final class HtmlReport {
         sb.append("<div class=\"verdict\" style=\"border-color:").append(r.verdict().color()).append("\">");
         sb.append("<div class=\"vlabel\" style=\"color:").append(r.verdict().color()).append("\">")
           .append(verdictText(r)).append("</div>");
-        sb.append("<div class=\"score\">").append(r.score()).append("<span>/100</span></div>");
+        var cov = r.coverage();
+        sb.append("<div class=\"score\">").append(cov.completed()).append("<span>/")
+          .append(cov.required().size()).append(" coverage</span></div>");
         sb.append("</div>");
     }
 
     private static String verdictText(ScanResult r) {
         return switch (r.verdict()) {
-            case CLEAN -> "ЧИСТО / CLEAN";
-            case SUSPICIOUS -> "ПОДОЗРИТЕЛЬНО / SUSPICIOUS";
-            case CHEAT -> "ЧИТ ОБНАРУЖЕН / CHEAT DETECTED";
-            case INCONCLUSIVE -> "НЕ ЗАВЕРШЕНО / INCONCLUSIVE";
+            case VALIDATED_DETECTION -> "ПОДТВЕРЖДЁННОЕ ОБНАРУЖЕНИЕ / VALIDATED DETECTION";
+            case REVIEW_REQUIRED -> "НУЖНА ПРОВЕРКА АДМИНОМ / REVIEW REQUIRED";
+            case UNSUPPORTED_CONFIGURATION -> "НЕПОДДЕРЖИВАЕМАЯ СИСТЕМА / UNSUPPORTED CONFIGURATION";
+            case INCOMPLETE_SCAN -> "ПРОВЕРКА НЕ ЗАВЕРШЕНА / INCOMPLETE SCAN";
+            case NO_EVIDENCE -> "УЛИК НЕ НАЙДЕНО / NO EVIDENCE FOUND";
         };
     }
 
@@ -108,14 +111,14 @@ public final class HtmlReport {
         }
         sb.append("<h2>Сводка по уликам / Evidence summary</h2>");
         sb.append("<table class=\"find\"><thead><tr><th>Severity</th><th>Субъект</th>")
-          .append("<th>Улик</th><th>Вес</th><th>Модули</th></tr></thead><tbody>");
+          .append("<th>Улик</th><th>Тип / kind</th><th>Модули</th></tr></thead><tbody>");
         for (var g : groups) {
             sb.append("<tr class=\"sev-").append(g.topSeverity().name().toLowerCase()).append("\">")
               .append("<td><span class=\"badge b-").append(g.topSeverity().name().toLowerCase())
               .append("\">").append(g.topSeverity()).append("</span></td>")
               .append("<td>").append(esc(g.subject())).append("</td>")
               .append("<td>").append(g.count()).append("</td>")
-              .append("<td>").append(g.weight()).append("</td>")
+              .append("<td>").append(g.topKind()).append("</td>")
               .append("<td>").append(esc(String.join(", ", g.modules()))).append("</td>")
               .append("</tr>");
         }

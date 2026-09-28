@@ -26,6 +26,32 @@ public final class Platform {
         return os.contains("linux") || os.contains("nix") || os.contains("nux");
     }
 
+    /** Whether this OS/architecture is one the checker is built and validated for. */
+    public record Support(boolean supported, String note) {
+    }
+
+    public static Support support() {
+        String os = System.getProperty("os.name", "");
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        boolean x64 = arch.equals("amd64") || arch.equals("x86_64");
+        if (!x64) {
+            return new Support(false, "Unsupported architecture " + arch + " (CS2 and the checker are x86-64 only).");
+        }
+        if (isWindows()) {
+            if (os.equals("Windows 10") || os.equals("Windows 11")) {
+                return new Support(true, os);
+            }
+            return new Support(false, os + " is not a validated Windows version (supported: Windows 10 and 11).");
+        }
+        if (isLinux()) {
+            if (java.nio.file.Files.isReadable(java.nio.file.Path.of("/proc/self/status"))) {
+                return new Support(true, "Linux " + System.getProperty("os.version", ""));
+            }
+            return new Support(false, "Linux without a readable /proc cannot be inspected.");
+        }
+        return new Support(false, os + " is not supported.");
+    }
+
     public static String osName() {
         return System.getProperty("os.name", "unknown");
     }

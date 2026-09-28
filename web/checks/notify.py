@@ -10,7 +10,11 @@ from accounts.models import webhook_validator
 
 log = logging.getLogger("moon.notify")
 
-COLORS = {"CLEAN": 0x37D67A, "SUSPICIOUS": 0xF6B949, "CHEAT": 0xFF5A5A, "INCONCLUSIVE": 0xB6B6C6}
+from .templatetags.moon import outcome_label
+
+COLORS = {"VALIDATED_DETECTION": 0xFF5A5A, "REVIEW_REQUIRED": 0xF6B949, "INCOMPLETE_SCAN": 0x9AA0FF,
+          "UNSUPPORTED_CONFIGURATION": 0xB6B6C6, "NO_EVIDENCE": 0x37D67A,
+          "CLEAN": 0x37D67A, "SUSPICIOUS": 0xF6B949, "CHEAT": 0xFF5A5A, "INCONCLUSIVE": 0xB6B6C6}
 TRUST = {"ok": "✅ no warnings", "warn": "⚠️ warnings — review", "bad": "⛔ red flags — review"}
 
 
@@ -24,7 +28,8 @@ def embed_for(session):
             "url": settings.PUBLIC_URL + reverse("checks:detail", args=[session.pk]),
             "color": COLORS.get(session.verdict, 0x6F78EF),
             "fields": [
-                {"name": "Verdict", "value": f"**{session.verdict}** ({session.score}/100)", "inline": True},
+                {"name": "Outcome", "value": f"**{outcome_label(session.verdict)}**"
+                 + (f" ({session.score}/100, legacy)" if session.score is not None else ""), "inline": True},
                 {"name": "Trust", "value": TRUST.get(session.trust, "?"), "inline": True},
                 {"name": "Findings", "value": " · ".join(
                     f"{k.upper()} {counts.get(k, 0)}" for k in ("critical", "high", "medium")), "inline": False},

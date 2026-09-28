@@ -65,23 +65,29 @@ class AnalysisTest {
     }
 
     @Test
-    void explainsACriticalVerdict() {
-        Finding critical = f(Severity.CRITICAL, "files", "Known cheat hash", "Nixware CS2 cheat", null);
-        ScanResult r = result(Verdict.CHEAT, 100, List.of(critical));
-        String text = Analysis.explain(r);
-        assertTrue(text.contains("CRITICAL"), text);
-        assertTrue(text.contains("Known cheat hash"), text);
-        assertTrue(text.contains("Nixware"), text);
+    void explainsADetectionWithTheEvidenceItCites() {
+        I18n.setLocale(I18n.ENGLISH);
+        Finding hash = TestResults.finding(EvidenceKind.DETECTION, Severity.CRITICAL, "files", "Sample cheat A");
+        String text = Analysis.explain(TestResults.of(List.of(hash)));
+        assertTrue(text.startsWith("VALIDATED DETECTION"), text);
+        assertTrue(text.contains("exact hash: Sample cheat A"), text);
+        assertTrue(text.contains("[E1]"), text);
+        I18n.setLocale(I18n.RUSSIAN);
     }
 
     @Test
-    void explainsAccumulatedAndInconclusiveVerdicts() {
-        ScanResult susp = result(Verdict.SUSPICIOUS, 45,
-                List.of(f(Severity.HIGH, "m", "t", "Cleaner tool", null)));
-        assertTrue(Analysis.explain(susp).contains("SUSPICIOUS"));
+    void explainsReviewAndIncompleteScans() {
+        I18n.setLocale(I18n.ENGLISH);
+        ScanResult review = TestResults.of(List.of(
+                TestResults.finding(EvidenceKind.INDICATOR, Severity.HIGH, "m", "Cleaner tool")));
+        assertTrue(Analysis.explain(review).startsWith("REVIEW REQUIRED"));
 
-        ScanResult inc = result(Verdict.INCONCLUSIVE, 0, List.of());
-        assertTrue(Analysis.explain(inc).toLowerCase().contains("administrator"));
+        Coverage notElevated = new Coverage(Map.of("files", ModuleStatus.OK), java.util.Set.of("files"),
+                false, true, "Windows 11", Map.of());
+        String inc = Analysis.explain(TestResults.of(List.of(), notElevated, TestResults.ENV));
+        assertTrue(inc.startsWith("INCOMPLETE SCAN"), inc);
+        assertTrue(inc.contains("administrator"), inc);
+        I18n.setLocale(I18n.RUSSIAN);
     }
 
     @Test
@@ -118,10 +124,4 @@ class AnalysisTest {
         assertEquals("Some finding", Analysis.subjectOf(noDetail));
     }
 
-    private ScanResult result(Verdict v, int score, List<Finding> findings) {
-        EnvironmentInfo env = new EnvironmentInfo("PC", "os", "u", true, "1.0.0", "h", "jvm");
-        return new ScanResult(CheckId.generate(), env, v, score, findings,
-                Map.of("files", ModuleStatus.OK), "1", "bundled",
-                Instant.now(), Duration.ofSeconds(5));
-    }
 }

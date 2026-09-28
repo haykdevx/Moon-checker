@@ -220,6 +220,7 @@ class RoleTests(TestCase):
 
     def test_pages_render_for_owner(self):
         self.as_user(self.owner)
-        for url in ["/", "/checks/new/", "/checks/search/?q=loader", "/team/", "/team/roles/", "/team/roles/new/",
+        for url in ["/", "/rules/", "/?verdict=REVIEW_REQUIRED", "/checks/new/", "/checks/search/?q=loader", "/team/",
+                    "/team/roles/", "/team/roles/new/",
                     "/team/m/adm/", "/audit/", "/settings/", "/account/", "/download/"]:
             self.assertEqual(self.client.get(url).status_code, 200, url)

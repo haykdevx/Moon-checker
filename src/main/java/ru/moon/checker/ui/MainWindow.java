@@ -125,6 +125,8 @@ public final class MainWindow extends JFrame {
     }
 
     private void startScan() {
+        // pressing Start after the notice (start.privacy*) is the player's consent; it goes into the report
+        final ru.moon.checker.core.Consent consent = ru.moon.checker.core.Consent.gui();
         if (api != null && link == null) {
             return; // the start button is disabled until connected; belt and braces
         }
@@ -177,7 +179,7 @@ public final class MainWindow extends JFrame {
         }
         Thread worker = new Thread(() -> {
             try {
-                ScanResult r = engine.run(signatures, checkId, env);
+                ScanResult r = engine.run(signatures, checkId, env, consent);
                 if (reporter != null) {
                     reporter.stop();
                 }

@@ -11,6 +11,7 @@ from datetime import datetime
 
 from core.models import SiteSettings
 
+from . import policy
 from .ingest import version_tuple
 from .models import CheckSession, TrustedBuild
 
@@ -98,7 +99,24 @@ def evaluate(session, report, now):
     if session.interruptions:
         add(WARN, "interrupted", f"The checker stopped reporting {session.interruptions} time(s) during the scan.")
 
-    # 11. versions / platform
+    # 11. the outcome must follow from the evidence and coverage (v2 reports)
+    if report.get("coverage") is not None:
+        expected = policy.expected_outcome(report["findings"], report["coverage"])
+        if expected != report["verdict"]:
+            add(BAD, "verdict", f"The checker reported {report['verdict']} but its own evidence and coverage "
+                                f"imply {expected} — produced or edited outside the official policy.")
+        shrunk = policy.missing_required(report["coverage"], env["os"])
+        if shrunk:
+            add(BAD, "required", "The checker left required collectors out of its coverage list: "
+                                 + ", ".join(sorted(shrunk)) + ".")
+        consent = report.get("consent") or {}
+        if consent.get("channel") == "none" or not consent.get("acceptedAt"):
+            add(WARN, "consent", "No player consent was recorded in the report.")
+    else:
+        add(INFO, "schema", "Legacy report format (checker older than 1.1): no coverage, assurance or "
+                            "consent sections; the verdict is the old weighted score.")
+
+    # 12. versions / platform
     if version_tuple(env["appVersion"]) < version_tuple(site.min_checker_version):
         add(WARN, "version", f"Checker {env['appVersion']} is older than the required {site.min_checker_version}.")
     if "windows" not in env["os"].lower():

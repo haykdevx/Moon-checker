@@ -115,15 +115,16 @@
   function findingsFilter() {
     const table = $("#findings");
     if (!table) return;
-    const sev = $("#f-sev"), mod = $("#f-mod"), text = $("#f-text"), count = $("#f-count");
+    const sev = $("#f-sev"), mod = $("#f-mod"), kind = $("#f-kind"), text = $("#f-text"), count = $("#f-count");
     const order = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"];
     function apply() {
       const min = sev.value ? order.indexOf(sev.value) : -1;
-      const m = mod.value, q = text.value.trim().toLowerCase();
+      const m = mod.value, k = kind ? kind.value : "", q = text.value.trim().toLowerCase();
       let shown = 0;
       $$("tbody tr[data-sev]", table).forEach(tr => {
         const ok = (min < 0 || order.indexOf(tr.dataset.sev) >= min)
           && (!m || tr.dataset.mod === m)
+          && (!k || tr.dataset.kind === k)
           && (!q || tr.textContent.toLowerCase().includes(q));
         tr.classList.toggle("hidden", !ok);
         const detail = tr.nextElementSibling;
@@ -132,7 +133,7 @@
       });
       if (count) count.textContent = shown;
     }
-    [sev, mod].forEach(el => el && el.addEventListener("change", apply));
+    [sev, mod, kind].forEach(el => el && el.addEventListener("change", apply));
     if (text) text.addEventListener("input", apply);
     table.addEventListener("click", e => {
       const tr = e.target.closest("tr[data-sev]");

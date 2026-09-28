@@ -1,25 +1,16 @@
 package ru.moon.checker.core;
 
 /**
- * Severity of a single finding. Weight feeds the aggregate score; a CRITICAL
- * finding forces a CHEAT verdict on its own (see {@link ScoreCalculator}).
+ * How urgently a reviewer should look at a finding. Used for ordering and
+ * display only — severities are never added up or turned into a score; the
+ * verdict comes from {@link EvidenceKind} and coverage (see {@link VerdictEngine}).
  */
 public enum Severity {
-    INFO(0),
-    LOW(5),
-    MEDIUM(12),
-    HIGH(30),
-    CRITICAL(100);
-
-    private final int weight;
-
-    Severity(int weight) {
-        this.weight = weight;
-    }
-
-    public int weight() {
-        return weight;
-    }
+    INFO,
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL;
 
     /** Rank used for sorting most-severe first. */
     public int rank() {

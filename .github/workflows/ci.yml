@@ -117,3 +117,71 @@ jobs:
           s = CheckSession.objects.get(code='$code')
           assert s.status == 'COMPLETED' and s.verification_code, (s.status, s.verification_code)
           print('panel received', s.verdict, s.verification_code)"
+
+  kernel-linux:
+    name: Linux kernel component (build, load, framing, checker)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Kernel headers
+        run: sudo apt-get update && sudo apt-get install -y "linux-headers-$(uname -r)"
+      - name: Build module (warnings are errors)
+        run: make -C kernel/linux KCFLAGS=-Werror
+      - name: Load and check the report framing (one snapshot)
+        run: |
+          sudo insmod kernel/linux/moonmon.ko
+          sudo cat /proc/moonmon > report.txt
+          head -n 3 report.txt
+          test "$(head -n1 report.txt)" = "MOONMON 2"
+          n=$(grep -c '^KPID ' report.txt)
+          tail -n1 report.txt | grep -qx "END $n"
+          ! grep -vE '^(MOONMON 2|KPID [0-9]+ [!-~]*|END [0-9]+)$' report.txt
+      - name: Checker consumes the kernel component as root
+        run: |
+          mvn -B -q -DskipTests package
+          sudo "$JAVA_HOME/bin/java" -jar target/moon-checker.jar --cli --modules kernel --out ci-out
+          python3 - <<'PY'
+          import glob, json
+          d = json.load(open(glob.glob("ci-out/*.json")[0]))
+          status = d["coverage"]["modules"]["kernel"]
+          print("kernel collector:", status, d["coverage"]["errors"])
+          assert status == "OK", d["coverage"]["errors"]
+          PY
+          sudo rmmod moonmon
+
+  # Compiles MoonMon.sys with the WDK NuGet packages and test-signs it with a throw-away
+  # certificate. Loading needs test-signing mode + a reboot, which hosted runners cannot
+  # do; the lab procedure is in kernel/windows/MoonMon.c.
+  driver-windows:
+    name: Windows driver (WDK build + test-sign)
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Restore WDK/SDK NuGet packages
+        run: nuget restore kernel\windows\packages.config -PackagesDirectory kernel\windows\packages
+      - name: Build MoonMon.sys (/W4 /WX via the project)
+        run: msbuild kernel\windows\MoonMon.vcxproj /p:Configuration=Release /p:Platform=x64 /m
+      - name: Test-sign with an ephemeral certificate
+        shell: pwsh
+        run: |
+          $sys = "kernel\windows\build\Release\MoonMon.sys"
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Moon CI Test Driver" `
+                    -CertStoreLocation Cert:\CurrentUser\My -HashAlgorithm SHA256
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe", `
+                        "kernel\windows\packages\*\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+                      Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /s My /sha1 $cert.Thumbprint $sys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sig = Get-AuthenticodeSignature $sys
+          Write-Host "signer: $($sig.SignerCertificate.Subject) status: $($sig.Status)"
+          if ($sig.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "signature not applied" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonmon-driver-test-signed
+          path: kernel/windows/build/Release/MoonMon.*

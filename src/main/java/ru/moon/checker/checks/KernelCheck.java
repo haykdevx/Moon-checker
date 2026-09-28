@@ -2,6 +2,7 @@ package ru.moon.checker.checks;
 
 import ru.moon.checker.core.Category;
 import ru.moon.checker.core.CheckModule;
+import ru.moon.checker.core.EvidenceKind;
 import ru.moon.checker.core.Finding;
 import ru.moon.checker.core.I18n;
 import ru.moon.checker.core.Platform;
@@ -57,9 +58,11 @@ public final class KernelCheck implements CheckModule {
     public void run(ScanContext ctx) {
         ctx.log(I18n.t("log.kernel"));
         KernelBridge.Report report = KernelBridge.read();
+        ru.moon.checker.kernel.KernelReport parsed = null;
         if (report.present()) {
-            consumeDriverReport(ctx, report);
-            hiddenProcesses(ctx, report);
+            parsed = ru.moon.checker.kernel.KernelReport.parse(report.lines());
+            consumeDriverReport(ctx, parsed.records(), report.source());
+            hiddenProcesses(ctx, parsed, report.source());
         } else {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
                             "Kernel-драйвер Moon не загружен / Moon kernel driver not loaded")
@@ -73,38 +76,44 @@ public final class KernelCheck implements CheckModule {
         } else if (Platform.isLinux()) {
             linuxFallback(ctx);
         }
+        if (parsed != null && !parsed.complete()) {
+            // the component is installed but its view is partial: that is missing telemetry,
+            // not a clean result — surface it as a collection error (incomplete scan)
+            throw new IllegalStateException("kernel component report incomplete: " + parsed.problem());
+        }
     }
 
-    private void consumeDriverReport(ScanContext ctx, KernelBridge.Report report) {
-        for (String line : report.lines()) {
-            String l = line.trim();
-            if (l.isEmpty()) {
+    /** Paths a Windows kernel module normally loads from; anything else is noted, not judged. */
+    static boolean systemDriverPath(String path) {
+        String p = path.toLowerCase(Locale.ROOT);
+        return p.startsWith("\\systemroot\\") || p.startsWith("\\??\\c:\\windows\\")
+                || p.startsWith("c:\\windows\\") || p.startsWith("\\windows\\");
+    }
+
+    private void consumeDriverReport(ScanContext ctx, java.util.List<String> records, String source) {
+        for (String l : records) {
+            if (!l.startsWith("DRIVER ")) {
                 continue;
             }
-            // driver contract: "HIDDEN <type> <name>" or "DRIVER <name> <path>"
-            if (l.startsWith("HIDDEN ")) {
-                ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
-                                "Скрытый объект ядра (руткит) / Kernel object hidden from user-mode")
-                        .module(ID).detail(l.substring(7)).source(report.source()).build());
-            } else if (l.contains("[non-system-path]")) {
-                ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
-                                "Драйвер загружен не из системной папки / Driver loaded from a non-system path")
-                        .module(ID)
-                        .detail("Типично для ручного маппинга (kdmapper/BYOVD): " + l)
-                        .evidence(l.replace("DRIVER ", "").replace(" [non-system-path]", ""))
-                        .source(report.source())
-                        .build());
-            } else {
-                String low = l.toLowerCase(Locale.ROOT);
-                ctx.signatures().matchDriver(low).ifPresent(rule ->
-                        ctx.emit(Finding.builder(Category.KERNEL, rule.severity(),
-                                        "Драйвер ядра совпал с сигнатурой / Kernel driver matches signature")
-                                .module(ID).detail(rule.label() + " — " + l).source(report.source()).build()));
-                ctx.signatures().matchCheatName(low).ifPresent(rule ->
-                        ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
-                                        "Чит в отчёте ядра / Cheat object in kernel report")
-                                .module(ID).detail(rule.label() + " — " + l).source(report.source()).build()));
+            String path = l.substring(7);
+            String low = path.toLowerCase(Locale.ROOT);
+            if (!systemDriverPath(path)) {
+                // anti-cheats of other games (EasyAntiCheat, FACEIT) and vendor tools load from
+                // Program Files: visible to the reviewer, never a reason to review on its own
+                ctx.emit(Finding.builder(Category.KERNEL, Severity.LOW,
+                                "Драйвер загружен не из папки Windows / Driver loaded from outside the Windows folder")
+                        .module(ID).rule("kernel:driver-outside-windows")
+                        .detail("Kernel module image outside \\Windows (common for legitimate third-party drivers)")
+                        .evidence(path).source(source).build());
             }
+            ctx.signatures().matchDriver(low).ifPresent(rule ->
+                    ctx.emit(Finding.builder(Category.KERNEL, rule.severity(),
+                                    "Драйвер ядра совпал с сигнатурой / Kernel driver matches signature")
+                            .module(ID).detail(rule.label() + " — " + path).evidence(path).source(source).build()));
+            ctx.signatures().matchCheatName(low).ifPresent(rule ->
+                    ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
+                                    "Чит в отчёте ядра / Cheat object in kernel report")
+                            .module(ID).detail(rule.label() + " — " + path).evidence(path).source(source).build()));
         }
     }
 
@@ -113,9 +122,9 @@ public final class KernelCheck implements CheckModule {
      * candidate is re-verified, because a process legitimately exiting between
      * the two reads would otherwise look hidden.
      */
-    private void hiddenProcesses(ScanContext ctx, KernelBridge.Report report) {
+    private void hiddenProcesses(ScanContext ctx, ru.moon.checker.kernel.KernelReport parsed, String source) {
         java.util.Set<Integer> kernelPids =
-                ru.moon.checker.kernel.HiddenObjects.parseKernelPids(report.lines());
+                ru.moon.checker.kernel.HiddenObjects.parseKernelPids(parsed.records());
         if (kernelPids.isEmpty()) {
             return;
         }
@@ -126,14 +135,14 @@ public final class KernelCheck implements CheckModule {
             if (java.nio.file.Files.exists(java.nio.file.Path.of("/proc", String.valueOf(pid)))) {
                 continue;
             }
-            String comm = ru.moon.checker.kernel.HiddenObjects.commOf(report.lines(), pid);
+            String comm = ru.moon.checker.kernel.HiddenObjects.commOf(parsed.records(), pid);
             ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
                             "Скрытый процесс (руткит) / Process hidden from user-mode")
-                    .module(ID)
+                    .module(ID).kind(EvidenceKind.CONCEALMENT).rule("kernel:hidden-process")
                     .detail("PID " + pid + (comm != null ? " (" + comm + ")" : "")
                             + " виден ядру, но отсутствует в /proc")
                     .evidence("pid " + pid)
-                    .source(report.source())
+                    .source(source)
                     .build());
         }
     }
@@ -168,6 +177,7 @@ public final class KernelCheck implements CheckModule {
         for (String weak : ru.moon.checker.kernel.HiddenObjects.weakBootOptions(startOptions)) {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
                             "Ослаблена защита ядра при загрузке / Kernel integrity weakened at boot")
+                    .kind(EvidenceKind.CONFIGURATION).rule("kernel:boot-integrity-weakened")
                     .module(ID)
                     .detail(weak)
                     .evidence(startOptions)
@@ -179,6 +189,7 @@ public final class KernelCheck implements CheckModule {
             if (on) {
                 ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
                                 "Отключена проверка подписи драйверов / Driver signature enforcement off (test-signing)")
+                        .kind(EvidenceKind.CONFIGURATION).rule("kernel:dse-off")
                         .module(ID)
                         .detail("Позволяет загрузить неподписанный драйвер чита в ядро.")
                         .source("bcdedit").build());
@@ -192,6 +203,7 @@ public final class KernelCheck implements CheckModule {
         if (suspiciousTaint) {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.MEDIUM,
                             "Ядро помечено (out-of-tree/unsigned) / Kernel tainted")
+                    .kind(EvidenceKind.CONTEXT).rule("kernel:tainted") // NVIDIA's driver taints most gaming kernels
                     .module(ID)
                     .detail(LinuxInfo.taintDescription(taint))
                     .source("/proc/sys/kernel/tainted").build());
@@ -214,6 +226,7 @@ public final class KernelCheck implements CheckModule {
                 LinuxInfo.loadedModules(), LinuxInfo.sysModules())) {
             ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
                             "Скрытый модуль ядра / Kernel module hidden from one view")
+                    .kind(EvidenceKind.CONCEALMENT).rule("kernel:module-hidden")
                     .module(ID)
                     .detail(mismatch)
                     .evidence(mismatch)

@@ -66,4 +66,12 @@ class HiddenObjectsTest {
         assertTrue(HiddenObjects.weakBootOptions("NOEXECUTE=OPTIN").isEmpty());
         assertTrue(HiddenObjects.weakBootOptions(null).isEmpty());
     }
+
+    @org.junit.jupiter.api.Test
+    void windowsDriverPathsAreClassifiedInUserMode() {
+        org.junit.jupiter.api.Assertions.assertTrue(ru.moon.checker.checks.KernelCheckAccess.system("\\SystemRoot\\system32\\drivers\\a.sys"));
+        org.junit.jupiter.api.Assertions.assertTrue(ru.moon.checker.checks.KernelCheckAccess.system("\\??\\C:\\Windows\\System32\\b.sys"));
+        org.junit.jupiter.api.Assertions.assertFalse(ru.moon.checker.checks.KernelCheckAccess.system("\\??\\C:\\Program Files\\EasyAntiCheat\\c.sys"));
+        org.junit.jupiter.api.Assertions.assertFalse(ru.moon.checker.checks.KernelCheckAccess.system("\\??\\C:\\Users\\p\\AppData\\Local\\Temp\\d.sys"));
+    }
 }
