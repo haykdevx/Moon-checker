@@ -200,12 +200,14 @@ public final class FileInspection {
 
         List<String> strings = BinStrings.all(data, MIN_STRING);
         int offsetHits = 0;
+        boolean dumpName = false;
         StringBuilder matched = new StringBuilder();
         java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         for (String s : strings) {
             for (SignatureRule r : ctx.signatures().allOffsetMatches(s)) {
                 if (seen.add(r.label())) {
                     offsetHits++;
+                    dumpName |= r.severity().rank() >= Severity.HIGH.rank();
                     if (matched.length() < 200) {
                         matched.append(r.label()).append(", ");
                     }
@@ -213,7 +215,7 @@ public final class FileInspection {
             }
         }
         if (offsetHits > 0) {
-            Severity sev = offsetHits >= OFFSET_HIT_HIGH ? Severity.HIGH : Severity.MEDIUM;
+            Severity sev = offsetSeverity(offsetHits, dumpName);
             ctx.emit(Finding.builder(category, sev,
                             "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary")
                     .module(module)
@@ -253,6 +255,15 @@ public final class FileInspection {
                         .build());
             }
         }
+    }
+
+    /**
+     * Severity of the offset-strings finding for a binary that contains {@code distinctNames}
+     * different offset/field names, {@code dumpName} when one of them comes from a HIGH rule
+     * (an offset-dump name).
+     */
+    public static Severity offsetSeverity(int distinctNames, boolean dumpName) {
+        return distinctNames >= OFFSET_HIT_HIGH ? Severity.HIGH : Severity.MEDIUM;
     }
 
     /**

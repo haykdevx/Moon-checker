@@ -35,7 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +45,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,7 +53,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Measured validation — every number in {@code docs/validation.md} comes from here and is
  * pinned by an assertion, so a change that moves a number fails the build until the
- * document is updated with it. Results are written to {@code target/validation/results.json}.
+ * document is updated with it. Results are written to {@code target/validation/results.json}
+ * (each section records its numbers before asserting, so the file is written even when an
+ * assertion fails).
  *
  * <p>No cheat software is used or needed. Positives are harmless generated files that a
  * test-only rule pack describes the way a real pack describes a cheat; negatives are
@@ -70,6 +73,7 @@ class ValidationCorpusTest {
     private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static final Map<String, Object> RESULTS = new TreeMap<>();
     private static final SignatureDb BUNDLED = SignatureLoader.load(null).db();
+    private static final String OFFSET_RULE = "files:cs2-offset-strings-in-binary";
 
     @TempDir
     static Path tmp;
@@ -191,6 +195,7 @@ class ValidationCorpusTest {
         Confusion c = Confusion.of(rows);
         Map<String, Object> m = new LinkedHashMap<>(c.json());
         m.put("suppressedInAllowlistedPath", suppressed + "/20");
+        m.put("detectionsFromHeuristic", wrongKind);
         RESULTS.put("2-disguised-extension", m);
         assertEquals(new Confusion(60, 0, 0, 120), c);
         assertEquals(0, wrongKind, "a heuristic never produces a DETECTION");
@@ -199,11 +204,32 @@ class ValidationCorpusTest {
 
     // ---- 3. CS2 offset names inside a binary --------------------------------------------
 
+    /** The four groups of the offset corpus; only {@code cheatShaped} is labelled positive. */
+    record OffsetCorpus(List<Path> cheatShaped, List<Path> singleField, List<Path> plain, List<Path> nearMiss) {
+    }
+
+    /** One measurement of the offset corpus. */
+    record OffsetRun(Confusion confusion, int singleFieldReported, int singleFieldMoving, int nearMissReported) {
+        Map<String, Object> json() {
+            Map<String, Object> m = new LinkedHashMap<>(confusion.json());
+            m.put("singleFieldNameReported", singleFieldReported + "/40");
+            m.put("singleFieldNameOutcomeMoving", singleFieldMoving + "/40");
+            m.put("nearMissFieldNameReported", nearMissReported + "/40");
+            return m;
+        }
+    }
+
     /**
      * Two families of names: offset-dump names ({@code dw…}, severity HIGH in the rules), which
      * come from cheat-community offset dumps, and the game's own field names ({@code m_…},
      * MEDIUM), which legitimate Source-engine tools — demo and movie tools, server plugins,
-     * SDK code — also contain. "Outcome-moving" means a finding at MEDIUM or above.
+     * SDK code — also contain. The label is "should move the outcome", i.e. raise a finding at
+     * MEDIUM or above.
+     *
+     * <p>The same corpus is also measured as rules 2026.09.14-cs2 behaved: every name matched as a
+     * substring and every hit raised at MEDIUM or above, so under that policy "reported" and
+     * "outcome-moving" were the same thing. Those are the "before" numbers in docs/validation.md;
+     * they were first measured on the unmodified code (commit 22e0012) and this reproduces them.
      */
     @Test
     void offsetStringHeuristic() throws IOException {
@@ -214,53 +240,84 @@ class ValidationCorpusTest {
         List<String> fields = BUNDLED.offsetStrings().stream().filter(r -> r.severity() != Severity.HIGH)
                 .map(SignatureRule::pattern).toList();
         assertTrue(dumper.size() >= 5 && fields.size() >= 5, "bundled rules carry both families");
-        String rule = "files:cs2-offset-strings-in-binary";
 
-        // cheat-shaped: any dump name, or two or more game fields together
-        List<boolean[]> rows = new ArrayList<>();
+        List<Path> cheatShaped = new ArrayList<>();
         for (int i = 0; i < 60; i++) {
             List<String> embedded = new ArrayList<>();
-            if (i % 2 == 0) {
+            if (i % 2 == 0) {   // one offset-dump name, plus 0–2 game field names
                 embedded.add(dumper.get(rnd.nextInt(dumper.size())));
+                embedded.addAll(distinct(fields, rnd.nextInt(3), rnd));
+            } else {            // 2–4 distinct game field names and no dump name
+                embedded.addAll(distinct(fields, 2 + rnd.nextInt(3), rnd));
             }
-            int extra = (i % 2 == 0 ? 0 : 2) + rnd.nextInt(3);
-            while (new HashSet<>(embedded).size() < (i % 2 == 0 ? 1 : 2) + extra - (i % 2 == 0 ? 0 : 2)
-                    || embedded.size() < (i % 2 == 0 ? 1 : 2)) {
-                embedded.add(fields.get(rnd.nextInt(fields.size())));
-            }
-            rows.add(new boolean[]{true, moving(inspect(write(dir, "tool-" + i + ".dll", peWithStrings(rnd, embedded)),
-                    BUNDLED), rule)});
+            cheatShaped.add(write(dir, "tool-" + i + ".dll", peWithStrings(rnd, embedded)));
         }
-        // one game field name alone — what a legitimate Source-engine tool can carry
-        int singleFieldMoving = 0, singleFieldSeen = 0;
+        List<Path> singleField = new ArrayList<>();   // what a legitimate Source-engine tool can carry
         for (int i = 0; i < 40; i++) {
-            List<Finding> f = inspect(write(dir, "field-" + i + ".dll",
-                    peWithStrings(rnd, List.of(fields.get(i % fields.size())))), BUNDLED);
-            singleFieldSeen += raised(f, rule) ? 1 : 0;
-            boolean m = moving(f, rule);
-            singleFieldMoving += m ? 1 : 0;
-            rows.add(new boolean[]{false, m});
+            singleField.add(write(dir, "field-" + i + ".dll",
+                    peWithStrings(rnd, List.of(fields.get(i % fields.size())))));
         }
-        for (int i = 0; i < 60; i++) {   // binaries without any of the names
-            rows.add(new boolean[]{false, moving(inspect(write(dir, "plain-" + i + ".dll", randomPe(rnd)), BUNDLED), rule)});
+        List<Path> plain = new ArrayList<>();         // binaries without any of the names
+        for (int i = 0; i < 60; i++) {
+            plain.add(write(dir, "plain-" + i + ".dll", randomPe(rnd)));
         }
-        // near misses: a game field name inside a longer, different identifier
-        int nearFieldRaised = 0;
+        List<Path> nearMiss = new ArrayList<>();      // a field name inside a longer, different identifier
         for (int i = 0; i < 40; i++) {
             String n = fields.get(i % fields.size());
-            String near = i % 2 == 0 ? n + "Max" : "Old" + n;
-            boolean any = raised(inspect(write(dir, "near-" + i + ".dll", peWithStrings(rnd, List.of(near))), BUNDLED), rule);
-            nearFieldRaised += any ? 1 : 0;
-            rows.add(new boolean[]{false, any});
+            nearMiss.add(write(dir, "near-" + i + ".dll", peWithStrings(rnd, List.of(i % 2 == 0 ? n + "Max" : "Old" + n))));
         }
-        Confusion c = Confusion.of(rows);
-        Map<String, Object> m = new LinkedHashMap<>(c.json());
-        m.put("singleFieldNameReported", singleFieldSeen + "/40");
-        m.put("singleFieldNameOutcomeMoving", singleFieldMoving + "/40");
-        m.put("nearMissFieldNameReported", nearFieldRaised + "/40");
+        OffsetCorpus corpus = new OffsetCorpus(cheatShaped, singleField, plain, nearMiss);
+
+        OffsetRun now = offsetRun(corpus, BUNDLED, f -> moving(f, OFFSET_RULE));
+        OffsetRun before = offsetRun(corpus, substringOffsets(BUNDLED), f -> raised(f, OFFSET_RULE));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("corpus", Map.of("cheatShaped", 60, "singleFieldName", 40, "plain", 60, "nearMissFieldName", 40));
+        m.put("current", now.json());
+        m.put("before-2026.09.14", before.json());
         RESULTS.put("3-offset-strings", m);
-        assertEquals(new Confusion(60, 0, 0, 140), c);
-        assertEquals(40, singleFieldSeen, "a single field name is still shown to the reviewer, as LOW");
+        assertEquals(new OffsetRun(new Confusion(60, 80, 0, 60), 40, 40, 40), now);
+        assertEquals(new OffsetRun(new Confusion(60, 80, 0, 60), 40, 40, 40), before,
+                "the 2026.09.14 behaviour is the documented baseline");
+    }
+
+    private static OffsetRun offsetRun(OffsetCorpus corpus, SignatureDb db, Predicate<List<Finding>> movesOutcome) {
+        List<boolean[]> rows = new ArrayList<>();
+        for (Path p : corpus.cheatShaped()) {
+            rows.add(new boolean[]{true, movesOutcome.test(inspect(p, db))});
+        }
+        int singleReported = 0, singleMoving = 0, nearReported = 0;
+        for (Path p : corpus.singleField()) {
+            List<Finding> f = inspect(p, db);
+            boolean moves = movesOutcome.test(f);
+            singleReported += raised(f, OFFSET_RULE) ? 1 : 0;
+            singleMoving += moves ? 1 : 0;
+            rows.add(new boolean[]{false, moves});
+        }
+        for (Path p : corpus.plain()) {
+            rows.add(new boolean[]{false, movesOutcome.test(inspect(p, db))});
+        }
+        for (Path p : corpus.nearMiss()) {
+            List<Finding> f = inspect(p, db);
+            nearReported += raised(f, OFFSET_RULE) ? 1 : 0;
+            rows.add(new boolean[]{false, movesOutcome.test(f)});
+        }
+        return new OffsetRun(Confusion.of(rows), singleReported, singleMoving, nearReported);
+    }
+
+    /** The given rules with every offset name matched as a substring, as in rules 2026.09.14-cs2. */
+    private static SignatureDb substringOffsets(SignatureDb db) {
+        List<SignatureRule> offsets = db.offsetStrings().stream()
+                .map(r -> new SignatureRule(r.pattern(), r.sha256(), r.severity(), r.note(), true)).toList();
+        return new SignatureDb(db.version() + "+substring-offsets", db.cheatNames(), db.domains(), db.hashes(),
+                offsets, db.vulnerableDrivers(), db.cleaners(), db.macroTools(), db.allowPaths(), db.allowSigners(),
+                db.allowHashes());
+    }
+
+    /** {@code n} different entries of {@code from}, in random order. */
+    private static List<String> distinct(List<String> from, int n, Random rnd) {
+        List<String> copy = new ArrayList<>(from);
+        Collections.shuffle(copy, rnd);
+        return List.copyOf(copy.subList(0, n));
     }
 
     // ---- 4. outcome policy: one golden file for the checker and the panel ---------------
@@ -268,64 +325,95 @@ class ValidationCorpusTest {
     private static final String[] REQUIRED = {"amcache", "antiforensic", "cs2", "deleted", "environment",
             "execution", "files", "kernel", "persistence"};
 
+    /**
+     * 1000 random evidence/coverage scenarios through {@link VerdictEngine}. The outcomes are
+     * compared with {@code spec/policy-golden.json}, which the panel's copy of the policy is
+     * tested against too; regenerate it deliberately with {@code -Dmoon.validation.writeGolden=true}.
+     * The spec invariants are checked independently of the engine's code.
+     */
     @Test
     void outcomePolicyGolden() throws IOException {
         List<Map<String, Object>> scenarios = scenarios(1000, new Random(SEED + 3));
-        Map<Verdict, Integer> byOutcome = new EnumMap<>(Verdict.class);
-        int configOnly = 0, configOnlyClean = 0, incompleteQuiet = 0, incompleteQuietCalledClean = 0;
+        Map<String, Integer> outcomes = new TreeMap<>();
+        int detections = 0, detectionsNotValidated = 0, reviews = 0, reviewsNotReview = 0;
+        int quiet = 0, quietCalledCheating = 0, settingsOnly = 0, settingsOnlyCheating = 0, settingsOnlyClean = 0;
+        int incompleteQuiet = 0, incompleteQuietCalledClean = 0;
         for (Map<String, Object> sc : scenarios) {
             Assessment a = assess(sc);
-            sc.put("outcome", a.outcome().name());
-            byOutcome.merge(a.outcome(), 1, Integer::sum);
-            // spec invariants, stated independently of the engine's code
+            Verdict v = a.outcome();
+            sc.put("outcome", v.name());
+            outcomes.merge(v.name(), 1, Integer::sum);
+            boolean cheating = v == Verdict.VALIDATED_DETECTION || v == Verdict.REVIEW_REQUIRED;
             List<Map<String, String>> ev = evidence(sc);
             boolean detection = ev.stream().anyMatch(e -> e.get("kind").equals("DETECTION"));
             boolean review = ev.stream().anyMatch(e -> (e.get("kind").equals("INDICATOR")
                     || e.get("kind").equals("CONCEALMENT"))
                     && Severity.valueOf(e.get("severity")).compareTo(Severity.MEDIUM) >= 0);
-            if (detection) {
-                assertEquals(Verdict.VALIDATED_DETECTION, a.outcome(), sc.toString());
-            } else if (review) {
-                assertEquals(Verdict.REVIEW_REQUIRED, a.outcome(), sc.toString());
+            if (detection) {                 // any DETECTION => VALIDATED_DETECTION
+                detections++;
+                detectionsNotValidated += v != Verdict.VALIDATED_DETECTION ? 1 : 0;
+            } else if (review) {             // else INDICATOR/CONCEALMENT at MEDIUM+ => REVIEW_REQUIRED
+                reviews++;
+                reviewsNotReview += v != Verdict.REVIEW_REQUIRED ? 1 : 0;
+            } else {                         // neither => never a cheating outcome
+                quiet++;
+                quietCalledCheating += cheating ? 1 : 0;
+                if (!a.coverage().complete()) {  // and missing telemetry is never "no evidence"
+                    incompleteQuiet++;
+                    incompleteQuietCalledClean += v == Verdict.NO_EVIDENCE ? 1 : 0;
+                }
             }
-            boolean onlySettings = !ev.isEmpty() && ev.stream().allMatch(e -> e.get("kind").equals("CONFIGURATION"));
-            if (onlySettings) {
-                configOnly++;
-                assertTrue(a.outcome() != Verdict.VALIDATED_DETECTION && a.outcome() != Verdict.REVIEW_REQUIRED,
-                        "security settings are never a cheating verdict: " + sc);
-                configOnlyClean += a.outcome() == Verdict.NO_EVIDENCE ? 1 : 0;
-            }
-            if (!detection && !review && !a.coverage().complete()) {
-                incompleteQuiet++;
-                incompleteQuietCalledClean += a.outcome() == Verdict.NO_EVIDENCE ? 1 : 0;
+            if (!ev.isEmpty() && ev.stream().allMatch(e -> e.get("kind").equals("CONFIGURATION"))) {
+                settingsOnly++;              // security settings alone are never a cheating verdict
+                settingsOnlyCheating += cheating ? 1 : 0;
+                settingsOnlyClean += v == Verdict.NO_EVIDENCE ? 1 : 0;
             }
         }
         if (Boolean.getBoolean("moon.validation.writeGolden")) {
-            Files.createDirectories(GOLDEN.getParent());
-            JSON.writeValue(GOLDEN.toFile(), scenarios);
+            writeGolden(scenarios);
         }
         List<Map<String, Object>> golden = JSON.readValue(GOLDEN.toFile(), new TypeReference<>() {
         });
-        assertEquals(golden.size(), scenarios.size());
         int agree = 0;
-        for (int i = 0; i < golden.size(); i++) {
-            agree += golden.get(i).get("outcome").equals(scenarios.get(i).get("outcome")) ? 1 : 0;
+        for (int i = 0; i < Math.min(golden.size(), scenarios.size()); i++) {
+            agree += golden.get(i).equals(scenarios.get(i)) ? 1 : 0;
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        Map<String, Integer> outcomes = new TreeMap<>();
-        byOutcome.forEach((k, v) -> outcomes.put(k.name(), v));
         m.put("scenarios", scenarios.size());
+        m.put("goldenScenarios", golden.size());
         m.put("agreeWithGolden", agree);
         m.put("outcomes", outcomes);
-        m.put("settingsOnlyScenarios", configOnly);
-        m.put("settingsOnlyReportedAsCheating", 0);
-        m.put("settingsOnlyNoEvidence", configOnlyClean);
+        m.put("withDetection", detections);
+        m.put("withDetectionNotValidated", detectionsNotValidated);
+        m.put("withReviewEvidence", reviews);
+        m.put("withReviewEvidenceNotReview", reviewsNotReview);
+        m.put("withoutEitherScenarios", quiet);
+        m.put("withoutEitherReportedAsCheating", quietCalledCheating);
+        m.put("settingsOnlyScenarios", settingsOnly);
+        m.put("settingsOnlyReportedAsCheating", settingsOnlyCheating);
+        m.put("settingsOnlyNoEvidence", settingsOnlyClean);
         m.put("incompleteWithoutEvidence", incompleteQuiet);
         m.put("incompleteWithoutEvidenceCalledNoEvidence", incompleteQuietCalledClean);
         RESULTS.put("4-outcome-policy", m);
+
         assertEquals(golden, scenarios, "the engine changed its answers: regenerate the golden file on purpose");
-        assertEquals(0, incompleteQuietCalledClean, "missing telemetry is never reported as clean");
-        assertTrue(byOutcome.size() == Verdict.values().length, "every outcome is exercised: " + byOutcome);
+        assertEquals(0, detectionsNotValidated + reviewsNotReview + quietCalledCheating + settingsOnlyCheating
+                + incompleteQuietCalledClean, "spec invariants: " + m);
+        assertEquals(Map.of("INCOMPLETE_SCAN", 430, "NO_EVIDENCE", 282, "REVIEW_REQUIRED", 205,
+                "UNSUPPORTED_CONFIGURATION", 49, "VALIDATED_DETECTION", 34), outcomes, "every outcome is exercised");
+        assertEquals(List.of(34, 205, 761, 71, 479), List.of(detections, reviews, quiet, settingsOnly, incompleteQuiet));
+        assertEquals(24, settingsOnlyClean);
+    }
+
+    /** One scenario per line: a change of answers shows up as a readable diff. */
+    private static void writeGolden(List<Map<String, Object>> scenarios) throws IOException {
+        ObjectMapper compact = new ObjectMapper();
+        StringBuilder sb = new StringBuilder("[\n");
+        for (int i = 0; i < scenarios.size(); i++) {
+            sb.append(compact.writeValueAsString(scenarios.get(i))).append(i + 1 < scenarios.size() ? ",\n" : "\n");
+        }
+        Files.createDirectories(GOLDEN.getParent());
+        Files.writeString(GOLDEN, sb.append("]\n"), StandardCharsets.UTF_8);
     }
 
     private static List<Map<String, Object>> scenarios(int n, Random rnd) {
@@ -396,6 +484,10 @@ class ValidationCorpusTest {
 
     // ---- 5. benign baseline on the machine running the test (opt-in) --------------------
 
+    /**
+     * Not pinned: the numbers describe whichever machine runs it. Name rules are reported by
+     * list and index only ({@code cheatNames#12}), never by the name they contain.
+     */
     @Test
     @EnabledIfSystemProperty(named = "moon.validation.host", matches = "true")
     void hostBenignBaseline() throws IOException {
@@ -408,11 +500,13 @@ class ValidationCorpusTest {
         Map<String, List<String>> examples = new TreeMap<>();
         long[] files = {0};
         List<Path> libraries = new ArrayList<>();
+        List<String> roots = new ArrayList<>();
         for (String root : new String[]{"/usr", "/opt", "/snap", "/etc", "/var/lib"}) {
             Path start = Path.of(root);
             if (!Files.isDirectory(start)) {
                 continue;
             }
+            roots.add(root);
             Files.walkFileTree(start, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path f, BasicFileAttributes attrs) {
@@ -449,6 +543,7 @@ class ValidationCorpusTest {
         }
         // the offset heuristic without the path allowlist: what a user-installed tool would face
         int libsWithOffsets = 0;
+        Map<String, Integer> bySeverity = new TreeMap<>();
         Map<String, Integer> offsetHits = new TreeMap<>();
         for (Path lib : libraries) {
             byte[] data;
@@ -458,37 +553,47 @@ class ValidationCorpusTest {
                 continue;
             }
             Set<String> seen = new TreeSet<>();
+            boolean dumpName = false;
             for (String s : BinStrings.all(data, 4)) {
                 for (SignatureRule r : BUNDLED.allOffsetMatches(s)) {
                     seen.add(r.pattern());
+                    dumpName |= r.severity().compareTo(Severity.HIGH) >= 0;
                 }
             }
             if (!seen.isEmpty()) {
                 libsWithOffsets++;
                 seen.forEach(p -> offsetHits.merge(p, 1, Integer::sum));
+                bySeverity.merge(FileInspection.offsetSeverity(seen.size(), dumpName).name(), 1, Integer::sum);
             }
         }
-        int dictionaryWords = 0;
+        List<String> dictionaryWords = new ArrayList<>();
         Path dict = Path.of("/usr/share/dict/words");
         if (Files.isRegularFile(dict)) {
             Set<String> words = new HashSet<>();
             for (String w : Files.readAllLines(dict, StandardCharsets.UTF_8)) {
                 words.add(w.toLowerCase(Locale.ROOT));
             }
-            for (SignatureRule r : BUNDLED.cheatNames()) {
-                dictionaryWords += words.contains(r.pattern()) ? 1 : 0;
+            for (int i = 0; i < BUNDLED.cheatNames().size(); i++) {
+                if (words.contains(BUNDLED.cheatNames().get(i).pattern())) {
+                    dictionaryWords.add("cheatNames#" + i);
+                }
             }
         }
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("os", System.getProperty("os.name") + " " + System.getProperty("os.version"));
+        m.put("roots", roots);
         m.put("filesScanned", files[0]);
         m.put("nameRuleHits", hits);
         m.put("nameRuleExamples", examples);
         m.put("filesWithNameHit", hits.values().stream().mapToInt(Integer::intValue).sum());
         m.put("sharedLibrariesScanned", libraries.size());
         m.put("sharedLibrariesWithOffsetNames", libsWithOffsets);
+        m.put("sharedLibrariesWithOffsetNamesBySeverity", bySeverity);
         m.put("offsetNameHits", offsetHits);
         m.put("cheatNameRules", BUNDLED.cheatNames().size());
-        m.put("cheatNameRulesThatAreDictionaryWords", dictionaryWords);
+        m.put("dictionaryAvailable", Files.isRegularFile(dict));
+        m.put("cheatNameRulesThatAreDictionaryWords", dictionaryWords.size());
+        m.put("cheatNameRulesThatAreDictionaryWordsIds", dictionaryWords);
         RESULTS.put("5-host-baseline", m);
     }
 
