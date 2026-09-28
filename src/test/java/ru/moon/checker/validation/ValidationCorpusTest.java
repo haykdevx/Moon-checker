@@ -275,7 +275,9 @@ class ValidationCorpusTest {
         m.put("current", now.json());
         m.put("before-2026.09.14", before.json());
         RESULTS.put("3-offset-strings", m);
-        assertEquals(new OffsetRun(new Confusion(60, 80, 0, 60), 40, 40, 40), now);
+        // a single field name is still shown to the reviewer (as LOW) but no longer asks for a review,
+        // and a field name inside a longer identifier is not a match
+        assertEquals(new OffsetRun(new Confusion(60, 0, 0, 140), 40, 0, 0), now);
         assertEquals(new OffsetRun(new Confusion(60, 80, 0, 60), 40, 40, 40), before,
                 "the 2026.09.14 behaviour is the documented baseline");
     }

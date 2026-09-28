@@ -1,6 +1,7 @@
 package ru.moon.checker.checks;
 
 import org.junit.jupiter.api.Test;
+import ru.moon.checker.core.Severity;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +38,15 @@ class FileInspectionTest {
         assertFalse(FileInspection.isNonExecutableName("payload.abc"));
         assertFalse(FileInspection.isBinaryName("windows.networking.connectivity"));
         assertFalse(FileInspection.isNonExecutableName("windows.networking.connectivity"));
+    }
+
+    @Test
+    void oneGameFieldNameAloneDoesNotAskForReview() {
+        assertEquals(Severity.LOW, FileInspection.offsetSeverity(1, false));
+        assertEquals(Severity.MEDIUM, FileInspection.offsetSeverity(1, true));   // an offset-dump name
+        assertEquals(Severity.MEDIUM, FileInspection.offsetSeverity(2, false));
+        assertEquals(Severity.HIGH, FileInspection.offsetSeverity(3, false));
+        assertEquals(Severity.HIGH, FileInspection.offsetSeverity(4, true));
     }
 
     @Test

@@ -38,6 +38,17 @@ class WordBoundaryTest {
     }
 
     @Test
+    void gameFieldNamesMatchWholeIdentifiersOnly() {
+        // m_iHealthMax is a different field: it must not count as m_iHealth
+        assertTrue(db.allOffsetMatches("m_iHealthMax").isEmpty());
+        assertTrue(db.allOffsetMatches("Oldm_vecOrigin").isEmpty());
+        assertEquals(1, db.allOffsetMatches("C_BaseEntity::m_iHealth").size());
+        assertEquals(1, db.allOffsetMatches("\"m_vecOrigin\": 136").size());
+        // offset-dump names still match inside longer identifiers
+        assertEquals(1, db.allOffsetMatches("client_dll_dwEntityListOffset").size());
+    }
+
+    @Test
     void digitsDoNotBreakAMatch() {
         // version-numbered filenames must still be caught
         assertTrue(db.matchCheatName("cheatengine77.exe").isPresent());

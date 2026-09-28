@@ -16,10 +16,10 @@
       ],
       "kinds": [
         "DETECTION: SHA-256 equals a classified sample",
-        "INDICATOR: name, strings, imports, disguised PE, entropy"
+        "INDICATOR: name, strings (a single game field name alone is LOW and does not ask for review), imports, disguised PE, entropy"
       ],
       "window": "Files present at the moment of the scan.",
-      "lookalikes": "Game-modding tools, overlays, trainers for single-player games, and packers used by legitimate software share names, imports and high entropy.",
+      "lookalikes": "Game-modding tools, overlays, trainers for single-player games, and packers used by legitimate software share names, imports and high entropy. Legitimate Source-engine tools (demo and movie tools, server plugins, SDK code) contain the game's own field names, so one field name alone is only shown as LOW; offset-dump names or several names together ask for review.",
       "blindSpots": "Anything not on a fixed NTFS drive at scan time (removable media, network shares, memory-only payloads, renamed and re-hashed builds of a known cheat).",
       "tests": [
         "FileInspectionTest",
@@ -27,7 +27,8 @@
         "ParsersTest",
         "AlternateStreamsTest",
         "WordBoundaryTest",
-        "AllowlistTest"
+        "AllowlistTest",
+        "ValidationCorpusTest"
       ]
     },
     {

@@ -215,6 +215,8 @@ public final class FileInspection {
             }
         }
         if (offsetHits > 0) {
+            // One game field name alone is common in legitimate Source-engine tools (demo and movie
+            // tools, server plugins, SDK code): it is shown as LOW and does not ask for a review.
             Severity sev = offsetSeverity(offsetHits, dumpName);
             ctx.emit(Finding.builder(category, sev,
                             "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary")
@@ -260,10 +262,14 @@ public final class FileInspection {
     /**
      * Severity of the offset-strings finding for a binary that contains {@code distinctNames}
      * different offset/field names, {@code dumpName} when one of them comes from a HIGH rule
-     * (an offset-dump name).
+     * (an offset-dump name): three or more names HIGH; a dump name or two names MEDIUM; one
+     * game field name alone LOW.
      */
     public static Severity offsetSeverity(int distinctNames, boolean dumpName) {
-        return distinctNames >= OFFSET_HIT_HIGH ? Severity.HIGH : Severity.MEDIUM;
+        if (distinctNames >= OFFSET_HIT_HIGH) {
+            return Severity.HIGH;
+        }
+        return dumpName || distinctNames >= 2 ? Severity.MEDIUM : Severity.LOW;
     }
 
     /**

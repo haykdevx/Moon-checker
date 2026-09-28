@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.14-cs2",
+  "version": "2026.09.28-cs2",
   "cheatNames": [
     {
       "pattern": "neverlose",
@@ -477,6 +477,7 @@
     }
   ],
   "hashes": [],
+  "_comment_offsetStrings": "dw... names come from offset dumps and match as substrings. m_... names are the game's own fields, also found in legitimate Source-engine tools (demo/movie tools, server plugins, SDK code); they match whole identifiers only (m_iHealthMax is not m_iHealth). FileInspection: one field name alone is LOW (shown, does not ask for review); a dump name or two distinct names MEDIUM; three or more HIGH. Measured in docs/validation.md.",
   "offsetStrings": [
     {
       "pattern": "dwEntityList",
@@ -541,86 +542,72 @@
     {
       "pattern": "m_iHealth",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iHealth",
-      "substring": true
+      "note": "CS2 netvar m_iHealth"
     },
     {
       "pattern": "m_iTeamNum",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iTeamNum",
-      "substring": true
+      "note": "CS2 netvar m_iTeamNum"
     },
     {
       "pattern": "m_lifeState",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_lifeState",
-      "substring": true
+      "note": "CS2 netvar m_lifeState"
     },
     {
       "pattern": "m_vecOrigin",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_vecOrigin",
-      "substring": true
+      "note": "CS2 netvar m_vecOrigin"
     },
     {
       "pattern": "m_pClippingWeapon",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_pClippingWeapon",
-      "substring": true
+      "note": "CS2 netvar m_pClippingWeapon"
     },
     {
       "pattern": "m_ArmorValue",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_ArmorValue",
-      "substring": true
+      "note": "CS2 netvar m_ArmorValue"
     },
     {
       "pattern": "m_iIDEntIndex",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iIDEntIndex",
-      "substring": true
+      "note": "CS2 netvar m_iIDEntIndex"
     },
     {
       "pattern": "m_flFlashDuration",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_flFlashDuration",
-      "substring": true
+      "note": "CS2 netvar m_flFlashDuration"
     },
     {
       "pattern": "m_bSpottedByMask",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_bSpottedByMask",
-      "substring": true
+      "note": "CS2 netvar m_bSpottedByMask"
     },
     {
       "pattern": "m_aimPunchAngle",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_aimPunchAngle",
-      "substring": true
+      "note": "CS2 netvar m_aimPunchAngle"
     },
     {
       "pattern": "m_pGameSceneNode",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_pGameSceneNode",
-      "substring": true
+      "note": "CS2 netvar m_pGameSceneNode"
     },
     {
       "pattern": "m_hPlayerPawn",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_hPlayerPawn",
-      "substring": true
+      "note": "CS2 netvar m_hPlayerPawn"
     },
     {
       "pattern": "m_bDormant",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_bDormant",
-      "substring": true
+      "note": "CS2 netvar m_bDormant"
     },
     {
       "pattern": "m_iszPlayerName",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iszPlayerName",
-      "substring": true
+      "note": "CS2 netvar m_iszPlayerName"
     }
   ],
   "vulnerableDrivers": [
