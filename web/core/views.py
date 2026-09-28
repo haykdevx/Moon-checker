@@ -91,7 +91,9 @@ def download(request):
         for p in sorted(folder.iterdir()):
             if p.is_file() and p.suffix in (".zip", ".jar", ".exe") and not p.name.startswith("."):
                 files.append({"name": p.name, "size_mb": round(p.stat().st_size / 1048576, 1)})
-    return render(request, "core/download.html", {"files": files})
+    from .public_text import pick
+    lang, t = pick(request)
+    return render(request, "core/download.html", {"files": files, "lang": lang, "t": t})
 
 
 def healthz(request):
@@ -99,17 +101,36 @@ def healthz(request):
     return HttpResponse("ok", content_type="text/plain")
 
 
+def _public_error(request, key, status):
+    """Players never see the admin panel's chrome or English-only errors."""
+    from .public_text import ERRORS, language
+    lang = language(request)
+    title, text = ERRORS[lang][key]
+    resp = render(request, "core/error_public.html", {"title": title, "text": text, "lang": lang}, status=status)
+    resp["X-Robots-Tag"] = "noindex, nofollow"
+    return resp
+
+
 def csrf_failure(request, reason=""):
+    from .public_text import is_public_path
+    if is_public_path(request.path):
+        return _public_error(request, "csrf", 403)
     return render(request, "core/error.html", {"title": "Form expired",
                                                "text": "Reload the page and try again."}, status=403)
 
 
 def not_found(request, exception=None):
+    from .public_text import is_public_path
+    if is_public_path(request.path):
+        return _public_error(request, "404", 404)
     return render(request, "core/error.html", {"title": "Not found",
                                                "text": "That page does not exist or you cannot see it."},
                   status=404)
 
 
 def forbidden(request, exception=None):
+    from .public_text import is_public_path
+    if is_public_path(request.path):
+        return _public_error(request, "403", 403)
     return render(request, "core/error.html", {"title": "Not allowed",
                                                "text": "Your role does not allow this action."}, status=403)

@@ -150,4 +150,13 @@ class MoonApiTest {
         assertTrue(e.retryable());
         assertTrue(e.describe("moon.example.org").contains("moon.example.org"));
     }
+
+    @Test
+    void statusLinkIsOnlyShownForThePanelsOwnHost() {
+        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        assertEquals(base + "/p/abc/", api.safeUrl(base + "/p/abc/"));
+        assertEquals("", api.safeUrl("https://evil.example.org/p/abc/"), "foreign host");
+        assertEquals("", api.safeUrl("javascript:alert(1)"), "not a web link");
+        assertEquals("", api.safeUrl(""));
+    }
 }

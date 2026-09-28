@@ -1,18 +1,34 @@
-{% extends "base_auth.html" %}
-{% block title %}Download the checker{% endblock %}
+{% extends "base_public.html" %}
+{% block lang %}{{ lang }}{% endblock %}
+{% block title %}{{ t.title }}{% endblock %}
 {% block content %}
-<h2>Moon Checker</h2>
-<p class="muted">Official anti-cheat checker of cs2-moon.ru. Run it only when an admin asks you to and gives you a check code.</p>
-{% for f in files %}
-  <p><a class="btn primary" href="{{ download_url }}files/{{ f.name|urlencode }}">⬇ {{ f.name }} <span class="small">({{ f.size_mb }} MB)</span></a></p>
-{% empty %}
-  <p class="t-warn">No build has been published yet. Ask your admin.</p>
-{% endfor %}
-<ol class="small">
-  <li>Unzip the archive (keep the <code>runtime</code> folder next to the exe).</li>
-  <li>Right-click <b>MoonCheck.exe</b> → Run as administrator.</li>
-  <li>Enter the code your admin gave you and check the admin alias it shows.</li>
-  <li>Press <b>Start check</b> and wait until it says the results were delivered.</li>
-</ol>
-<p class="muted small">The results (findings, PC name, Windows user name, Steam accounts found) are sent only to the admin who gave you the code.</p>
+<div class="page-head"><h1>{{ t.title }}</h1><a class="btn small" href="?lang={% if lang == 'ru' %}en{% else %}ru{% endif %}" lang="{% if lang == 'ru' %}en{% else %}ru{% endif %}">{{ t.switch }}</a></div>
+<p class="muted">{{ t.intro }}</p>
+
+<div class="card">
+  <h2>{{ t.download }}</h2>
+  {% for f in files %}
+    <p><a class="btn primary big" href="{{ download_url }}files/{{ f.name|urlencode }}">⬇ {{ f.name }} <span class="small">({{ f.size_mb }} MB)</span></a></p>
+  {% empty %}<p class="t-warn">{{ t.none_yet }}</p>{% endfor %}
+</div>
+
+<div class="card">
+  <h2>{{ t.compat }}</h2>
+  <ul>{% for item in t.compat_items %}<li>{{ item }}</li>{% endfor %}</ul>
+</div>
+
+<div class="card">
+  <h2>{{ t.steps }}</h2>
+  <ol class="steps">{% for item in t.step_items %}<li>{{ item }}</li>{% endfor %}</ol>
+</div>
+
+<div class="card">
+  <h2>{{ t.collected }}</h2>
+  <ul>{% for item in t.collected_items %}<li>{{ item }}</li>{% endfor %}</ul>
+</div>
+
+<div class="card">
+  <h2>{{ t.after }}</h2>
+  <p>{{ t.after_text }}</p>
+</div>
 {% endblock %}

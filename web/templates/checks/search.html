@@ -9,15 +9,15 @@
 </form>
 {% if too_short %}<p class="t-warn">Type at least 3 characters.</p>{% endif %}
 {% if q and not too_short %}
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="cards-sm">
   <thead><tr><th>Check</th><th>Severity</th><th>Finding</th><th>Evidence</th></tr></thead>
   <tbody>
   {% for f in results %}
     <tr class="clickable" data-href="{% url 'checks:detail' f.session.pk %}">
-      <td class="nowrap"><a href="{% url 'checks:detail' f.session.pk %}"><b>{{ f.session.player_name }}</b></a><div class="muted small">{{ f.session.created_at|date:"Y-m-d" }} · {{ f.session.admin.username }}</div></td>
+      <td class="c-player"><a href="{% url 'checks:detail' f.session.pk %}"><b>{{ f.session.player_name }}</b></a><div class="muted small">{{ f.session.created_at|date:"Y-m-d" }} · {{ f.session.admin.username }}</div></td>
       <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
-      <td>{{ f.title }}</td>
-      <td class="evidence">{{ f.evidence|truncatechars:200 }}</td>
+      <td class="c-wide">{{ f.title }}</td>
+      <td class="evidence c-wide">{{ f.evidence|truncatechars:200 }}</td>
     </tr>
   {% empty %}
     <tr><td colspan="4" class="empty">Nothing found.</td></tr>

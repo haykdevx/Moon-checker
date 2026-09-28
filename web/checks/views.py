@@ -10,6 +10,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -19,7 +20,7 @@ from core.audit import record
 from core.models import SiteSettings
 
 from . import codes
-from .models import CheckSession, FindingRow
+from .models import Appeal, CheckSession, DataRequest, FindingRow
 from .templatetags.moon import OUTCOMES as OUTCOME_LABELS
 
 FINDINGS_RENDER_LIMIT = 5000
@@ -34,7 +35,7 @@ def load_catalog():
 class NewCheckForm(forms.ModelForm):
     class Meta:
         model = CheckSession
-        fields = ["player_name", "player_steam", "player_discord", "note"]
+        fields = ["player_name", "player_steam", "player_discord", "note", "is_test"]
         widgets = {
             "player_name": forms.TextInput(attrs={"autofocus": True, "placeholder": "In-game nickname"}),
             "player_steam": forms.TextInput(attrs={"placeholder": "https://steamcommunity.com/profiles/… or STEAM_…"}),
@@ -98,14 +99,17 @@ def dashboard(request):
     user = request.user
     qs, f = _filtered(request)
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
-    base = visible_sessions(user)
+    base = visible_sessions(user).filter(is_test=False)  # test runs never count
     since = timezone.now() - timedelta(days=7)
     stats = {
         "live": base.filter(status__in=CheckSession.LIVE_STATUSES).count(),
         "waiting": base.filter(status=CheckSession.WAITING).count(),
         "week": base.filter(status=CheckSession.COMPLETED, completed_at__gte=since).count(),
-        "week_cheat": base.filter(status=CheckSession.COMPLETED, completed_at__gte=since, verdict="CHEAT").count(),
+        # exact detections only (v2), plus what checker < 1.1 called CHEAT
+        "week_detected": base.filter(status=CheckSession.COMPLETED, completed_at__gte=since,
+                                     verdict__in=("VALIDATED_DETECTION", "CHEAT")).count(),
         "undecided": base.filter(status=CheckSession.COMPLETED, decision="").count(),
+        "appeals": Appeal.objects.filter(session__in=visible_sessions(user), status=Appeal.OPEN).count(),
     }
     admins = User.objects.filter(check_sessions__isnull=False).distinct().order_by("username") \
         if user.can("checks.view_all") else []
@@ -164,12 +168,21 @@ def detail(request, pk):
     if session.client.get("hostname"):
         same_player |= Q(client__hostname=session.client["hostname"])
     related = visible_sessions(user).filter(same_player).exclude(pk=session.pk)[:10]
+    from core.models import AuditEvent
+    timeline = sorted((f for f in findings if f.when), key=lambda f: f.when, reverse=True)[:200]
+    audit_trail = AuditEvent.objects.filter(target=str(session.pk)).order_by("at")[:100] \
+        if user.can("audit.view") or session.admin_id == user.pk else []
     coverage = meta.get("coverage") or {}
     coverage_done = sum(1 for m in coverage.get("required", []) if coverage.get("modules", {}).get(m) == "OK")
     return render(request, "checks/detail.html", {
         "s": session, "findings": findings, "truncated": truncated, "modules": sorted(modules.items()),
         "env": env, "meta": meta, "related": related, "coverage_done": coverage_done,
         "kinds": sorted({f.kind for f in findings if f.kind}),
+        "timeline": timeline, "audit_trail": audit_trail,
+        "appeals": session.appeals.select_related("resolved_by"),
+        "data_requests": session.data_requests.select_related("handled_by"),
+        "can_resolve": user.can("checks.decide_any"),
+        "player_link": request.session.pop(f"player_link_{session.pk}", None),
         "can_decide": can_decide(user, session) and session.status == CheckSession.COMPLETED,
         "can_cancel": can_cancel(user, session),
         "can_export": user.can("checks.export") and session.status == CheckSession.COMPLETED,
@@ -280,3 +293,90 @@ def rules(request):
     seen = (FindingRow.objects.filter(session__in=visible_sessions(request.user)).exclude(rule_id="")
             .values("rule_id", "kind").annotate(n=Count("session", distinct=True)).order_by("-n")[:100])
     return render(request, "checks/rules.html", {"catalog": catalog, "seen": seen})
+
+
+class ResolveAppealForm(forms.Form):
+    # no preselected answer: a slip must not uphold (or overturn) an appeal
+    status = forms.ChoiceField(choices=[("", "Choose…")] + [c for c in Appeal.STATUS_CHOICES if c[0] != Appeal.OPEN])
+    resolution = forms.CharField(max_length=2000, min_length=10, widget=forms.Textarea(attrs={"rows": 3}))
+
+
+class HandleRequestForm(forms.Form):
+    status = forms.ChoiceField(choices=[("", "Choose…")] + [c for c in DataRequest.STATUS_CHOICES
+                                                            if c[0] != DataRequest.OPEN])
+    note = forms.CharField(max_length=1000, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
+@login_required
+def appeals(request):
+    """Open appeals and data requests for the checks this member can see."""
+    visible = visible_sessions(request.user)
+    return render(request, "checks/appeals.html", {
+        "appeals": Appeal.objects.filter(session__in=visible).select_related("session", "session__admin",
+                                                                            "resolved_by")[:200],
+        "requests": DataRequest.objects.filter(session__in=visible).select_related("session", "handled_by")[:200]
+        if request.user.can("checks.delete") else [],
+        "resolve_form": ResolveAppealForm(), "handle_form": HandleRequestForm(),
+    })
+
+
+@perm_required("checks.decide_any")
+@require_POST
+def resolve_appeal(request, pk):
+    appeal = get_object_or_404(Appeal.objects.select_related("session"), pk=pk, status=Appeal.OPEN,
+                               session__in=visible_sessions(request.user))
+    s = appeal.session
+    if s.decision_by_id == request.user.pk and not request.user.is_owner:
+        messages.error(request, "An appeal must be resolved by a different admin than the one who decided.")
+        return redirect("checks:appeals")
+    form = ResolveAppealForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Choose an outcome and explain it (at least 10 characters).")
+        return redirect("checks:appeals")
+    with transaction.atomic():
+        appeal.status, appeal.resolution = form.cleaned_data["status"], form.cleaned_data["resolution"]
+        appeal.resolved_by, appeal.resolved_at = request.user, timezone.now()
+        appeal.save()
+        new_decision = {Appeal.OVERTURNED: "CLEARED", Appeal.RECHECK: "RECHECK"}.get(appeal.status)
+        if new_decision:
+            s.decision, s.decision_note = new_decision, f"Appeal #{appeal.pk}: {appeal.resolution}"[:1000]
+            s.decision_by, s.decision_at = request.user, timezone.now()
+            s.save(update_fields=["decision", "decision_note", "decision_by", "decision_at"])
+    record(request, "appeal.resolved", str(s.pk), appeal=appeal.pk, outcome=appeal.status, decision=s.decision)
+    messages.success(request, "Appeal resolved.")
+    return redirect("checks:appeals")
+
+
+@perm_required("checks.delete")
+@require_POST
+def handle_request(request, pk):
+    req = get_object_or_404(DataRequest, pk=pk, status=DataRequest.OPEN)
+    if req.session is not None and not visible_sessions(request.user).filter(pk=req.session_id).exists():
+        raise Http404
+    form = HandleRequestForm(request.POST)
+    if not form.is_valid() or (form.cleaned_data["status"] == DataRequest.REFUSED and not form.cleaned_data["note"]):
+        messages.error(request, "Choose what to do with the request. Refusing it needs a reason.")
+        return redirect("checks:appeals")
+    target = str(req.session_id)
+    req.status, req.note = form.cleaned_data["status"], form.cleaned_data["note"]
+    req.handled_by, req.handled_at = request.user, timezone.now()
+    req.save()
+    if req.status == DataRequest.DONE and req.session is not None:
+        req.session.delete()  # report, findings and appeals go with it; the request row stays as the record
+    record(request, "data.deletion_" + ("done" if req.status == DataRequest.DONE else "refused"), target,
+           note=req.note)
+    messages.success(request, "Request handled.")
+    return redirect("checks:appeals")
+
+
+@login_required
+@require_POST
+def player_link(request, pk):
+    s = _get_visible(request.user, pk)
+    if not (s.admin_id == request.user.pk or request.user.can("checks.decide_any")):
+        raise PermissionDenied
+    from .player import issue_player_token
+    token = issue_player_token(s)
+    request.session[f"player_link_{s.pk}"] = request.build_absolute_uri(reverse("player:status", args=[token]))
+    record(request, "check.player_link_reissued", str(s.pk))
+    return redirect("checks:detail", pk=s.pk)

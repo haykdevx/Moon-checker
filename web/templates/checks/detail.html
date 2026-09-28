@@ -2,14 +2,23 @@
 {% load moon %}
 {% block title %}{{ s.player_name }} · {{ s.code }}{% endblock %}
 {% block content %}
+{% if s.is_test %}<div class="test-banner" role="note"><b>TEST RUN</b> — not a real player. Excluded from statistics; findings here are not evidence against anyone.</div>{% endif %}
+{% if player_link %}
+<div class="card">
+  <h2>New private link for the player</h2>
+  <p class="muted small">Shown once. The previous link no longer works. Send it privately.</p>
+  <div class="link-box"><input type="text" id="player-link" value="{{ player_link }}" readonly aria-label="Player link"><button class="btn primary" data-copy="#player-link">Copy</button></div>
+</div>
+{% endif %}
 <div class="page-head">
   <div>
-    <h1>{{ s.player_name }} <span class="badge st-{{ s.status }}">{{ s.get_status_display }}</span></h1>
+    <h1>{{ s.player_name }} <span class="badge st-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.is_test %} <span class="badge test">TEST</span>{% endif %}</h1>
     <div class="muted small">Check <span class="mono">{{ s.code }}</span> · admin <b>{{ s.admin.username }}</b> · created {{ s.created_at|date:"Y-m-d H:i" }}</div>
   </div>
   <div class="actions">
     <a class="btn" href="{% url 'checks:dashboard' %}">← Checks</a>
     {% if can_export %}<a class="btn" href="{% url 'checks:export' s.pk %}">Evidence JSON</a>{% endif %}
+    {% if s.claimed_at and s.admin_id == user.pk or s.claimed_at and can_resolve %}<form method="post" action="{% url 'checks:player_link' s.pk %}" data-confirm="Issue a new private link for the player? The old one stops working.">{% csrf_token %}<button class="btn" type="submit">New player link</button></form>{% endif %}
     {% if can_cancel %}<form method="post" action="{% url 'checks:cancel' s.pk %}" data-confirm="Cancel this check? The code stops working.">{% csrf_token %}<button class="btn danger" type="submit">Cancel check</button></form>{% endif %}
     {% if can_delete %}<form method="post" action="{% url 'checks:delete' s.pk %}" data-confirm="Delete this check and all its evidence permanently?">{% csrf_token %}<button class="btn danger" type="submit">Delete</button></form>{% endif %}
   </div>
@@ -100,7 +109,7 @@
         <input type="search" id="f-text" placeholder="Filter text…">
       </div>
       <div class="table-wrap">
-        <table id="findings">
+        <table id="findings" class="cards-sm tight">
           <thead><tr><th>ID</th><th>Kind</th><th>Severity</th><th>Module</th><th>Finding</th><th>Evidence</th><th>Source</th></tr></thead>
           <tbody>
           {% for f in findings %}
@@ -109,9 +118,9 @@
               <td>{% if f.kind %}<span class="badge tone-{{ f.kind|kind_tone }}">{{ f.kind|kind_label }}</span>{% else %}<span class="muted small">legacy</span>{% endif %}</td>
               <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
               <td class="small">{{ f.module }}</td>
-              <td>{{ f.title }}</td>
-              <td class="evidence">{{ f.evidence|truncatechars:160 }}</td>
-              <td class="small muted">{{ f.source }}</td>
+              <td class="c-wide">{{ f.title }}</td>
+              <td class="evidence c-wide">{{ f.evidence|truncatechars:160 }}</td>
+              <td class="small muted c-wide">{{ f.source }}</td>
             </tr>
             <tr class="detail-row hidden"><td colspan="7">
               <dl class="kv small">
@@ -150,6 +159,36 @@
     </div>
     {% endif %}
 
+    {% if timeline %}
+    <div class="card">
+      <h2>Evidence timeline</h2>
+      <p class="muted small">Timestamped evidence, newest first. Times come from the artefacts on the player's PC and can be altered there.</p>
+      <ol class="timeline">
+        {% for f in timeline %}<li><time>{{ f.when }}</time><a href="#E{{ f.idx|add:1 }}" class="mono small">E{{ f.idx|add:1 }}</a> <span class="badge sev-{{ f.severity }}">{{ f.severity }}</span> {{ f.title }} <span class="muted small">· {{ f.module }}</span></li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if appeals or data_requests %}
+    <div class="card">
+      <h2>Appeals &amp; player requests</h2>
+      <ul class="flags">
+        {% for a in appeals %}<li><span class="icon t-{% if a.status == 'OPEN' %}warn{% else %}info{% endif %}">§</span><span>Appeal #{{ a.pk }} · {{ a.get_status_display }} · {{ a.created_at|date:"Y-m-d" }}{% if a.resolution %} — {{ a.resolution }}{% endif %} <a href="{% url 'checks:appeals' %}">open queue</a></span></li>{% endfor %}
+        {% for r in data_requests %}<li><span class="icon t-warn">!</span><span>Deletion request · {{ r.get_status_display }} · {{ r.created_at|date:"Y-m-d" }}</span></li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if audit_trail %}
+    <div class="card">
+      <h2>History of this check</h2>
+      <div class="table-wrap"><table class="cards-sm tight">
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th></tr></thead>
+        <tbody>{% for e in audit_trail %}<tr><td class="nowrap small">{{ e.at|date:"Y-m-d H:i:s" }}</td><td>{{ e.actor_label|default:"player / checker" }}</td><td class="c-wide"><code>{{ e.action }}</code></td><td class="small mono break c-wide">{% for k, v in e.details.items %}{{ k }}={{ v }} {% endfor %}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    {% endif %}
+
     {% if modules %}
     <div class="card">
       <h2>Modules</h2>
@@ -169,7 +208,7 @@
     <div class="card">
       <h3>Decision</h3>
       {% if s.decision %}
-        <p><b class="d-{{ s.decision }}">{{ s.get_decision_display }}</b><br><span class="muted small">by {{ s.decision_by.username|default:"—" }}, {{ s.decision_at|date:"Y-m-d H:i" }}</span></p>
+        <p><b class="d-{{ s.decision }}">{{ s.get_decision_display }}</b><br><span class="muted small">by {{ s.decision_by.username|default:"—" }}{% if s.decision_at %}, {{ s.decision_at|date:"Y-m-d H:i" }}{% endif %}</span></p>
         {% if s.decision_note %}<p class="small">{{ s.decision_note|linebreaksbr }}</p>{% endif %}
       {% endif %}
       {% if can_decide %}

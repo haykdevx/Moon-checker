@@ -10,13 +10,14 @@
   <script src="{% static 'js/app.js' %}" defer></script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 {% if user.is_authenticated %}
 <header class="topbar">
   <a class="brand" href="{% url 'checks:dashboard' %}"><span class="moon"></span>MOON <b>PANEL</b></a>
-  <nav class="nav">
+  <nav class="nav" aria-label="Main">
     {% for url_name, label in nav %}
       {% url url_name as nav_url %}
-      <a href="{{ nav_url }}" class="{% if request.path == nav_url %}active{% endif %}">{{ label }}</a>
+      <a href="{{ nav_url }}" class="{% if request.path == nav_url %}active{% endif %}"{% if request.path == nav_url %} aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>
   <div class="who">
@@ -28,7 +29,7 @@
   </div>
 </header>
 {% endif %}
-<main>
+<main id="main" tabindex="-1">
   {% if messages %}
   <ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>
   {% endif %}

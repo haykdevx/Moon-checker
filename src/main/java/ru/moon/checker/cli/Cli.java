@@ -123,6 +123,9 @@ public final class Cli {
             }
             System.out.println("Connected to " + server.host() + " — admin " + link.adminAlias()
                     + (link.playerName().isBlank() ? "" : ", player " + link.playerName()));
+            if (!link.statusUrl().isBlank()) {
+                System.out.println("Player page: " + link.statusUrl());
+            }
             System.out.println();
         }
         ProgressReporter reporter = link == null ? null : new ProgressReporter(api, link, null);

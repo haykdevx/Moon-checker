@@ -107,12 +107,16 @@ def claim(request):
         session.save()
     record(request, "check.connected", str(session.pk), actor=None, code=code,
            host=client["hostname"], app=client["appVersion"])
+    from .player import issue_player_token
+    from django.urls import reverse
+    status_url = settings.PUBLIC_URL + reverse("player:status", args=[issue_player_token(session)])
     return JsonResponse({
         "sessionId": str(session.pk),
         "token": token,
         "admin": {"alias": session.admin.username, "name": session.admin.label},
         "player": {"name": session.player_name},
         "heartbeatSeconds": HEARTBEAT_SECONDS,
+        "statusUrl": status_url,
         "serverTime": now.isoformat(),
     })
 
@@ -224,6 +228,7 @@ def report(request, session_id):
         session.progress_done = session.progress_total
         session.notify_state = "pending" if session.admin.discord_webhook else ""
         session.save()
-    record(request, "check.completed", str(session.pk), actor=None, verdict=data["verdict"], score=data["score"],
-           trust=level, findings=len(data["findings"]))
+    legacy = {"score": data["score"]} if data["score"] is not None else {}  # v1 reports only
+    record(request, "check.completed", str(session.pk), actor=None, verdict=data["verdict"], trust=level,
+           findings=len(data["findings"]), **legacy)
     return JsonResponse({"ok": True, "verificationCode": code})

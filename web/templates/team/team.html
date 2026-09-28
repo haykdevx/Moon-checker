@@ -8,17 +8,17 @@
 {% include "_flash_link.html" %}
 <div class="layout-side">
   <div class="table-wrap">
-    <table>
+    <table class="cards-sm">
       <thead><tr><th>Alias</th><th>Role</th><th>2FA</th><th>Checks</th><th>Last sign-in</th><th>Status</th></tr></thead>
       <tbody>
       {% for m, manageable in rows %}
         <tr class="clickable" data-href="{% url 'accounts:member' m.username %}">
-          <td><a href="{% url 'accounts:member' m.username %}"><b>{{ m.username }}</b></a>{% if m.display_name %} <span class="muted">· {{ m.display_name }}</span>{% endif %}{% if m.pk == user.pk %} <span class="muted small">(you)</span>{% endif %}</td>
-          <td><span class="role-dot" data-color="{{ m.role.color }}"></span>{{ m.role.name }}</td>
-          <td>{% if m.totp_enabled %}<span class="t-ok">on</span>{% else %}<span class="t-bad">off</span>{% endif %}</td>
-          <td>{{ m.check_count }}</td>
-          <td class="nowrap">{{ m.last_login|date:"Y-m-d H:i"|default:"never" }}</td>
-          <td>{% if m.is_active %}<span class="t-ok">active</span>{% else %}<span class="t-bad">disabled</span>{% endif %}</td>
+          <td class="c-player"><a href="{% url 'accounts:member' m.username %}"><b>{{ m.username }}</b></a>{% if m.display_name %} <span class="muted">· {{ m.display_name }}</span>{% endif %}{% if m.pk == user.pk %} <span class="muted small">(you)</span>{% endif %}</td>
+          <td data-label="Role"><span class="role-dot" data-color="{{ m.role.color }}"></span>{{ m.role.name }}</td>
+          <td data-label="2FA">{% if m.totp_enabled %}<span class="t-ok">on</span>{% else %}<span class="t-bad">off</span>{% endif %}</td>
+          <td data-label="Checks">{{ m.check_count }}</td>
+          <td data-label="Last sign-in" class="nowrap">{{ m.last_login|date:"Y-m-d H:i"|default:"never" }}</td>
+          <td data-label="Status">{% if m.is_active %}<span class="t-ok">active</span>{% else %}<span class="t-bad">disabled</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

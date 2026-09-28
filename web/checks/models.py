@@ -52,6 +52,10 @@ class CheckSession(models.Model):
     player_steam = models.CharField("Steam profile / ID", max_length=100, blank=True)
     player_discord = models.CharField(max_length=64, blank=True)
     note = models.CharField(max_length=500, blank=True)
+    is_test = models.BooleanField("Test run", default=False, db_index=True,
+                                  help_text="Not a real player: shown with a TEST label and left out of statistics.")
+    # the player's private status link; only the hash is stored
+    player_token_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=WAITING, db_index=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -151,3 +155,46 @@ class FindingRow(models.Model):
     class Meta:
         ordering = ["idx"]
         indexes = [models.Index(fields=["session", "idx"])]
+
+
+class Appeal(models.Model):
+    """A player's appeal against a decision, resolved by a different admin than the one who decided."""
+
+    OPEN, UPHELD, OVERTURNED, RECHECK = "OPEN", "UPHELD", "OVERTURNED", "RECHECK"
+    STATUS_CHOICES = [(OPEN, "Open"), (UPHELD, "Decision upheld"), (OVERTURNED, "Overturned — cleared"),
+                      (RECHECK, "Re-check ordered")]
+
+    session = models.ForeignKey(CheckSession, on_delete=models.CASCADE, related_name="appeals")
+    statement = models.TextField(max_length=4000)
+    contact = models.CharField(max_length=100, blank=True)
+    decision_at_filing = models.CharField(max_length=8, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    resolution = models.CharField(max_length=2000, blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name="+")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class DataRequest(models.Model):
+    """A player asking for their check data to be deleted (export is self-service)."""
+
+    OPEN, DONE, REFUSED = "OPEN", "DONE", "REFUSED"
+    STATUS_CHOICES = [(OPEN, "Open"), (DONE, "Deleted"), (REFUSED, "Refused (kept, with reason)")]
+
+    session = models.ForeignKey(CheckSession, on_delete=models.SET_NULL, null=True, related_name="data_requests")
+    session_label = models.CharField(max_length=120)  # survives the deletion it asks for
+    reason = models.CharField(max_length=1000, blank=True)
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default=OPEN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+    handled_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=1000, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]

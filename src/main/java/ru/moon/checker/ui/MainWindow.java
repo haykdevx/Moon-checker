@@ -236,7 +236,8 @@ public final class MainWindow extends JFrame {
 
     private void showResults(ScanResult result) {
         this.lastResult = result;
-        resultsPanel = new ResultsPanel(result, this::reset, this::retryUpload);
+        resultsPanel = new ResultsPanel(result, this::reset, this::retryUpload,
+                link != null ? link.statusUrl() : null);
         if (uploadStatus != null) {
             resultsPanel.setUploadStatus(uploadStatus);
         }

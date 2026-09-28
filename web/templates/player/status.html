@@ -1,0 +1,75 @@
+{% extends "base_public.html" %}
+{% load moon %}
+{% block title %}{{ t.title }} {{ s.code }}{% endblock %}
+{% block head %}{% if s.is_open %}<meta http-equiv="refresh" content="20">{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t.title }} <span class="mono">{{ s.code }}</span></h1>
+  <a class="btn small" href="?lang={{ switch_lang }}" lang="{{ switch_lang }}">{% if lang == "ru" %}English{% else %}Русский{% endif %}</a>
+</div>
+{% if s.is_test %}<div class="test-banner" role="note">{{ t.test }}</div>{% endif %}
+{% if sent %}<p class="notice" role="status">{{ sent }}</p>{% endif %}
+
+<div class="card">
+  <div class="status-line">
+    <span class="badge st-{{ s.status }}">{{ status_label }}</span>
+    {% if outcome %}<span class="badge tone-{{ s.verdict|outcome_tone }}">{{ outcome.0 }}</span>{% endif %}
+    {% if decision_label %}<span class="badge d-{{ s.decision }}">{{ t.decision }}: {{ decision_label }}</span>{% endif %}
+  </div>
+  {% if outcome %}<p>{{ outcome.1 }}</p>{% endif %}
+  <p class="small muted">{{ requested }} {{ t.private }}</p>
+  {% if s.status == "COMPLETED" %}
+    <p class="small">{{ t.vcode }}: <span class="mono">{{ s.verification_code }}</span> — {{ t.vcode_help }}</p>
+    {% if not s.decision %}<p class="muted small">{{ t.no_decision }}</p>{% endif %}
+  {% elif s.status == "ABANDONED" %}
+    <p class="t-warn">{{ t.abandoned }}</p>
+  {% elif s.is_open %}
+    <p class="muted">{{ t.running }}</p>
+    <p><a class="btn small" href="?lang={{ lang }}">{{ t.refresh }}</a></p>
+  {% endif %}
+  {% if evidence %}
+    <ul class="evidence-list">
+      {% for e in evidence %}<li><span class="mono">{{ e.id }}</span> <span class="badge tone-{{ e.tone }}">{{ e.kind }}</span> {{ e.title }}</li>{% endfor %}
+    </ul>
+    {% if evidence_more %}<p class="muted small">…</p>{% endif %}
+  {% endif %}
+</div>
+
+{% if has_report %}
+<div class="card" id="data">
+  <h2>{{ t.data }}</h2>
+  <p class="small">{{ data_text }}</p>
+  <div class="actions">
+    <a class="btn" href="{% url 'player:export' token %}">{{ t.export }}</a>
+  </div>
+  {% if deletion_form %}
+  <details{% if deletion_form.errors %} open{% endif %}><summary class="small">{{ t.delete_ask }}</summary>
+    <form method="post" action="{% url 'player:deletion' token %}?lang={{ lang }}#data" novalidate>{% csrf_token %}
+      {% include "_form.html" with form=deletion_form %}
+      <p class="muted small">{{ t.delete_note }}</p>
+      <button class="btn" type="submit">{{ t.delete_send }}</button>
+    </form>
+  </details>
+  {% elif open_deletion %}<p class="muted small">{{ t.delete_waiting }}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="card" id="appeals">
+  <h2>{{ t.appeals }}</h2>
+  {% for a in appeals %}
+    <div class="card inner">
+      <div class="status-line"><b>{{ a.title }}</b><span class="badge">{{ a.label }}</span><span class="muted small">{{ a.when }}</span></div>
+      <p class="small">{{ a.statement|linebreaksbr }}</p>
+      {% if a.resolution %}<p class="small"><b>{{ t.answer }}:</b> {{ a.resolution|linebreaksbr }}</p>{% endif %}
+    </div>
+  {% empty %}<p class="muted small">{{ t.no_appeals }}</p>{% endfor %}
+  {% if appeal_form %}
+    <h3>{{ t.appeal_new }}</h3>
+    <p class="small muted">{{ t.appeal_who }}</p>
+    <form method="post" action="{% url 'player:appeal' token %}?lang={{ lang }}#appeals" novalidate>{% csrf_token %}
+      {% include "_form.html" with form=appeal_form %}
+      <button class="btn primary" type="submit">{{ t.appeal_send }}</button>
+    </form>
+  {% elif s.status == "COMPLETED" and not s.decision %}<p class="muted small">{{ t.appeal_later }}</p>{% endif %}
+</div>
+{% endblock %}

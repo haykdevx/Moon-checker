@@ -1,13 +1,13 @@
 {% load moon %}{% for s in page %}
 <tr class="clickable" data-href="{% url 'checks:detail' s.pk %}">
-  <td><a href="{% url 'checks:detail' s.pk %}"><b>{{ s.player_name }}</b></a>{% if s.client.hostname %}<div class="muted small">{{ s.client.hostname }}</div>{% endif %}</td>
-  <td><span class="badge st-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.is_live and s.progress_total %}<div class="muted small">{{ s.progress_done }}/{{ s.progress_total }}</div>{% endif %}</td>
-  <td>{% if s.verdict %}<span class="badge tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</span>{% if s.score is not None %} <span class="muted small">{{ s.score }}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
-  <td>{% if s.trust %}<span class="t-{{ s.trust }}">{% if s.trust == 'ok' %}✓ ok{% elif s.trust == 'warn' %}⚠ warn{% else %}⛔ flags{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-  <td>{% if s.decision %}<span class="d-{{ s.decision }}">{{ s.get_decision_display }}</span>{% elif s.status == 'COMPLETED' %}<span class="muted">pending</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-  <td>{{ s.admin.username }}</td>
-  <td class="mono nowrap">{{ s.code }}</td>
-  <td class="nowrap">{{ s.created_at|date:"M j, H:i" }}</td>
+  <td class="c-player"><a href="{% url 'checks:detail' s.pk %}"><b>{{ s.player_name }}</b></a>{% if s.is_test %} <span class="badge test" title="Test run — not a real player">TEST</span>{% endif %}{% if s.client.hostname %}<div class="muted small">{{ s.client.hostname }}</div>{% endif %}</td>
+  <td data-label="Status"><span class="badge st-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.is_live and s.progress_total %}<div class="muted small">{{ s.progress_done }}/{{ s.progress_total }}</div>{% endif %}</td>
+  <td data-label="Outcome">{% if s.verdict %}<span class="badge tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</span>{% if s.score is not None %} <span class="muted small">{{ s.score }}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td data-label="Trust">{% if s.trust %}<span class="t-{{ s.trust }}">{% if s.trust == 'ok' %}✓ ok{% elif s.trust == 'warn' %}⚠ warn{% else %}⛔ flags{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td data-label="Decision">{% if s.decision %}<span class="d-{{ s.decision }}">{{ s.get_decision_display }}</span>{% elif s.status == 'COMPLETED' %}<span class="muted">pending</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td data-label="Admin">{{ s.admin.username }}</td>
+  <td data-label="Code" class="mono nowrap">{{ s.code }}</td>
+  <td data-label="Created" class="nowrap">{{ s.created_at|date:"M j, H:i" }}</td>
 </tr>
 {% empty %}
 <tr><td colspan="8" class="empty">No checks yet. Create one with “New check”, then give the code to the player.</td></tr>

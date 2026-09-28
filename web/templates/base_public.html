@@ -1,0 +1,23 @@
+{% load static %}<!doctype html>
+<html lang="{% block lang %}{{ lang|default:'ru' }}{% endblock %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Moon Check{% endblock %} · MOON</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="data:,">
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">{% if lang == "en" %}Skip to content{% else %}К содержимому{% endif %}</a>
+<main id="main" class="public" tabindex="-1">
+  <div class="brand"><span class="moon" aria-hidden="true"></span>MOON <b>CHECK</b></div>
+  {% if messages %}<ul class="messages" role="status">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot">MOON · cs2-moon.ru</footer>
+</body>
+</html>

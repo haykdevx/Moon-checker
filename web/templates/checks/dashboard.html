@@ -12,8 +12,9 @@
   <div class="stat live"><div class="n">{{ stats.live }}</div><div class="l">Running now</div></div>
   <div class="stat"><div class="n">{{ stats.waiting }}</div><div class="l">Codes waiting</div></div>
   <div class="stat"><div class="n">{{ stats.week }}</div><div class="l">Completed · 7 days</div></div>
-  <div class="stat bad"><div class="n">{{ stats.week_cheat }}</div><div class="l">Cheat verdicts · 7 days</div></div>
-  <div class="stat warn"><div class="n">{{ stats.undecided }}</div><div class="l"><a href="?decision=none">Awaiting decision</a></div></div>
+  <div class="stat{% if stats.week_detected %} bad{% endif %}"><div class="n">{{ stats.week_detected }}</div><div class="l"><a href="?verdict=VALIDATED_DETECTION">Exact matches · 7 days</a></div></div>
+  <div class="stat{% if stats.undecided %} warn{% endif %}"><div class="n">{{ stats.undecided }}</div><div class="l"><a href="?decision=none">Awaiting decision</a></div></div>
+  <div class="stat{% if stats.appeals %} warn{% endif %}"><div class="n">{{ stats.appeals }}</div><div class="l"><a href="{% url 'checks:appeals' %}">Open appeals</a></div></div>
 </div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Player, Steam, Discord, code, PC name…">
@@ -28,8 +29,8 @@
   {% if f.q or f.status or f.verdict or f.decision or f.admin %}<a class="btn small" href="{% url 'checks:dashboard' %}">Reset</a>{% endif %}
 </form>
 <div class="table-wrap">
-<table>
-  <thead><tr><th>Player</th><th>Status</th><th>Verdict</th><th>Trust</th><th>Decision</th><th>Admin</th><th>Code</th><th>Created</th></tr></thead>
+<table class="cards-sm">
+  <thead><tr><th>Player</th><th>Status</th><th>Outcome</th><th>Trust</th><th>Decision</th><th>Admin</th><th>Code</th><th>Created</th></tr></thead>
   <tbody data-refresh-rows data-active="{% if any_open %}1{% else %}0{% endif %}">
     {% include "checks/_session_rows.html" %}
   </tbody>

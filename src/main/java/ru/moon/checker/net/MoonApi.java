@@ -71,7 +71,20 @@ public final class MoonApi {
                 r.path("admin").path("alias").asText("?"),
                 r.path("admin").path("name").asText(""),
                 r.path("player").path("name").asText(""),
-                Math.max(2, Math.min(60, r.path("heartbeatSeconds").asInt(5))));
+                Math.max(2, Math.min(60, r.path("heartbeatSeconds").asInt(5))),
+                safeUrl(r.path("statusUrl").asText("")));
+    }
+
+    /** Only an https (or loopback http) link on the panel's own host is shown to the player. */
+    String safeUrl(String url) {
+        try {
+            java.net.URI u = java.net.URI.create(url);
+            boolean sameHost = u.getHost() != null && u.getHost().equalsIgnoreCase(base.getHost());
+            boolean scheme = "https".equals(u.getScheme()) || ("http".equals(u.getScheme()) && "http".equals(base.getScheme()));
+            return sameHost && scheme ? u.toString() : "";
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
     }
 
     /** Live progress / heartbeat. */

@@ -65,8 +65,15 @@ public final class ResultsPanel extends JPanel {
     private final JLabel upload = new JLabel();
     private final MoonButton retry = new MoonButton("", false);
 
+    private final String statusUrl;
+
     public ResultsPanel(ScanResult result, Actions actions, Runnable onRetry) {
+        this(result, actions, onRetry, null);
+    }
+
+    public ResultsPanel(ScanResult result, Actions actions, Runnable onRetry, String statusUrl) {
         this.result = result;
+        this.statusUrl = statusUrl;
         this.model = new FindingTableModel(result.findings());
         this.table = new JTable(model);
         setOpaque(true);
@@ -571,6 +578,17 @@ public final class ResultsPanel extends JPanel {
         delivery.setOpaque(false);
         delivery.add(upload);
         delivery.add(retry);
+        if (statusUrl != null && !statusUrl.isBlank()) {
+            JLabel label = new JLabel(I18n.t("results.statusLink"));
+            label.setFont(MoonTheme.font(Font.PLAIN, 12));
+            label.setForeground(MoonTheme.MUTED);
+            javax.swing.JTextField link = new javax.swing.JTextField(statusUrl, 34);
+            link.setEditable(false);
+            link.setFont(MoonTheme.mono(Font.PLAIN, 11));
+            link.setToolTipText(I18n.t("results.statusLink.hint"));
+            delivery.add(label);
+            delivery.add(link);
+        }
         bar.add(delivery, BorderLayout.NORTH);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
