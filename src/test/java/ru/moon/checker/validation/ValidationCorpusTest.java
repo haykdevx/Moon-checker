@@ -501,6 +501,7 @@ class ValidationCorpusTest {
         Map<String, Integer> hits = new TreeMap<>();
         Map<String, List<String>> examples = new TreeMap<>();
         long[] files = {0};
+        long[] filesWithHit = {0};
         List<Path> libraries = new ArrayList<>();
         List<String> roots = new ArrayList<>();
         for (String root : new String[]{"/usr", "/opt", "/snap", "/etc", "/var/lib"}) {
@@ -517,9 +518,11 @@ class ValidationCorpusTest {
                     }
                     files[0]++;
                     String name = f.getFileName().toString().toLowerCase(Locale.ROOT);
+                    boolean[] any = {false};
                     nameLists.forEach((list, rules) -> {
                         for (int i = 0; i < rules.size(); i++) {
                             if (rules.get(i).matches(name)) {
+                                any[0] = true;
                                 String key = list + "#" + i;
                                 hits.merge(key, 1, Integer::sum);
                                 List<String> ex = examples.computeIfAbsent(key, k -> new ArrayList<>());
@@ -529,6 +532,7 @@ class ValidationCorpusTest {
                             }
                         }
                     });
+                    filesWithHit[0] += any[0] ? 1 : 0;
                     if (name.endsWith(".so") || name.contains(".so.")) {
                         if (libraries.size() < 4000 && attrs.size() < 48L * 1024 * 1024) {
                             libraries.add(f);
@@ -587,7 +591,7 @@ class ValidationCorpusTest {
         m.put("filesScanned", files[0]);
         m.put("nameRuleHits", hits);
         m.put("nameRuleExamples", examples);
-        m.put("filesWithNameHit", hits.values().stream().mapToInt(Integer::intValue).sum());
+        m.put("filesWithNameHit", filesWithHit[0]);
         m.put("sharedLibrariesScanned", libraries.size());
         m.put("sharedLibrariesWithOffsetNames", libsWithOffsets);
         m.put("sharedLibrariesWithOffsetNamesBySeverity", bySeverity);
