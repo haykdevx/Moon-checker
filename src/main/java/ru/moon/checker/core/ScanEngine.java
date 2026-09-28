@@ -112,8 +112,10 @@ public final class ScanEngine {
             watchdog.schedule(() -> {
                 Future<?> fut = futures.get(module.id());
                 if (fut != null && !fut.isDone()) {
-                    fut.cancel(true); // interrupt the module thread
+                    // reason first: the interrupted module can settle and release the latch
+                    // before this thread runs again, and the coverage would lack the reason
                     errors.putIfAbsent(module.id(), "time budget of " + moduleTimeout.toSeconds() + "s exceeded");
+                    fut.cancel(true); // interrupt the module thread
                     settle(module, ModuleStatus.TIMEOUT, status, reported, latch, 0);
                 }
             }, moduleTimeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -129,12 +131,12 @@ public final class ScanEngine {
         if (!completed) {
             cancelled.set(true);
             for (CheckModule module : modules) {
+                if (!reported.contains(module.id())) {
+                    errors.putIfAbsent(module.id(), "overall scan deadline of " + overallTimeout.toSeconds() + "s reached");
+                }
                 Future<?> f = futures.get(module.id());
                 if (f != null) {
                     f.cancel(true);
-                }
-                if (!reported.contains(module.id())) {
-                    errors.putIfAbsent(module.id(), "overall scan deadline of " + overallTimeout.toSeconds() + "s reached");
                 }
                 settle(module, ModuleStatus.TIMEOUT, status, reported, latch, 0);
             }
