@@ -207,7 +207,7 @@ def report(request, session_id):
             environment=data["environment"], modules=data["modules"],
             meta={k: data[k] for k in ("schema", "checkId", "startedAt", "finishedAt", "durationSeconds",
                                        "signatureVersion", "signatureOrigin", "coverage", "assurance",
-                                       "reasons", "consent")})
+                                       "reasons", "consent", "rules")})
         FindingRow.objects.bulk_create(
             [FindingRow(session=session, rule_id=f["rule"], **{k: v for k, v in f.items() if k != "rule"})
              for f in data["findings"]], batch_size=1000)

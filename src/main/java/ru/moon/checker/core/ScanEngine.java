@@ -43,6 +43,8 @@ public final class ScanEngine {
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private final Map<String, String> errors = new ConcurrentHashMap<>();
     private Platform.Support platformSupport = Platform.support();
+    private RulesProvenance rules;
+    private List<CheckModule> fullSuite = List.of();
 
     public ScanEngine(List<CheckModule> modules, ScanListener listener) {
         this(modules, listener, DEFAULT_MODULE_TIMEOUT, DEFAULT_OVERALL_TIMEOUT);
@@ -63,6 +65,23 @@ public final class ScanEngine {
     /** Overrides the detected platform support (tests; CI runners are Windows Server). */
     public ScanEngine platformSupport(Platform.Support support) {
         this.platformSupport = support;
+        return this;
+    }
+
+    /**
+     * The platform's complete collector suite when only some of it is scheduled
+     * (CLI {@code --modules}). Required collectors that were not selected count as
+     * SKIPPED, so a partial run reports itself as incomplete instead of shrinking
+     * the required set.
+     */
+    public ScanEngine fullSuite(List<CheckModule> suite) {
+        this.fullSuite = List.copyOf(suite);
+        return this;
+    }
+
+    /** Where the rules passed to {@link #run} came from (see SignatureLoader). */
+    public ScanEngine rules(RulesProvenance provenance) {
+        this.rules = provenance;
         return this;
     }
 
@@ -129,19 +148,31 @@ public final class ScanEngine {
                 .thenComparing(Finding::module));
 
         java.util.Set<String> required = new java.util.LinkedHashSet<>();
-        for (CheckModule m : modules) {
-            if (m.required() && (!m.windowsOnly() || Platform.isWindows())) {
-                required.add(m.id());
+        List<CheckModule> declared = new ArrayList<>(modules);
+        for (CheckModule m : fullSuite) {
+            if (declared.stream().noneMatch(x -> x.id().equals(m.id()))) {
+                declared.add(m);
             }
         }
+        for (CheckModule m : declared) {
+            if (m.required() && (!m.windowsOnly() || Platform.isWindows())) {
+                required.add(m.id());
+                if (!status.containsKey(m.id())) {
+                    status.put(m.id(), ModuleStatus.SKIPPED);
+                    errors.putIfAbsent(m.id(), "not selected for this run");
+                }
+            }
+        }
+        RulesProvenance used = rules != null ? rules
+                : new RulesProvenance("unspecified", "", signatures.ruleCount(), null);
         Coverage coverage = new Coverage(status, required, env.elevated(),
-                platformSupport.supported(), platformSupport.note(), errors);
+                platformSupport.supported(), platformSupport.note(), errors, used);
         Assessment assessment = VerdictEngine.assess(sorted, coverage, env);
 
         ScanResult result = new ScanResult(
                 checkId, env, assessment, List.copyOf(sorted),
                 new LinkedHashMap<>(status),
-                signatures.version(), originLabel(signatures), consent,
+                signatures.version(), used, consent,
                 Instant.now(), Duration.between(start, Instant.now()));
         listener.onComplete(result);
         return result;
@@ -216,7 +247,4 @@ public final class ScanEngine {
     }
 
 
-    private String originLabel(SignatureDb db) {
-        return "v" + db.version() + " (" + db.ruleCount() + " rules)";
-    }
 }

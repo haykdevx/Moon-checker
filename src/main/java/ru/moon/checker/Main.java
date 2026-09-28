@@ -66,7 +66,7 @@ public final class Main {
                 javax.swing.JOptionPane.showMessageDialog(null, "Moon panel URL is invalid: " + server.error()
                         + "\nThe checker will run offline.", "Moon Checker", javax.swing.JOptionPane.WARNING_MESSAGE);
             }
-            MainWindow window = new MainWindow(env, db, server);
+            MainWindow window = new MainWindow(env, db, sig.provenance(), server);
             window.setTitle("Moon Checker — " + I18n.t("app.subtitle"));
             window.setVisible(true);
         });

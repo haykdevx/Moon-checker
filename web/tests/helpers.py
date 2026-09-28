@@ -62,7 +62,8 @@ def evidence_item(i, kind="INDICATOR", severity="HIGH", title="Sample loader", m
 
 
 def report_v2(outcome="NO_EVIDENCE", evidence=(), check_id="MOON-260928-ABCD", required=None, modules=None,
-              elevated=True, reasons=None, consent_channel="gui", **env_over):
+              elevated=True, reasons=None, consent_channel="gui", rules_origin="bundled", rules_count=158,
+              rules_note=None, **env_over):
     required = list(WINDOWS_REQUIRED if required is None else required)
     modules = modules if modules is not None else {m: "OK" for m in required}
     env = {"hostname": "DESKTOP-1", "os": "Windows 11", "user": "player", "elevated": elevated}
@@ -72,7 +73,8 @@ def report_v2(outcome="NO_EVIDENCE", evidence=(), check_id="MOON-260928-ABCD", r
         "session": {"checkId": check_id, "startedAt": "2026-09-28T10:00:00",
                     "finishedAt": timezone.now().isoformat().replace("+00:00", "Z"), "durationSeconds": 0},
         "collector": {"appVersion": "1.1.0", "selfHash": HASH[:12], "jvm": "Temurin 21",
-                      "rulesVersion": "7", "rulesOrigin": "bundled"},
+                      "rulesVersion": "7", "rulesOrigin": rules_origin, "rulesCount": rules_count,
+                      "rulesDigest": "ab" * 32, "rulesNote": rules_note},
         "environment": env,
         "consent": {"textVersion": "2026-09-28", "acceptedAt": "2026-09-28T10:00:00Z", "channel": consent_channel},
         "evidence": list(evidence),

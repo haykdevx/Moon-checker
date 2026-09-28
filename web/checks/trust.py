@@ -63,11 +63,20 @@ def evaluate(session, report, now):
         add(BAD, "elevated", "Checker was NOT running as administrator — deep checks were skipped.")
 
     # 5. module completeness
-    failed = sorted(k for k, v in report["modules"].items() if v in ("ERROR", "TIMEOUT"))
-    if failed:
-        add(WARN, "modules", "Modules that did not finish: " + ", ".join(failed) + ".")
+    coverage = report.get("coverage")
+    if coverage is not None:
+        missing = coverage.get("missing", [])
+        if missing:
+            add(WARN, "modules", "Required collectors that did not complete: " + ", ".join(
+                f"{m} ({coverage['modules'].get(m, '?')})" for m in missing) + ".")
+        else:
+            add(OK, "modules", f"All {len(coverage.get('required', []))} required collectors completed.")
     else:
-        add(OK, "modules", "All modules finished.")
+        failed = sorted(k for k, v in report["modules"].items() if v in ("ERROR", "TIMEOUT"))
+        if failed:
+            add(WARN, "modules", "Modules that did not finish: " + ", ".join(failed) + ".")
+        else:
+            add(OK, "modules", "All modules finished.")
 
     # 6. timing, measured with the server's own clock
     start = session.scan_started_at or session.claimed_at
@@ -109,6 +118,12 @@ def evaluate(session, report, now):
         if shrunk:
             add(BAD, "required", "The checker left required collectors out of its coverage list: "
                                  + ", ".join(sorted(shrunk)) + ".")
+        rules = report.get("rules") or {}
+        if not policy.rules_ok(rules):
+            add(BAD, "rules", f"Detection rules did not come from the build or a signed update "
+                              f"(origin '{rules.get('origin') or 'unknown'}', {rules.get('count', 0)} rules).")
+        elif rules.get("note"):
+            add(WARN, "rules", "A rule file was placed next to the checker: " + rules["note"] + ".")
         consent = report.get("consent") or {}
         if consent.get("channel") == "none" or not consent.get("acceptedAt"):
             add(WARN, "consent", "No player consent was recorded in the report.")

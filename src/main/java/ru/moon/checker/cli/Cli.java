@@ -88,7 +88,7 @@ public final class Cli {
                 ? WinInfo.isElevated()
                 : ru.moon.checker.linux.LinuxInfo.isRoot();
         EnvironmentInfo env = EnvironmentInfo.capture(elevated, appVersion, Hashing.selfHashShort());
-        SignatureLoader.Result sig = SignatureLoader.load(Path.of("."));
+        SignatureLoader.Result sig = SignatureLoader.load(ru.moon.checker.Main.exeDir());
         SignatureDb db = sig.db();
         CheckId checkId = CheckId.generate();
 
@@ -131,6 +131,10 @@ public final class Cli {
         ScanEngine engine = selftest
                 ? new ScanEngine(modules, listener, Duration.ofSeconds(90), Duration.ofMinutes(5))
                 : new ScanEngine(modules, listener);
+        engine.rules(sig.provenance()).fullSuite(ModuleRegistry.forCurrentOs());
+        if (sig.error() != null) {
+            System.out.println("Rules: " + sig.error());
+        }
         if (reporter != null) {
             reporter.start(modules.size());
         }

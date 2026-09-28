@@ -204,7 +204,7 @@
         {% if s.report_ip %}<dt>Upload IP</dt><dd class="mono">{{ s.report_ip }}</dd>{% endif %}
         {% if s.completed_at %}<dt>Delivered</dt><dd>{{ s.completed_at|date:"Y-m-d H:i:s" }}</dd>{% endif %}
         {% if meta.durationSeconds is not None %}<dt>Scan time</dt><dd>{{ meta.durationSeconds }} s (checker)</dd>{% endif %}
-        {% if meta.signatureVersion %}<dt>Signatures</dt><dd>v{{ meta.signatureVersion }}</dd>{% endif %}
+        {% if meta.signatureVersion %}<dt>Rules</dt><dd>v{{ meta.signatureVersion }}{% if meta.rules %} · {{ meta.rules.origin }} · {{ meta.rules.count }} rules{% if meta.rules.note %}<div class="t-warn small">{{ meta.rules.note }}</div>{% endif %}{% endif %}</dd>{% endif %}
         {% if meta.checkId %}<dt>Report id</dt><dd class="mono">{{ meta.checkId }}</dd>{% endif %}
         <dt>Report format</dt><dd class="mono">{{ meta.schema|default:"moon-check/1" }}</dd>
         {% if meta.consent %}<dt>Consent</dt><dd>{% if meta.consent.acceptedAt %}{{ meta.consent.channel }} · notice {{ meta.consent.textVersion }} · {{ meta.consent.acceptedAt }}{% else %}<span class="t-warn">not recorded</span>{% endif %}</dd>{% endif %}

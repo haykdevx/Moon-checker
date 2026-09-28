@@ -215,6 +215,8 @@ class EvidenceV2Tests(ApiFlowTests):
         _, s = self.deliver(report_v2("NO_EVIDENCE", modules=modules))
         self.assertIn("verdict", {f["key"] for f in s.flags if f["level"] == "bad"})
         self.assertEqual(s.report.meta["coverage"]["missing"], ["execution"])
+        warn = {f["key"]: f["text"] for f in s.flags if f["level"] == "warn"}
+        self.assertIn("execution (TIMEOUT)", warn["modules"])
 
     def test_shrunk_required_list_is_flagged(self):
         required = [m for m in report_v2()["coverage"]["required"] if m != "execution"]
@@ -246,6 +248,25 @@ class EvidenceV2Tests(ApiFlowTests):
             mutate(payload)
             r = self.upload(d["sessionId"], d["token"], canonical(payload))
             self.assertEqual(r.status_code, 422, payload)
+
+    def test_unsigned_or_empty_rules_are_flagged_and_incomplete(self):
+        _, s = self.deliver(report_v2("NO_EVIDENCE", rules_origin="external:C:\\x\\signatures.json"))
+        bad = {f["key"]: f["text"] for f in s.flags if f["level"] == "bad"}
+        self.assertIn("rules", bad)
+        self.assertIn("verdict", bad, "NO_EVIDENCE is inconsistent with untrusted rules")
+        self.assertFalse(s.report.meta["coverage"]["complete"])
+        _, s2 = self.deliver_new(report_v2("NO_EVIDENCE", rules_count=0))
+        self.assertIn("rules", {f["key"] for f in s2.flags if f["level"] == "bad"})
+
+    def test_ignored_override_is_a_warning(self):
+        _, s = self.deliver(report_v2("NO_EVIDENCE", rules_note="unsigned signatures.json next to the checker was ignored"))
+        self.assertIn("rules", {f["key"] for f in s.flags if f["level"] == "warn"})
+        self.assertNotIn("rules", {f["key"] for f in s.flags if f["level"] == "bad"})
+
+    def deliver_new(self, payload):
+        d = self.claim(code=make_session(self.admin).code).json()
+        r = self.upload(d["sessionId"], d["token"], canonical(payload))
+        return r, CheckSession.objects.get(pk=d["sessionId"])
 
     def test_legacy_v1_still_accepted_and_labelled(self):
         _, s = self.deliver(report_payload())

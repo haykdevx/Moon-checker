@@ -187,7 +187,7 @@ def _validate_v1(obj):
         "checkId": check_id,
         "verdict": obj["verdict"],
         "score": score,
-        "coverage": None, "assurance": None, "reasons": [], "consent": None,
+        "coverage": None, "assurance": None, "reasons": [], "consent": None, "rules": None,
         "startedAt": clip(obj.get("startedAt"), 40),
         "finishedAt": clip(obj.get("finishedAt"), 40),
         "durationSeconds": duration if isinstance(duration, int) and not isinstance(duration, bool) else None,
@@ -270,6 +270,14 @@ def _validate_v2(obj):
         "platformSupported": coverage.get("platformSupported") is True,
         "platformNote": clip(coverage.get("platformNote"), 200),
     }
+    rules_count = collector.get("rulesCount")
+    rules = {
+        "origin": clip(collector.get("rulesOrigin"), 40),
+        "digest": clip(collector.get("rulesDigest"), 64),
+        "count": rules_count if isinstance(rules_count, int) and not isinstance(rules_count, bool) else 0,
+        "note": clip(collector.get("rulesNote"), 300),
+    }
+    cov["rulesOk"] = policy.rules_ok(rules)
     cov["complete"] = policy.coverage_complete(cov)
     cov["missing"] = sorted(m for m in cov["required"] if cov["modules"].get(m) != "OK")
 
@@ -321,6 +329,7 @@ def _validate_v2(obj):
         "modules": cov["modules"],
         "findings": items,
         "coverage": cov,
+        "rules": rules,
         "assurance": assur,
         "reasons": reasons,
         "consent": {

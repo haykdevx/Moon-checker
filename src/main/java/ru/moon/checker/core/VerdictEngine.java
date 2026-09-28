@@ -76,6 +76,11 @@ public final class VerdictEngine {
                     "The checker ran without administrator/root rights, so protected locations were not inspected.",
                     List.of()));
         }
+        if (!coverage.rulesOk()) {
+            out.add(new Assessment.Reason("coverage.rules", "No trusted detection rules were available ("
+                    + coverage.rules().origin() + ", " + coverage.rules().count() + " rules), so collectors had"
+                    + " nothing to match against.", List.of()));
+        }
         List<String> missing = coverage.missing();
         if (!missing.isEmpty()) {
             StringBuilder sb = new StringBuilder("Required collectors did not complete: ");
@@ -104,6 +109,16 @@ public final class VerdictEngine {
         if (!coverage.elevated()) {
             notes.add(new Assurance.Note("privileges.missing", "Not elevated: collectors saw a partial view."));
             level = Assurance.Level.LOW;
+        }
+        RulesProvenance rules = coverage.rules();
+        if (!rules.trusted()) {
+            notes.add(new Assurance.Note("rules.untrusted", "Detection rules did not come from the build or a signed"
+                    + " update (" + rules.origin() + ")."));
+            level = Assurance.Level.LOW;
+        } else if (rules.note() != null) {
+            notes.add(new Assurance.Note("rules.override-ignored", "Someone placed a rule file next to the checker: "
+                    + rules.note() + "."));
+            level = min(level, Assurance.Level.REDUCED);
         }
         String hash = env.selfHash();
         if (hash == null || hash.isBlank() || hash.equals("dev-run") || hash.equals("unknown")) {

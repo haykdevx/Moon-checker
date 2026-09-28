@@ -15,7 +15,7 @@ import java.util.Map;
  * @param findings         all findings, most severe first; evidence id = index + 1
  * @param moduleStatus     per-module completion status
  * @param signatureVersion signature DB version used
- * @param signatureOrigin  where signatures came from (bundled/external)
+ * @param rules            where the detection rules came from, their digest and count
  * @param consent          the player's recorded consent
  * @param finishedAt       when the scan completed
  * @param duration         wall-clock scan time
@@ -27,11 +27,16 @@ public record ScanResult(
         List<Finding> findings,
         Map<String, ModuleStatus> moduleStatus,
         String signatureVersion,
-        String signatureOrigin,
+        RulesProvenance rules,
         Consent consent,
         Instant finishedAt,
         Duration duration
 ) {
+    /** Short provenance label for displays ("bundled", "signed-override", "none"). */
+    public String signatureOrigin() {
+        return rules.origin();
+    }
+
     public Verdict verdict() {
         return assessment.outcome();
     }

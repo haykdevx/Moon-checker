@@ -31,9 +31,18 @@ def platform_family(os_name):
     return None
 
 
+TRUSTED_RULE_ORIGINS = ("bundled", "signed-override")
+
+
+def rules_ok(rules):
+    """Decided by the server from what the report says about its rules, not from the client's own flag."""
+    return bool(rules) and rules.get("origin") in TRUSTED_RULE_ORIGINS and (rules.get("count") or 0) > 0
+
+
 def coverage_complete(coverage):
     modules = coverage.get("modules", {})
     return (coverage.get("elevated") is True and coverage.get("platformSupported") is True
+            and coverage.get("rulesOk") is True
             and all(modules.get(m) == "OK" for m in coverage.get("required", [])))
 
 

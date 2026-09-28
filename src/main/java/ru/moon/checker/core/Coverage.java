@@ -16,6 +16,7 @@ import java.util.TreeSet;
  * @param platformSupported the OS/architecture is one the checker is validated on
  * @param platformNote      why not, when unsupported
  * @param errors            collector id → what went wrong (exception, time budget)
+ * @param rules             the detection rules the collectors matched against
  */
 public record Coverage(
         Map<String, ModuleStatus> modules,
@@ -23,8 +24,16 @@ public record Coverage(
         boolean elevated,
         boolean platformSupported,
         String platformNote,
-        Map<String, String> errors
+        Map<String, String> errors,
+        RulesProvenance rules
 ) {
+    /** Coverage with a trusted, non-empty rule set (tests and callers that do not track rules). */
+    public Coverage(Map<String, ModuleStatus> modules, Set<String> required, boolean elevated,
+                    boolean platformSupported, String platformNote, Map<String, String> errors) {
+        this(modules, required, elevated, platformSupported, platformNote, errors,
+                new RulesProvenance("bundled", "", 1, null));
+    }
+
     public Coverage {
         modules = Map.copyOf(new LinkedHashMap<>(modules));
         required = Set.copyOf(required);
@@ -46,8 +55,13 @@ public record Coverage(
         return required.stream().filter(id -> modules.get(id) == ModuleStatus.OK).count();
     }
 
-    /** Every required collector finished with the rights it needs. */
+    /** Rules were loaded from a trusted source and are not empty — otherwise nothing could match. */
+    public boolean rulesOk() {
+        return rules.count() > 0 && rules.trusted();
+    }
+
+    /** Every required collector finished with the rights it needs, against usable rules. */
     public boolean complete() {
-        return elevated && platformSupported && missing().isEmpty();
+        return elevated && platformSupported && rulesOk() && missing().isEmpty();
     }
 }

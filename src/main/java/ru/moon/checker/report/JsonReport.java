@@ -67,7 +67,10 @@ public final class JsonReport {
         collector.put("selfHash", r.env().selfHash());
         collector.put("jvm", r.env().jvm());
         collector.put("rulesVersion", r.signatureVersion());
-        collector.put("rulesOrigin", r.signatureOrigin());
+        collector.put("rulesOrigin", r.rules().origin());
+        collector.put("rulesDigest", r.rules().digest());
+        collector.put("rulesCount", r.rules().count());
+        collector.put("rulesNote", r.rules().note());
         m.put("collector", collector);
 
         Map<String, Object> env = new TreeMap<>();
@@ -118,6 +121,7 @@ public final class JsonReport {
         coverage.put("platformSupported", c.platformSupported());
         coverage.put("platformNote", c.platformNote());
         coverage.put("complete", c.complete());
+        coverage.put("rulesOk", c.rulesOk());
         m.put("coverage", coverage);
 
         Map<String, Object> assurance = new TreeMap<>();

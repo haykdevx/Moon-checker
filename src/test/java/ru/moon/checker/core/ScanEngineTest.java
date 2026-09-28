@@ -44,7 +44,7 @@ class ScanEngineTest {
         };
 
         ScanEngine engine = new ScanEngine(List.of(emitter, thrower), listener)
-                .platformSupport(new Platform.Support(true, "test"));
+                .platformSupport(new Platform.Support(true, "test")).rules(RULES);
         EnvironmentInfo env = new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm");
         ScanResult result = engine.run(SignatureDb.empty(), CheckId.generate(), env);
 
@@ -85,11 +85,40 @@ class ScanEngineTest {
         assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict(), "a timed-out collector must not read as clean");
     }
 
+    private static final RulesProvenance RULES = new RulesProvenance("bundled", "test", 1, null);
+
+    @Test
+    void aScanWithoutRulesIsIncompleteNotClean() {
+        CheckModule noop = module("noop", false, () -> {});
+        ScanResult r = new ScanEngine(List.of(noop), ScanListener.NOOP)
+                .platformSupport(new Platform.Support(true, "test"))
+                .rules(new RulesProvenance("bundled", "x", 0, null))
+                .run(SignatureDb.empty(), CheckId.generate(),
+                        new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm"));
+        assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict());
+        assertTrue(r.assessment().reasons().stream().anyMatch(x -> x.code().equals("coverage.rules")));
+    }
+
+    @Test
+    void aPartialRunDeclaresTheFullRequiredSetAndIsIncomplete() {
+        CheckModule a = module("a", false, () -> {});
+        CheckModule b = module("b", false, () -> {});
+        ScanResult r = new ScanEngine(List.of(a), ScanListener.NOOP)
+                .platformSupport(new Platform.Support(true, "test")).rules(RULES)
+                .fullSuite(List.of(a, b))
+                .run(SignatureDb.empty(), CheckId.generate(),
+                        new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm"));
+        assertEquals(java.util.Set.of("a", "b"), r.coverage().required());
+        assertEquals(ModuleStatus.SKIPPED, r.coverage().modules().get("b"));
+        assertEquals("not selected for this run", r.coverage().errors().get("b"));
+        assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict());
+    }
+
     @Test
     void cleanScanWithoutAdminIsIncomplete() {
         CheckModule noop = module("noop", false, () -> {});
         ScanEngine engine = new ScanEngine(List.of(noop), ScanListener.NOOP)
-                .platformSupport(new Platform.Support(true, "test"));
+                .platformSupport(new Platform.Support(true, "test")).rules(RULES);
         EnvironmentInfo notElevated = new EnvironmentInfo("PC", "os", "user", false, "1.0.0", "abc", "jvm");
         ScanResult result = engine.run(SignatureDb.empty(), CheckId.generate(), notElevated);
         assertEquals(Verdict.INCOMPLETE_SCAN, result.verdict());
@@ -99,7 +128,7 @@ class ScanEngineTest {
     void consentIsCarriedIntoTheResult() {
         CheckModule noop = module("noop", false, () -> {});
         ScanResult r = new ScanEngine(List.of(noop), ScanListener.NOOP)
-                .platformSupport(new Platform.Support(true, "test"))
+                .platformSupport(new Platform.Support(true, "test")).rules(RULES)
                 .run(SignatureDb.empty(), CheckId.generate(),
                         new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm"), Consent.gui());
         assertEquals("gui", r.consent().channel());

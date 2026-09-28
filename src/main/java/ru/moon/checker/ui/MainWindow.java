@@ -54,10 +54,14 @@ public final class MainWindow extends JFrame {
     private volatile ReportUploader.Status uploadStatus;
     private volatile boolean busy;
 
-    public MainWindow(EnvironmentInfo env, SignatureDb signatures, ServerConfig server) {
+    private final ru.moon.checker.core.RulesProvenance rules;
+
+    public MainWindow(EnvironmentInfo env, SignatureDb signatures, ru.moon.checker.core.RulesProvenance rules,
+                      ServerConfig server) {
         super("Moon Checker");
         this.env = env;
         this.signatures = signatures;
+        this.rules = rules;
         this.server = server;
         this.api = server.online() ? new MoonApi(server.base(), env.appVersion()) : null;
         this.checkId = CheckId.generate();
@@ -172,7 +176,7 @@ public final class MainWindow extends JFrame {
             }
         };
 
-        ScanEngine engine = new ScanEngine(modules, listener);
+        ScanEngine engine = new ScanEngine(modules, listener).rules(rules);
         engineRef.set(engine);
         if (reporter != null) {
             reporter.start(modules.size());
