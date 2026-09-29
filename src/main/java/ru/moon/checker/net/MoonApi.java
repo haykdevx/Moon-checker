@@ -35,8 +35,7 @@ public final class MoonApi {
     public MoonApi(URI base, String appVersion) {
         this.base = base;
         this.userAgent = "MoonChecker/" + appVersion + " (" + System.getProperty("os.name", "?") + ")";
-        this.http = HttpClient.newBuilder()
-                .connectTimeout(CONNECT_TIMEOUT)
+        this.http = NetSetup.client(CONNECT_TIMEOUT) // system proxy, JDK + Windows trust
                 .followRedirects(HttpClient.Redirect.NEVER) // never let a redirect carry the token elsewhere
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
@@ -155,7 +154,7 @@ public final class MoonApi {
                     node.hasNonNull("download") ? node.path("download").asText() : null,
                     node.hasNonNull("verificationCode") ? node.path("verificationCode").asText() : null);
         }
-        throw new ApiException(status, status >= 500 ? "server" : "protocol",
+        throw new ApiException(status, ApiException.classifyHttp(status, resp.body()),
                 "unexpected HTTP " + status, null, null);
     }
 

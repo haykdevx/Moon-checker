@@ -32,6 +32,7 @@ public final class Main {
     }
 
     public static void main(String[] args) {
+        ru.moon.checker.net.NetSetup.init(); // system proxy before any connection
         Thread.setDefaultUncaughtExceptionHandler((t, e) ->
                 ru.moon.checker.core.Log.error("uncaught in " + t.getName(), e));
 
@@ -61,16 +62,32 @@ public final class Main {
         I18n.setLocale(I18n.RUSSIAN);
 
         SwingUtilities.invokeLater(() -> {
-            MoonTheme.install();
-            if (server.error() != null) {
-                javax.swing.JOptionPane.showMessageDialog(null, "Moon panel URL is invalid: " + server.error()
-                        + "\nThe checker will run offline.", "Moon Checker", javax.swing.JOptionPane.WARNING_MESSAGE);
+            try {
+                MoonTheme.install();
+                if (server.error() != null) {
+                    javax.swing.JOptionPane.showMessageDialog(null, I18n.t("panel.url.invalid", server.error()),
+                            TITLE, javax.swing.JOptionPane.WARNING_MESSAGE);
+                }
+                MainWindow window = new MainWindow(env, db, sig.provenance(), server);
+                window.setTitle(TITLE + " — " + I18n.t("app.subtitle"));
+                window.setVisible(true);
+            } catch (Throwable t) {
+                // without this the process would linger with no window at all
+                ru.moon.checker.core.Log.error("the window could not be opened", t);
+                try {
+                    javax.swing.JOptionPane.showMessageDialog(null, I18n.t("startup.failed",
+                                    t.getClass().getSimpleName(), String.valueOf(ru.moon.checker.core.Log.logFile())),
+                            TITLE, javax.swing.JOptionPane.ERROR_MESSAGE);
+                } catch (Throwable ignored) {
+                    // no display at all
+                }
+                System.exit(1);
             }
-            MainWindow window = new MainWindow(env, db, sig.provenance(), server);
-            window.setTitle("Moon Checker — " + I18n.t("app.subtitle"));
-            window.setVisible(true);
         });
     }
+
+    /** Product name: a brand, the same in every language. */
+    static final String TITLE = "Moon Checker";
 
     private static String appVersion() {
         String v = Main.class.getPackage().getImplementationVersion();

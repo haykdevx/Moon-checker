@@ -38,6 +38,10 @@ public final class AmCacheCheck implements CheckModule {
     public void run(ScanContext ctx) {
         ctx.log(I18n.t("log.amcache"));
         AmCache.Snapshot snapshot = AmCache.readAll();
+        if (snapshot.problem() != null) {
+            // the inventory could not be read: say so (incomplete scan), never "nothing found"
+            throw new IllegalStateException(snapshot.problem());
+        }
         drivers(ctx, snapshot);
         for (AmCache.Entry e : snapshot.files()) {
             if (ctx.isCancelled()) {
@@ -71,14 +75,8 @@ public final class AmCacheCheck implements CheckModule {
             }
             String low = d.path().toLowerCase(Locale.ROOT);
             ctx.signatures().matchDriver(low).ifPresent(rule ->
-                    ctx.emit(Finding.builder(ru.moon.checker.core.Category.KERNEL, rule.severity(),
-                                    "Уязвимый драйвер в AmCache / Vulnerable driver recorded in AmCache")
-                            .module(ID)
-                            .detail(rule.label()
-                                    + (d.signed() != null ? "  [signed=" + d.signed() + "]" : ""))
-                            .evidence(d.path())
-                            .source("AmCache (drivers)")
-                            .build()));
+                    ctx.emit(DriverPlacement.finding(rule, d.path(), ID,
+                            "AmCache (drivers)" + (d.signed() != null ? ", signed=" + d.signed() : ""))));
             ctx.signatures().matchCheatName(low).ifPresent(rule ->
                     ctx.emit(Finding.builder(ru.moon.checker.core.Category.KERNEL,
                                     ru.moon.checker.core.Severity.CRITICAL,

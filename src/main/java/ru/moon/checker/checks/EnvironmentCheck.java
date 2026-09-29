@@ -19,7 +19,7 @@ import java.util.Locale;
 /**
  * Inspects the live machine state: running processes, kernel drivers
  * (bring-your-own-vulnerable-driver / manual mappers), DMA cheat hardware
- * (FPGA PCIe cards), Windows test-signing mode, and virtual machines.
+ * (FPGA PCIe cards) and virtual machines. Test signing is the kernel collector's.
  */
 public final class EnvironmentCheck implements CheckModule {
 
@@ -117,14 +117,7 @@ public final class EnvironmentCheck implements CheckModule {
         FileInspection.walk(driversDir, 5000, 1, f -> {
             String name = f.getFileName().toString();
             ctx.signatures().matchDriver(name).ifPresent(rule ->
-                    ctx.emit(Finding.builder(Category.ENVIRONMENT, rule.severity(),
-                                    "Уязвимый/маппер драйвер / Vulnerable or mapper driver")
-                            .module(ID)
-                            .detail(rule.label())
-                            .evidence(f.toString())
-                            .source("drivers directory")
-                            .openPath(driversDir.toString())
-                            .build()));
+                    ctx.emit(DriverPlacement.finding(rule, f.toString(), ID, "drivers directory")));
         }, ctx);
     }
 
@@ -164,17 +157,7 @@ public final class EnvironmentCheck implements CheckModule {
     }
 
     private void systemState(ScanContext ctx) {
-        WinInfo.testSigningEnabled().ifPresent(on -> {
-            if (on) {
-                ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.HIGH,
-                                "Включён тестовый режим подписи / Test-signing mode enabled")
-                        .module(ID)
-                        .kind(EvidenceKind.CONFIGURATION).rule("environment:test-signing")
-                        .detail("Allows unsigned kernel drivers — common precondition for kernel cheats.")
-                        .source("bcdedit")
-                        .build());
-            }
-        });
+        // test signing is reported once, by the kernel collector (boot options)
         WinInfo.detectVirtualMachine().ifPresent(vm ->
                 ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.MEDIUM,
                                 "Проверка запущена в виртуальной машине / Running inside a virtual machine")

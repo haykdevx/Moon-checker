@@ -45,7 +45,8 @@ public final class I18n {
     public static String t(String key, Object... args) {
         String pattern = t(key);
         try {
-            return new MessageFormat(pattern, locale).format(args);
+            // MessageFormat reads ' as a quote: "PC's" would swallow the rest of the text
+            return new MessageFormat(pattern.replace("'", "''"), locale).format(args);
         } catch (IllegalArgumentException e) {
             return pattern;
         }

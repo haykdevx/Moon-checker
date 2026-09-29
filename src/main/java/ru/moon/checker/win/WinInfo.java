@@ -98,26 +98,50 @@ public final class WinInfo {
     }
 
     /**
-     * Whether Windows test-signing mode is enabled (allows unsigned kernel
-     * drivers — a common precondition for kernel cheats). Uses bcdedit, which
-     * needs the elevation we already hold. Empty if it cannot be determined.
+     * Whether Windows test-signing mode is on for the current boot (unsigned kernel
+     * drivers can load — a common precondition for kernel cheats). The registry's
+     * {@code SystemStartOptions} is the source: it is the running boot's options and is
+     * the same in every Windows language. {@code bcdedit} is the fallback only; its
+     * values are translated ("Да" on Russian Windows) and it prints in the OEM code page.
      */
     public static Optional<Boolean> testSigningEnabled() {
         if (!Platform.isWindows()) {
             return Optional.empty();
         }
-        try {
-            Process p = new ProcessBuilder("cmd", "/c", "bcdedit", "/enum", "{current}")
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor();
-            String l = out.toLowerCase(Locale.ROOT);
-            if (l.contains("testsigning")) {
-                return Optional.of(l.contains("testsigning") && l.contains("yes"));
-            }
-            return Optional.of(false);
-        } catch (Throwable t) {
-            return Optional.empty();
+        String start = Registry.getString(Registry.HKLM, "SYSTEM\\CurrentControlSet\\Control", "SystemStartOptions");
+        if (start != null) {
+            return Optional.of(startOptionsTestSigning(start));
         }
+        WinCommand.Result r = WinCommand.run(15, "bcdedit", "/enum", "{current}");
+        return r.ok() ? bcdeditTestSigning(r.output()) : Optional.empty();
+    }
+
+    /** {@code SystemStartOptions} holds the boot's switches, e.g. " NOEXECUTE=OPTIN  TESTSIGNING". */
+    static boolean startOptionsTestSigning(String startOptions) {
+        for (String token : startOptions.trim().split("\\s+")) {
+            if (token.replaceFirst("^[/-]+", "").equalsIgnoreCase("TESTSIGNING")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** "Yes" as bcdedit prints it in the languages players use. */
+    private static final java.util.Set<String> YES = java.util.Set.of(
+            "yes", "да", "так", "так.", "ja", "oui", "sí", "si", "sim", "tak", "evet", "igen", "ano", "ναι", "是", "はい", "예");
+
+    /**
+     * The {@code testsigning} element's own line only. Element names stay English in
+     * every language; the value is translated. Absent element = off.
+     */
+    static Optional<Boolean> bcdeditTestSigning(String output) {
+        for (String line : output.split("\\R")) {
+            String t = line.trim();
+            if (t.toLowerCase(Locale.ROOT).startsWith("testsigning")) {
+                String value = t.substring("testsigning".length()).trim().toLowerCase(Locale.ROOT);
+                return Optional.of(YES.contains(value));
+            }
+        }
+        return Optional.of(false);
     }
 }

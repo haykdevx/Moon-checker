@@ -44,7 +44,7 @@ public final class Uploader {
             return Outcome.failed("no endpoint or payload");
         }
         try {
-            HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+            HttpClient http = ru.moon.checker.net.NetSetup.client(TIMEOUT).build();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(endpoint)
                     .timeout(TIMEOUT)

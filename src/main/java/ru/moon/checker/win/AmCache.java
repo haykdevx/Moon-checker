@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Reads the Windows AmCache hive
@@ -29,10 +28,14 @@ public final class AmCache {
     public record Driver(String path, String signed) {
     }
 
-    /** Everything read from one mount of the hive. */
-    public record Snapshot(List<Entry> files, List<Driver> drivers) {
+    /** Everything read from one mount of the hive; {@code problem} is why nothing could be read. */
+    public record Snapshot(List<Entry> files, List<Driver> drivers, String problem) {
         static Snapshot empty() {
-            return new Snapshot(List.of(), List.of());
+            return new Snapshot(List.of(), List.of(), null);
+        }
+
+        static Snapshot failed(String why) {
+            return new Snapshot(List.of(), List.of(), why);
         }
     }
 
@@ -56,27 +59,62 @@ public final class AmCache {
         return readAll().files();
     }
 
-    /** Mount the hive once and read both application files and driver binaries. */
+    /**
+     * Mount the hive once and read both application files and driver binaries.
+     * Windows often keeps Amcache.hve open, and then {@code reg load} refuses it; a
+     * copy is taken through a shadow copy ({@code esentutl /vss}, built into Windows)
+     * and that copy is read. When neither works the snapshot says why — the collector
+     * turns that into a collection error, never into "nothing found".
+     */
     public static Snapshot readAll() {
-        List<Entry> files = new ArrayList<>();
-        List<Driver> drivers = new ArrayList<>();
         if (!Platform.isWindows()) {
             return Snapshot.empty();
         }
         Path hive = Platform.windowsDir().resolve("AppCompat").resolve("Programs").resolve("Amcache.hve");
         if (!Files.isRegularFile(hive)) {
-            return Snapshot.empty();
+            return Snapshot.failed("Amcache.hve not found at " + hive);
         }
-        String tempKey = "MoonAmcache";
-        boolean loaded = false;
+        String key = "MoonAmcache_" + ProcessHandle.current().pid();
+        WinCommand.Result direct = WinCommand.run(30, "reg", "load", "HKLM\\" + key, hive.toString());
+        if (direct.ok()) {
+            return readMounted(key);
+        }
+        Path copyDir = null;
         try {
-            Process p = new ProcessBuilder("reg", "load", "HKLM\\" + tempKey, hive.toString())
-                    .redirectErrorStream(true).start();
-            loaded = p.waitFor(30, TimeUnit.SECONDS) && p.exitValue() == 0;
-            if (!loaded) {
-                return Snapshot.empty();
+            copyDir = Files.createTempDirectory("moon-amcache");
+            Path copy = copyDir.resolve("Amcache.hve");
+            WinCommand.Result vss = WinCommand.run(120, "esentutl.exe", "/y", hive.toString(), "/vss", "/d",
+                    copy.toString());
+            for (String log : new String[]{".LOG1", ".LOG2"}) {  // transaction logs make the copy consistent
+                Path src = hive.resolveSibling("Amcache.hve" + log);
+                if (Files.isRegularFile(src)) {
+                    WinCommand.run(60, "esentutl.exe", "/y", src.toString(), "/vss", "/d",
+                            copyDir.resolve("Amcache.hve" + log).toString());
+                }
             }
-            String base = tempKey + "\\Root\\InventoryApplicationFile";
+            if (!Files.isRegularFile(copy)) {
+                return Snapshot.failed("Amcache.hve is locked and the shadow copy failed: "
+                        + firstLine(direct.output()) + " / " + firstLine(vss.output()));
+            }
+            WinCommand.Result load = WinCommand.run(30, "reg", "load", "HKLM\\" + key, copy.toString());
+            if (!load.ok()) {
+                return Snapshot.failed("the copy of Amcache.hve could not be loaded: " + firstLine(load.output()));
+            }
+            return readMounted(key);
+        } catch (Exception e) {
+            return Snapshot.failed("Amcache.hve could not be copied: " + e.getMessage());
+        } finally {
+            if (copyDir != null) {
+                deleteQuietly(copyDir);
+            }
+        }
+    }
+
+    private static Snapshot readMounted(String key) {
+        List<Entry> files = new ArrayList<>();
+        List<Driver> drivers = new ArrayList<>();
+        try {
+            String base = key + "\\Root\\InventoryApplicationFile";
             for (String sub : Registry.subKeys(Registry.HKLM, base)) {
                 String keyPath = base + "\\" + sub;
                 String path = Registry.getString(Registry.HKLM, keyPath, "LowerCaseLongPath");
@@ -86,25 +124,46 @@ public final class AmCache {
                     files.add(new Entry(path, normalizeFileId(fileId), name));
                 }
             }
-            String drvBase = tempKey + "\\Root\\InventoryDriverBinary";
+            String drvBase = key + "\\Root\\InventoryDriverBinary";
             for (String sub : Registry.subKeys(Registry.HKLM, drvBase)) {
-                String keyPath = drvBase + "\\" + sub;
-                String path = Registry.getString(Registry.HKLM, keyPath, "DriverName");
-                String signed = Registry.getString(Registry.HKLM, keyPath, "DriverSigned");
-                drivers.add(new Driver(path != null ? path : sub, signed));
+                // the key name is the driver's full path (forward slashes); DriverName is only the file name
+                String signed = Registry.getString(Registry.HKLM, drvBase + "\\" + sub, "DriverSigned");
+                drivers.add(new Driver(sub.replace('/', '\\'), signed));
             }
         } catch (Exception e) {
             Log.warn("AmCache read failed", e);
         } finally {
-            if (loaded) {
-                try {
-                    new ProcessBuilder("reg", "unload", "HKLM\\" + tempKey)
-                            .redirectErrorStream(true).start().waitFor(10, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    Log.warn("AmCache unload failed", e);
-                }
+            WinCommand.run(15, "reg", "unload", "HKLM\\" + key);
+        }
+        if (files.isEmpty() && drivers.isEmpty()) {
+            return Snapshot.failed("Amcache.hve was mounted but held no inventory (unexpected layout)");
+        }
+        return new Snapshot(files, drivers, null);
+    }
+
+    static String firstLine(String s) {
+        if (s == null) {
+            return "";
+        }
+        for (String line : s.split("\\R")) {
+            if (!line.isBlank()) {
+                return line.strip();
             }
         }
-        return new Snapshot(files, drivers);
+        return "";
+    }
+
+    private static void deleteQuietly(Path dir) {
+        try (var walk = Files.walk(dir)) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (Exception ignored) {
+                    // a file the OS still holds: the temp folder is cleaned up later
+                }
+            });
+        } catch (Exception ignored) {
+            // nothing to clean
+        }
     }
 }

@@ -73,8 +73,10 @@ public final class KernelCheck implements CheckModule {
         }
         if (Platform.isWindows()) {
             windowsFallback(ctx);
+            windowsPosture(ctx);
         } else if (Platform.isLinux()) {
             linuxFallback(ctx);
+            linuxPosture(ctx);
         }
         if (parsed != null && !parsed.complete()) {
             // the component is installed but its view is partial: that is missing telemetry,
@@ -107,9 +109,7 @@ public final class KernelCheck implements CheckModule {
                         .evidence(path).source(source).build());
             }
             ctx.signatures().matchDriver(low).ifPresent(rule ->
-                    ctx.emit(Finding.builder(Category.KERNEL, rule.severity(),
-                                    "Драйвер ядра совпал с сигнатурой / Kernel driver matches signature")
-                            .module(ID).detail(rule.label() + " — " + path).evidence(path).source(source).build()));
+                    ctx.emit(DriverPlacement.finding(rule, path, ID, source)));
             ctx.signatures().matchCheatName(low).ifPresent(rule ->
                     ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
                                     "Чит в отчёте ядра / Cheat object in kernel report")
@@ -160,10 +160,8 @@ public final class KernelCheck implements CheckModule {
             String image = Registry.getString(Registry.HKLM, base + "\\" + name, "ImagePath");
             String probe = (name + " " + (image == null ? "" : image)).toLowerCase(Locale.ROOT);
             ctx.signatures().matchDriver(probe).ifPresent(rule ->
-                    ctx.emit(Finding.builder(Category.KERNEL, rule.severity(),
-                                    "Загружен уязвимый/маппер драйвер / Vulnerable or mapper driver loaded")
-                            .module(ID).detail(rule.label() + " — " + name)
-                            .evidence(image != null ? image : name).source("kernel service").build()));
+                    ctx.emit(DriverPlacement.finding(rule, image != null ? image : name, ID,
+                            "kernel service " + name)));
             ctx.signatures().matchCheatName(probe).ifPresent(rule ->
                     ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
                                     "Драйвер чита в ядре / Cheat kernel driver")
@@ -185,16 +183,72 @@ public final class KernelCheck implements CheckModule {
                     .build());
         }
 
-        WinInfo.testSigningEnabled().ifPresent(on -> {
-            if (on) {
-                ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
-                                "Отключена проверка подписи драйверов / Driver signature enforcement off (test-signing)")
-                        .kind(EvidenceKind.CONFIGURATION).rule("kernel:dse-off")
-                        .module(ID)
-                        .detail("Позволяет загрузить неподписанный драйвер чита в ядро.")
-                        .source("bcdedit").build());
-            }
-        });
+        // the boot options above already say it; bcdedit only when the registry value is missing
+        if (startOptions == null && WinInfo.testSigningEnabled().orElse(false)) {
+            ctx.emit(Finding.builder(Category.KERNEL, Severity.HIGH,
+                            "Отключена проверка подписи драйверов / Driver signature enforcement off (test-signing)")
+                    .kind(EvidenceKind.CONFIGURATION).rule("kernel:dse-off")
+                    .module(ID)
+                    .detail("Позволяет загрузить неподписанный драйвер чита в ядро.")
+                    .source("bcdedit").build());
+        }
+    }
+
+    /** Platform security settings: one line of context, plus a finding only for deliberate weakening. */
+    private void windowsPosture(ScanContext ctx) {
+        String base = "SYSTEM\\CurrentControlSet\\Control\\";
+        ru.moon.checker.kernel.Posture.Windows w = new ru.moon.checker.kernel.Posture.Windows(
+                ru.moon.checker.kernel.Posture.dword(
+                        Registry.getIntOr(Registry.HKLM, base + "SecureBoot\\State", "UEFISecureBootEnabled", -1), true),
+                ru.moon.checker.kernel.Posture.dword(Registry.getIntOr(Registry.HKLM,
+                        base + "DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity", "Enabled", -1), true),
+                ru.moon.checker.kernel.Posture.vbs(Registry.getIntOr(Registry.HKLM,
+                        base + "DeviceGuard", "EnableVirtualizationBasedSecurity", -1)),
+                ru.moon.checker.kernel.Posture.dword(Registry.getIntOr(Registry.HKLM,
+                        base + "CI\\Config", "VulnerableDriverBlocklistEnable", -1), true),
+                Registry.keyExists(Registry.HKLM, "SYSTEM\\CurrentControlSet\\Enum\\ACPI\\MSFT0101"));
+        emitPosture(ctx, w.summary(), "registry");
+        if (w.blocklistDisabled()) {
+            ctx.emit(Finding.builder(Category.KERNEL, Severity.LOW,
+                            "Блок-лист уязвимых драйверов отключён / Vulnerable-driver blocklist turned off")
+                    .kind(EvidenceKind.CONFIGURATION).rule("kernel:driver-blocklist-off")
+                    .module(ID)
+                    .detail("VulnerableDriverBlocklistEnable=0: Windows no longer refuses drivers Microsoft "
+                            + "lists as abusable — a step some kernel cheats need")
+                    .source("registry CI\\Config").build());
+        }
+    }
+
+    private void linuxPosture(ScanContext ctx) {
+        java.nio.file.Path efi = java.nio.file.Path.of("/sys/firmware/efi");
+        byte[] sb = readBytes(java.nio.file.Path.of(
+                "/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"));
+        ru.moon.checker.kernel.Posture.Linux l = new ru.moon.checker.kernel.Posture.Linux(
+                ru.moon.checker.kernel.Posture.efiSecureBoot(sb, java.nio.file.Files.isDirectory(efi)),
+                ru.moon.checker.kernel.Posture.lockdown(readText("/sys/kernel/security/lockdown")),
+                ru.moon.checker.kernel.Posture.yesNo(readText("/sys/module/module/parameters/sig_enforce")),
+                ru.moon.checker.kernel.Posture.ptraceScope(readText("/proc/sys/kernel/yama/ptrace_scope")));
+        emitPosture(ctx, l.summary(), "sysfs / procfs");
+    }
+
+    private void emitPosture(ScanContext ctx, String summary, String source) {
+        ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
+                        "Настройки безопасности платформы / Platform security settings")
+                .kind(EvidenceKind.CONTEXT).rule("kernel:platform-posture")
+                .module(ID).detail(summary).source(source).build());
+    }
+
+    private static byte[] readBytes(java.nio.file.Path p) {
+        try {
+            return java.nio.file.Files.readAllBytes(p);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String readText(String path) {
+        byte[] b = readBytes(java.nio.file.Path.of(path));
+        return b == null ? null : new String(b, java.nio.charset.StandardCharsets.UTF_8).trim();
     }
 
     private void linuxFallback(ScanContext ctx) {

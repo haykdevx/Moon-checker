@@ -15,8 +15,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Detects tell-tale signs the PC was "cleaned" before the check: cleared event
@@ -122,15 +122,56 @@ public final class AntiForensicCheck implements CheckModule {
         }
         Instant installed = Instant.ofEpochSecond(installDate & 0xFFFFFFFFL);
         long days = Duration.between(installed, Instant.now()).toDays();
-        if (days >= 0 && days <= 7) {
-            ctx.emit(Finding.builder(Category.ANTIFORENSIC, Severity.MEDIUM,
-                            "Свежая переустановка Windows / Recent Windows reinstall")
-                    .module(ID)
-                    .detail("Windows was installed " + days + " day(s) ago — possible wipe before the check")
-                    .source("registry InstallDate")
+        if (days < 0 || days > 7) {
+            return;
+        }
+        // A feature update (e.g. 24H2 -> 25H2) rewrites InstallDate too; it leaves
+        // "Source OS (Updated on …)" keys under HKLM\SYSTEM\Setup, a clean reinstall does not.
+        if (featureUpdate(Registry.subKeys(Registry.HKLM, "SYSTEM\\Setup"))) {
+            ctx.emit(Finding.builder(Category.ANTIFORENSIC, Severity.INFO,
+                            "Недавнее крупное обновление Windows / Recent Windows feature update")
+                    .module(ID).kind(ru.moon.checker.core.EvidenceKind.CONTEXT).rule("antiforensic:feature-update")
+                    .detail("Windows was upgraded in place " + days + " day(s) ago; execution history from before "
+                            + "the update may be shorter")
+                    .source("registry InstallDate + Setup\\Source OS")
                     .when(installed)
                     .build());
+            return;
         }
+        ctx.emit(Finding.builder(Category.ANTIFORENSIC, Severity.MEDIUM,
+                        "Свежая переустановка Windows / Recent Windows reinstall")
+                .module(ID).rule("antiforensic:fresh-install")
+                .detail("Windows was installed " + days + " day(s) ago — possible wipe before the check")
+                .source("registry InstallDate")
+                .when(installed)
+                .build());
+    }
+
+    /** In-place upgrades leave "Source OS (Updated on …)" keys; a clean install has none. */
+    static boolean featureUpdate(String[] setupSubKeys) {
+        for (String k : setupSubKeys) {
+            if (k != null && k.toLowerCase(Locale.ROOT).startsWith("source os")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Cleaner found by: installed / ran at some point / ran within the last day / running now. */
+    enum CleanerEvidence { INSTALLED, RAN_BEFORE, RAN_RECENTLY, RUNNING }
+
+    /**
+     * Having a cleaner installed is common (CCleaner ships with many PCs) and only context;
+     * running one shortly before a check is what hides traces. Secure-wipe tools keep their
+     * rule's severity whenever they ran.
+     */
+    static Severity cleanerSeverity(Severity ruleSeverity, CleanerEvidence how) {
+        return switch (how) {
+            case INSTALLED -> Severity.LOW;
+            case RAN_BEFORE -> ruleSeverity.compareTo(Severity.HIGH) >= 0 ? Severity.MEDIUM : Severity.LOW;
+            case RAN_RECENTLY -> ruleSeverity.compareTo(Severity.MEDIUM) >= 0 ? ruleSeverity : Severity.MEDIUM;
+            case RUNNING -> Severity.HIGH;
+        };
     }
 
     private void cleanerTools(ScanContext ctx) {
@@ -142,7 +183,8 @@ public final class AntiForensicCheck implements CheckModule {
                 if (display != null) {
                     ctx.signatures().matchCleaner(display).ifPresent(rule -> {
                         if (reported.add(rule.label())) {
-                            ctx.emit(cleaner(rule.label(), display, "installed program", rule.severity()));
+                            ctx.emit(cleaner(rule.label(), display, "installed program",
+                                    cleanerSeverity(rule.severity(), CleanerEvidence.INSTALLED)));
                         }
                     });
                 }
@@ -151,10 +193,17 @@ public final class AntiForensicCheck implements CheckModule {
         // ran (prefetch)
         Path pf = Platform.prefetchDir();
         if (Files.isDirectory(pf)) {
+            // a prefetch file is rewritten every time its program runs: its date is the last run
+            Instant dayAgo = Instant.now().minus(Duration.ofHours(24));
             FileInspection.walk(pf, 5000, 1, f -> ctx.signatures().matchCleaner(f.getFileName().toString())
                     .ifPresent(rule -> {
                         if (reported.add(rule.label() + ":pf")) {
-                            ctx.emit(cleaner(rule.label(), f.getFileName().toString(), "Prefetch (ran)", rule.severity()));
+                            Instant last = lastModified(f);
+                            boolean recent = last != null && last.isAfter(dayAgo);
+                            ctx.emit(cleaner(rule.label(), f.getFileName().toString(),
+                                    recent ? "Prefetch (ran in the last 24 h)" : "Prefetch (ran)",
+                                    cleanerSeverity(rule.severity(),
+                                            recent ? CleanerEvidence.RAN_RECENTLY : CleanerEvidence.RAN_BEFORE)));
                         }
                     }), ctx);
         }
@@ -162,7 +211,8 @@ public final class AntiForensicCheck implements CheckModule {
         for (WinProcess.Proc p : WinProcess.list()) {
             ctx.signatures().matchCleaner(p.name()).ifPresent(rule -> {
                 if (reported.add(rule.label() + ":proc")) {
-                    ctx.emit(cleaner(rule.label(), p.name(), "running process", rule.severity()));
+                    ctx.emit(cleaner(rule.label(), p.name(), "running process",
+                            cleanerSeverity(rule.severity(), CleanerEvidence.RUNNING)));
                 }
             });
         }
@@ -178,6 +228,14 @@ public final class AntiForensicCheck implements CheckModule {
                 .build();
     }
 
+    private static Instant lastModified(Path f) {
+        try {
+            return Files.getLastModifiedTime(f).toInstant();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private Instant parseInstant(String iso) {
         try {
             return Instant.parse(iso);
@@ -187,15 +245,7 @@ public final class AntiForensicCheck implements CheckModule {
     }
 
     private String powershell(String script) {
-        try {
-            Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-Command", script)
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor(30, TimeUnit.SECONDS);
-            return out;
-        } catch (Throwable t) {
-            return null;
-        }
+        ru.moon.checker.win.WinCommand.Result r = ru.moon.checker.win.WinCommand.powershell(45, script);
+        return r.timedOut() || r.exitCode() < 0 ? null : r.output();
     }
 }

@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,11 +48,8 @@ public final class UserHives {
         @Override
         public void close() {
             for (String key : mounted) {
-                try {
-                    new ProcessBuilder("reg", "unload", "HKU\\" + key)
-                            .redirectErrorStream(true).start().waitFor(10, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    Log.warn("failed to unload hive " + key, e);
+                if (!WinCommand.run(15, "reg", "unload", "HKU\\" + key).ok()) {
+                    Log.warn("failed to unload hive " + key);
                 }
             }
         }
@@ -85,16 +81,11 @@ public final class UserHives {
                 continue;
             }
             String tempKey = "MoonChk_" + COUNTER.incrementAndGet();
-            try {
-                Process p = new ProcessBuilder("reg", "load", "HKU\\" + tempKey, ntuser.toString())
-                        .redirectErrorStream(true).start();
-                boolean ok = p.waitFor(20, TimeUnit.SECONDS) && p.exitValue() == 0;
-                if (ok) {
-                    mounted.add(tempKey);
-                    users.add(new User(Registry.HKU, tempKey + "\\", profile.getFileName().toString()));
-                }
-            } catch (Exception e) {
-                Log.warn("could not mount hive for " + profile, e);
+            if (WinCommand.run(20, "reg", "load", "HKU\\" + tempKey, ntuser.toString()).ok()) {
+                mounted.add(tempKey);
+                users.add(new User(Registry.HKU, tempKey + "\\", profile.getFileName().toString()));
+            } else {
+                Log.warn("could not mount hive for " + profile);
             }
         }
         return new Scope(users, mounted);

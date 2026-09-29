@@ -72,9 +72,13 @@ public final class MainWindow extends JFrame {
                 confirmClose();
             }
         });
-        setMinimumSize(new java.awt.Dimension(1000, 700));
-        setSize(1180, 800);
+        WindowFit.Fit fit = WindowFit.fit(WindowFit.PREFERRED, WindowFit.MINIMUM, WindowFit.usableScreen());
+        setMinimumSize(fit.minimum());
+        setSize(fit.size());
         setLocationRelativeTo(null);
+        if (fit.maximize()) {
+            setExtendedState(getExtendedState() | MAXIMIZED_BOTH);
+        }
         build();
     }
 

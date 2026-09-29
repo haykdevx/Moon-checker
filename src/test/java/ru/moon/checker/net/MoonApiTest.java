@@ -146,7 +146,7 @@ class MoonApiTest {
     void unreachableServerIsANetworkError() throws Exception {
         MoonApi dead = new MoonApi(URI.create("http://127.0.0.1:1"), "1.1.0");
         ApiException e = assertThrows(ApiException.class, () -> dead.claim("K7MQ-4X2P", ENV));
-        assertEquals("network", e.code());
+        assertEquals("unreachable", e.code(), "connection refused is told apart from DNS / TLS / timeouts");
         assertTrue(e.retryable());
         assertTrue(e.describe("moon.example.org").contains("moon.example.org"));
     }

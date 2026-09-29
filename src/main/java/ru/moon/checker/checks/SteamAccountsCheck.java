@@ -88,8 +88,7 @@ public final class SteamAccountsCheck implements CheckModule {
                     .build());
         }
 
-        HttpClient http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5)).build();
+        HttpClient http = ru.moon.checker.net.NetSetup.client(Duration.ofSeconds(5)).build();
 
         for (Vdf.SteamAccount acc : accounts) {
             if (ctx.isCancelled()) {

@@ -140,17 +140,17 @@
       "required": true,
       "privileges": "Administrator/root. With the Moon kernel component loaded it also reads the kernel's own module/task lists.",
       "sources": [
-        "Windows: loaded kernel services, boot options, test-signing; optional MoonMon.sys report",
-        "Linux: /proc/modules, kernel taint, /etc/ld.so.preload; optional moonmon.ko task list"
+        "Windows: loaded kernel services, boot options (SystemStartOptions), platform security settings (Secure Boot, memory integrity, VBS, vulnerable-driver blocklist, TPM); optional MoonMon.sys report",
+        "Linux: /proc/modules, kernel taint, /etc/ld.so.preload, Secure Boot, lockdown, module signing, ptrace scope; optional moonmon.ko task list"
       ],
       "kinds": [
-        "INDICATOR: vulnerable/mapper driver or module name, ld.so.preload injection",
+        "INDICATOR: vulnerable/mapper driver in a user-writable or unusual folder, cheat driver name, ld.so.preload injection",
         "CONCEALMENT: object hidden from one view",
-        "CONFIGURATION: test signing, weakened boot integrity",
-        "CONTEXT: tainted kernel"
+        "CONFIGURATION: test signing, weakened boot integrity, vulnerable-driver blocklist turned off",
+        "CONTEXT: vulnerable driver installed by software in a Windows or program folder, platform security settings, tainted kernel"
       ],
       "window": "State at scan time.",
-      "lookalikes": "Old vendor utilities (hardware monitors, overclocking tools) legitimately load drivers listed as vulnerable; NVIDIA's proprietary driver taints most Linux gaming kernels.",
+      "lookalikes": "MSI Afterburner, RGB/fan-control utilities, motherboard suites and other games' anti-cheats install drivers that are on vulnerable-driver lists; installed in Windows or program folders they are context only. NVIDIA's proprietary driver taints most Linux gaming kernels.",
       "blindSpots": "Manually mapped drivers are absent from every module list, including the kernel component's; firmware, hypervisor and DMA-based cheats are outside what a guest OS can observe.",
       "tests": [
         "HiddenObjectsTest",
@@ -169,11 +169,13 @@
         "Running processes and image hashes",
         "Visible window titles",
         "PCI device enumeration",
-        "Test-signing and virtual-machine detection"
+        "Drivers directory",
+        "Virtual-machine detection"
       ],
       "kinds": [
         "INDICATOR: process/window/PCI device matches",
-        "CONFIGURATION: test signing, virtual machine"
+        "CONFIGURATION: virtual machine",
+        "CONTEXT: vulnerable driver installed by software"
       ],
       "window": "Processes and devices present during the scan.",
       "lookalikes": "Window titles and process names are trivially renamed and can collide with legitimate tools; FPGA/PCIe development boards match DMA patterns.",
@@ -191,14 +193,15 @@
       "sources": [
         "Event-log clear events",
         "Prefetch/SysMain disabled",
-        "Recent OS reinstall",
-        "Cleaner tools installed or run"
+        "Recent OS reinstall (told apart from a feature update)",
+        "Cleaner tools: installed, ran, ran in the last 24 hours, running"
       ],
       "kinds": [
-        "CONCEALMENT: evidence was removed or collection was disabled"
+        "CONCEALMENT: evidence was removed or collection was disabled; a cleaner run in the last day or running now",
+        "CONTEXT: recent Windows feature update"
       ],
       "window": "Varies per source; event logs are size-bound.",
-      "lookalikes": "Privacy-minded users run cleaners; a fresh Windows install is common after hardware changes.",
+      "lookalikes": "Privacy-minded users run cleaners and many PCs ship with one installed (installed or run long ago is LOW context); a Windows feature update rewrites the install date like a reinstall would, and is told apart by the Setup\\Source OS keys.",
       "blindSpots": "Careful cleaning that leaves no meta-trace.",
       "tests": []
     },
@@ -305,11 +308,12 @@
         "Real-time protection state"
       ],
       "kinds": [
-        "INDICATOR: past HackTool/injector detections",
-        "CONFIGURATION: protection disabled"
+        "INDICATOR: past game-hack, cheat-engine, trainer or HackTool DLL-injector detections",
+        "CONFIGURATION: real-time protection turned off by a setting",
+        "CONTEXT: other HackTool detections (activators, keygens, cracks)"
       ],
       "window": "Until Defender purges its history.",
-      "lookalikes": "Defender flags legitimate tools (key generators, admin utilities) as HackTool.",
+      "lookalikes": "Defender files Windows/Office activators, keygens and cracks under HackTool; they are software piracy, not game hacking, and are only context. Many gamers turn real-time protection off for performance.",
       "blindSpots": "PCs using another antivirus; history purged.",
       "tests": []
     },
@@ -409,13 +413,6 @@
       "limits": "Possession, not proof of use. Any rebuild of the cheat has a new hash."
     },
     {
-      "id": "environment:test-signing",
-      "kind": "CONFIGURATION",
-      "meaning": "Windows accepts test-signed kernel drivers.",
-      "lookalikes": "Driver developers and some hardware tools.",
-      "limits": "Lowers the assurance of the scan; never a verdict."
-    },
-    {
       "id": "environment:virtual-machine",
       "kind": "CONFIGURATION",
       "meaning": "The checker ran inside a virtual machine.",
@@ -477,6 +474,76 @@
       "meaning": "Several Steam accounts have logged in on this PC.",
       "lookalikes": "Family PCs, internet cafés.",
       "limits": "Context only."
+    },
+    {
+      "id": "kernel:vulnerable-driver",
+      "kind": "INDICATOR",
+      "meaning": "A driver on the vulnerable/mapper list sits in a user-writable folder (Temp, AppData, Downloads, Desktop) or an unusual one — where a cheat loader drops a driver it abuses (BYOVD).",
+      "lookalikes": "A portable hardware tool run from Downloads can load its driver from there.",
+      "limits": "User-writable location: the rule's severity. Unusual location: MEDIUM. A manual-mapper name is never legitimate."
+    },
+    {
+      "id": "kernel:vulnerable-driver-installed",
+      "kind": "CONTEXT",
+      "meaning": "A driver on the vulnerable list is installed in a Windows or program folder by the software it belongs to (MSI Afterburner, RGB and fan-control tools, motherboard suites, another game's anti-cheat).",
+      "lookalikes": "This is the lookalike: everyday gaming software.",
+      "limits": "Context only; the same driver in a user folder is kernel:vulnerable-driver."
+    },
+    {
+      "id": "kernel:driver-blocklist-off",
+      "kind": "CONFIGURATION",
+      "meaning": "Microsoft's vulnerable-driver blocklist was switched off (VulnerableDriverBlocklistEnable=0).",
+      "lookalikes": "Some old hardware tools ask users to turn it off.",
+      "limits": "Lowers the assurance of the scan; never a verdict."
+    },
+    {
+      "id": "kernel:platform-posture",
+      "kind": "CONTEXT",
+      "meaning": "The PC's security settings in one line: Secure Boot, memory integrity, VBS, vulnerable-driver blocklist and TPM on Windows; Secure Boot, lockdown, module signing and ptrace scope on Linux.",
+      "lookalikes": "Most gaming PCs run with some of these off.",
+      "limits": "Context for the reviewer; says how much a kernel-level cheat would have to defeat."
+    },
+    {
+      "id": "files:alternate-data-stream",
+      "kind": "INDICATOR",
+      "meaning": "A file carries a hidden NTFS stream: named like a cheat (CRITICAL), large enough to hold a program (≥32 KiB, HIGH), otherwise small (LOW).",
+      "lookalikes": "Windows, browsers, antivirus and sync tools write small streams (Zone.Identifier, SmartScreen, KAVICHS, Dropbox, Mac metadata) — these are skipped while small.",
+      "limits": "Streams under allowlisted paths are skipped unless named like a cheat."
+    },
+    {
+      "id": "defender:game-hack-detected",
+      "kind": "INDICATOR",
+      "meaning": "Windows Defender's history holds a detection of a game hack, cheat engine, trainer or HackTool DLL injector, or a file whose path matches a cheat rule.",
+      "lookalikes": "Single-player trainers are MEDIUM.",
+      "limits": "Only what Defender saw and recorded; a history cleared by the user is empty."
+    },
+    {
+      "id": "defender:other-hacktool",
+      "kind": "CONTEXT",
+      "meaning": "Defender recorded a HackTool that is not about games: Windows/Office activators, keygens, cracks.",
+      "lookalikes": "Software piracy is common and unrelated to cheating in CS2.",
+      "limits": "Context only."
+    },
+    {
+      "id": "defender:realtime-off",
+      "kind": "CONFIGURATION",
+      "meaning": "Defender real-time protection is turned off by a setting.",
+      "lookalikes": "Many gamers turn it off for performance; a third-party antivirus does not change this setting.",
+      "limits": "Lowers the assurance of the scan; never a verdict."
+    },
+    {
+      "id": "antiforensic:fresh-install",
+      "kind": "CONCEALMENT",
+      "meaning": "Windows was installed in the last 7 days and there is no sign of an in-place upgrade.",
+      "lookalikes": "A new PC or a reinstall after a hardware change.",
+      "limits": "MEDIUM: asks for a look."
+    },
+    {
+      "id": "antiforensic:feature-update",
+      "kind": "CONTEXT",
+      "meaning": "Windows was upgraded in place in the last 7 days (feature update), which rewrites the install date.",
+      "lookalikes": "This is the lookalike of a reinstall.",
+      "limits": "Context only: history from before the update may be shorter."
     }
   ]
 }

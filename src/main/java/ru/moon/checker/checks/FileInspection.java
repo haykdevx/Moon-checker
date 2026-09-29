@@ -129,10 +129,13 @@ public final class FileInspection {
             if (trustedPath && streamRule.isEmpty()) {
                 continue; // Windows itself uses streams on system files
             }
-            Severity sev = streamRule.isPresent() ? Severity.CRITICAL : Severity.HIGH;
+            // a cheat-named stream is critical; a stream big enough to hold a program is high;
+            // a small unknown stream (notes, tags some software writes) is context for the reviewer
+            Severity sev = streamRule.isPresent() ? Severity.CRITICAL
+                    : st.size() >= ru.moon.checker.win.AlternateStreams.PAYLOAD_BYTES ? Severity.HIGH : Severity.LOW;
             ctx.emit(Finding.builder(category, sev,
                             "Скрытый поток данных (ADS) / Hidden alternate data stream")
-                    .module(module)
+                    .module(module).rule("files:alternate-data-stream")
                     .detail("Stream \"" + st.name() + "\" (" + st.size() + " bytes)"
                             + streamRule.map(r -> " — " + r.label()).orElse(""))
                     .evidence(pathStr + ":" + st.name())

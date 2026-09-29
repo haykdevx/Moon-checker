@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -61,14 +60,13 @@ public final class Authenticode {
         Result result = Result.unknown();
         try {
             String escaped = key.replace("'", "''");
-            Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-Command",
+            WinCommand.Result r = WinCommand.powershell(20,
                     "$s = Get-AuthenticodeSignature -LiteralPath '" + escaped + "'; "
-                            + "$s.Status; $s.SignerCertificate.Subject")
-                    .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes());
-            p.waitFor(15, TimeUnit.SECONDS);
-            String[] lines = out.split("\\R");
+                            + "[string]$s.Status; [string]$s.SignerCertificate.Subject");
+            if (r.timedOut() || r.exitCode() < 0) {
+                return Result.unknown();
+            }
+            String[] lines = r.output().split("\\R");
             String status = lines.length > 0 ? lines[0].trim() : "Unknown";
             String signer = lines.length > 1 ? lines[1].trim().toLowerCase(Locale.ROOT) : "";
             result = new Result(status, signer);

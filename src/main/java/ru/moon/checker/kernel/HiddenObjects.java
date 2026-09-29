@@ -131,8 +131,13 @@ public final class HiddenObjects {
                 new Opt("WINPE", "booted into WinPE"),
                 new Opt("SAFEBOOT", "booted in safe mode")
         };
+        // whole switches only: "NODEBUG" is not "DEBUG"; "SAFEBOOT:MINIMAL" is SAFEBOOT
+        java.util.Set<String> switches = new java.util.HashSet<>();
+        for (String token : s.trim().split("\\s+")) {
+            switches.add(token.replaceFirst("^[/-]+", "").split("[=:]", 2)[0]);
+        }
         for (Opt o : opts) {
-            if (s.contains(o.token())) {
+            if (switches.contains(o.token())) {
                 found.add(o.token() + " — " + o.meaning());
             }
         }
