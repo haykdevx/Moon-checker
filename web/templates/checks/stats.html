@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n moon %}
+{% block title %}{% translate "Statistics" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Statistics" %}</h1>
+  <p class="lead">{% translate "What the checks found and what the team decided. Test checks are not counted." %}</p></div>
+  <nav class="segmented" aria-label="{% translate 'Period' %}">
+    {% for p in periods %}<a href="?days={{ p }}" class="{% if p == days %}active{% endif %}"{% if p == days %} aria-current="page"{% endif %}>{% blocktranslate count n=p %}{{ n }} day{% plural %}{{ n }} days{% endblocktranslate %}</a>{% endfor %}
+  </nav>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="kpi-n">{{ kpi.created }}</div><div class="kpi-l">{% translate "checks created" %}</div></div>
+  <div class="kpi"><div class="kpi-n">{{ kpi.completed }}</div><div class="kpi-l">{% translate "finished" %}</div></div>
+  <div class="kpi kpi-bad"><div class="kpi-n">{{ kpi.banned }}</div><div class="kpi-l">{% translate "bans" %}</div></div>
+  <div class="kpi kpi-ok"><div class="kpi-n">{{ kpi.cleared }}</div><div class="kpi-l">{% translate "found clean" %}</div></div>
+  <div class="kpi{% if kpi.undecided %} kpi-warn{% endif %}"><div class="kpi-n">{{ kpi.undecided }}</div><div class="kpi-l"><a href="{% url 'checks:dashboard' %}">{% translate "without a decision" %}</a></div></div>
+  <div class="kpi"><div class="kpi-n">{% if kpi.avg_minutes is not None %}{{ kpi.avg_minutes }}{% else %}—{% endif %}</div><div class="kpi-l">{% translate "minutes per check, average" %}</div></div>
+</div>
+
+<section class="card">
+  <h2>{% translate "Finished checks per day" %}</h2>
+  {% if chart.max %}
+  <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{% translate 'Finished checks per day, coloured by the checker result' %}">
+    <line x1="24" y1="{{ chart.baseline }}" x2="{{ chart.width }}" y2="{{ chart.baseline }}" class="axis"/>
+    {% for b in chart.bars %}
+      <g>
+        <title>{{ b.day|date:"j E" }}: {{ b.total }}</title>
+        {% for p in b.parts %}<rect x="{{ b.x|stringformat:'s' }}" y="{{ p.y|stringformat:'s' }}" width="{{ b.w|stringformat:'s' }}" height="{{ p.h|stringformat:'s' }}" rx="2" class="bar-{{ p.tone }}"><title>{{ b.day|date:"j E" }} — {{ p.outcome|outcome_label }}: {{ p.n }}</title></rect>{% endfor %}
+        {% if b.label %}<text x="{{ b.x|stringformat:'s' }}" y="{{ chart.height|add:'-6' }}" class="tick">{{ b.label }}</text>{% endif %}
+      </g>
+    {% endfor %}
+    <text x="0" y="16" class="tick">{{ chart.max }}</text>
+  </svg>
+  <ul class="legend">{% for key in legend %}<li><span class="swatch bar-{{ key|outcome_tone }}"></span>{{ key|outcome_label }}</li>{% endfor %}</ul>
+  {% else %}<p class="muted">{% translate "No finished checks in this period." %}</p>{% endif %}
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <h2>{% translate "What the checker concluded" %}</h2>
+    {% for r in outcome_rows %}
+      <div class="hbar"><div class="hbar-label"><span class="badge tone-{{ r.key|outcome_tone }}">{{ r.label }}</span><span class="muted">{{ r.n }} · {{ r.pct }}%</span></div>
+      <div class="hbar-track"><div class="hbar-fill bar-{{ r.key|outcome_tone }}" data-width="{{ r.pct }}"></div></div></div>
+    {% empty %}<p class="muted">—</p>{% endfor %}
+  </section>
+  <section class="card">
+    <h2>{% translate "What the admins decided" %}</h2>
+    {% for r in decision_rows %}
+      <div class="hbar"><div class="hbar-label"><span class="d-{{ r.key }}">{{ r.label }}</span><span class="muted">{{ r.n }} · {{ r.pct }}%</span></div>
+      <div class="hbar-track"><div class="hbar-fill bar-decision-{{ r.key }}" data-width="{{ r.pct }}"></div></div></div>
+    {% empty %}<p class="muted">{% translate "No decisions in this period." %}</p>{% endfor %}
+    <p class="muted small">{% if kpi.appeals %}{% blocktranslate count n=kpi.appeals %}{{ n }} appeal{% plural %}{{ n }} appeals{% endblocktranslate %}{% if kpi.overturn_pct is not None %} · {% blocktranslate with pct=kpi.overturn_pct %}{{ pct }}% of the resolved ones overturned{% endblocktranslate %}{% endif %}{% else %}{% translate "No appeals in this period." %}{% endif %}</p>
+  </section>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h2>{% translate "Most frequent important findings" %}</h2>
+    {% if important %}
+    <ol class="rank">{% for f in important %}<li><span>{{ f.title|loc }}</span> <span class="badge tone-{{ f.kind|kind_tone }}">{{ f.kind|kind_label }}</span> <span class="muted small">{% blocktranslate count n=f.checks %}{{ n }} check{% plural %}{{ n }} checks{% endblocktranslate %}</span></li>{% endfor %}</ol>
+    {% else %}<p class="muted">—</p>{% endif %}
+  </section>
+  {% if admins %}
+  <section class="card">
+    <h2>{% translate "Checks per admin" %}</h2>
+    {% for a in admins %}
+      <div class="hbar"><div class="hbar-label"><a href="{% url 'checks:dashboard' %}?admin={{ a.admin__username }}">{{ a.admin__username }}</a><span class="muted">{{ a.created }} · {% blocktranslate with n=a.banned %}{{ n }} bans{% endblocktranslate %}</span></div>
+      <div class="hbar-track"><div class="hbar-fill bar-incomplete" data-width="{{ a.pct }}"></div></div></div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

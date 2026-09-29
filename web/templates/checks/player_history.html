@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load i18n moon %}
+{% block title %}{% firstof name pc steam %} · {% translate "History" %}{% endblock %}
+{% block content %}
+<a class="back" href="{% url 'checks:dashboard' %}">← {% translate "All checks" %}</a>
+<div class="page-head"><div>
+  <h1>{% firstof name pc steam %}</h1>
+  <p class="lead">{% translate "Every check of this player: by nickname, Steam account or PC name." %}</p>
+</div></div>
+
+{% if not checks %}
+<div class="card empty-state"><p class="muted">{% translate "No checks found for this player." %}</p></div>
+{% else %}
+<div class="kpis">
+  <div class="kpi"><div class="kpi-n">{{ summary.total }}</div><div class="kpi-l">{% translate "checks" %}</div></div>
+  <div class="kpi{% if summary.flagged %} kpi-warn{% endif %}"><div class="kpi-n">{{ summary.flagged }}</div><div class="kpi-l">{% translate "with findings" %}</div></div>
+  <div class="kpi kpi-bad"><div class="kpi-n">{{ summary.banned }}</div><div class="kpi-l">{% translate "bans" %}</div></div>
+  <div class="kpi kpi-ok"><div class="kpi-n">{{ summary.cleared }}</div><div class="kpi-l">{% translate "found clean" %}</div></div>
+</div>
+
+<div class="layout-side">
+  <section class="card">
+    <h2>{% translate "Checks, newest first" %}</h2>
+    <ol class="timeline">
+      {% for c in checks %}
+      <li>
+        <time>{{ c.created_at|date:"j E Y, H:i" }}</time>
+        <a href="{% url 'checks:detail' c.pk %}"><b>{{ c.player_name }}</b></a>
+        {% if c.verdict %}<span class="badge tone-{{ c.verdict|outcome_tone }}">{{ c.verdict|outcome_label }}</span>{% else %}<span class="badge st-{{ c.status }}">{{ c.status|status_label }}</span>{% endif %}
+        {% if c.decision %}<span class="d-{{ c.decision }}">{{ c.decision|decision_label }}</span>{% endif %}
+        {% if c.is_test %}<span class="badge test">{% translate "TEST" %}</span>{% endif %}
+        <div class="muted small">{% if c.client.hostname %}{% translate "PC" %} {{ c.client.hostname }} · {% endif %}{% translate "admin" %} {{ c.admin.username }}</div>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  <aside class="stack-lg">
+    <section class="card">
+      <h2>{% translate "Seen as" %}</h2>
+      <dl class="kv small">
+        <dt>{% translate "Nicknames" %}</dt><dd>{{ names|join:", " }}</dd>
+        {% if pcs %}<dt>{% translate "PCs" %}</dt><dd>{% for p in pcs %}<a href="?pc={{ p|urlencode }}">{{ p }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+        {% if steams %}<dt>Steam</dt><dd class="break">{% for s in steams %}<a href="?steam={{ s|urlencode }}">{{ s }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+      </dl>
+    </section>
+    {% if findings %}
+    <section class="card">
+      <h2>{% translate "Findings that keep coming back" %}</h2>
+      <ol class="rank">{% for f in findings %}<li><span>{{ f.title|loc }}</span> <span class="muted small">{% blocktranslate count n=f.checks %}{{ n }} check{% plural %}{{ n }} checks{% endblocktranslate %}</span></li>{% endfor %}</ol>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

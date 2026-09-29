@@ -26,7 +26,7 @@ import java.nio.file.Path;
  */
 public final class Main {
 
-    private static final String FALLBACK_VERSION = "1.1.0";
+    private static final String FALLBACK_VERSION = "1.2.0";
 
     private Main() {
     }

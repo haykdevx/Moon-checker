@@ -56,9 +56,22 @@ public final class FileScanCheck implements CheckModule {
         return false; // fallback walk works cross-platform (for tests / dev)
     }
 
+    /**
+     * The collector's own budget, inside the engine's 5-minute limit per collector: the
+     * essential phases run first and the whole-drive content pass gets what is left, so a
+     * PC with several large drives finishes instead of timing out (an incomplete scan).
+     */
+    static final Duration BUDGET = Duration.ofMinutes(4).plusSeconds(20);
+    /** Candidates kept for the whole-drive pass; bounds memory on a drive with millions of files. */
+    private static final int MAX_CANDIDATES = 200_000;
+
     @Override
     public void run(ScanContext ctx) {
+        Instant hardStop = Instant.now().plus(BUDGET);
         boolean indexed = false;
+        List<String> candidates = new ArrayList<>();
+        // 1. every fixed drive by name through the MFT; keep the binaries outside trusted folders
+        //    for the content pass and drop the index before the next drive (memory)
         if (Ntfs.isSupported() && ctx.isElevated()) {
             for (char drive : Volumes.fixedDrives()) {
                 if (ctx.isCancelled()) {
@@ -69,23 +82,26 @@ public final class FileScanCheck implements CheckModule {
                 if (index.size() > 0) {
                     indexed = true;
                     matchNames(ctx, index);
-                    deepScanWholeDrive(ctx, index);
+                    collectCandidates(ctx, index, candidates);
                 }
             }
         }
 
-        // deep inspection of user-writable locations (always)
+        // 2. deep inspection of user-writable locations, wherever Windows keeps them
         for (Path root : deepScanRoots()) {
             if (ctx.isCancelled()) {
                 return;
+            }
+            if (Instant.now().isAfter(hardStop)) {
+                break;
             }
             ctx.log(I18n.t("log.scanning", root.toString()));
             FileInspection.walk(root, 8000, 8,
                     f -> FileInspection.inspect(f, ctx, ID, Category.FILES), ctx);
         }
 
-        // shallow sweep of every drive root — catches cheats dropped loose in
-        // C:\, D:\ or a top-level folder that isn't a user profile
+        // 3. shallow sweep of every drive root — catches cheats dropped loose in
+        //    C:\, D:\ or a top-level folder that isn't a user profile
         if (Platform.isWindows()) {
             for (char drive : Volumes.fixedDrives()) {
                 if (ctx.isCancelled()) {
@@ -96,6 +112,11 @@ public final class FileScanCheck implements CheckModule {
                 FileInspection.walk(driveRoot, 4000, 2,
                         f -> FileInspection.inspect(f, ctx, ID, Category.FILES), ctx);
             }
+        }
+
+        // 4. content of every other binary on the drives, with the time that is left
+        if (!candidates.isEmpty()) {
+            deepScanWholeDrive(ctx, candidates, hardStop);
         }
 
         if (!indexed && Platform.isWindows() && !ctx.isElevated()) {
@@ -131,42 +152,45 @@ public final class FileScanCheck implements CheckModule {
         }
     }
 
-    /** Time and volume budget for the whole-drive content scan. */
-    private static final Duration DEEP_SCAN_BUDGET = Duration.ofMinutes(4);
     private static final int DEEP_SCAN_MAX_FILES = 20_000;
 
     /**
-     * Content-inspect every binary on the drive that does not live in a trusted
-     * location — so a cheat cannot escape inspection simply by sitting outside
-     * the user's folders. The MFT already gave us every path on the volume, so
-     * this needs no directory walking.
-     *
-     * <p>Trusted paths (Windows, Program Files, Steam, vendor installs) are
-     * skipped because they are allowlisted for heuristics anyway; that is what
-     * keeps a whole-drive scan affordable. Bounded by time and file count, and
-     * it reports when it had to stop early rather than silently truncating.
+     * Binaries outside trusted folders (Windows, Program Files, Steam, vendor installs —
+     * allowlisted for heuristics anyway), from one drive's MFT, for the content pass.
      */
-    private void deepScanWholeDrive(ScanContext ctx, Ntfs.Index index) {
-        Instant deadline = Instant.now().plus(DEEP_SCAN_BUDGET);
+    private void collectCandidates(ScanContext ctx, Ntfs.Index index, List<String> into) {
+        for (var entry : index.nodes().entrySet()) {
+            if (ctx.isCancelled() || into.size() >= MAX_CANDIDATES) {
+                return;
+            }
+            Ntfs.Node node = entry.getValue();
+            if (node.directory() || node.name() == null || !FileInspection.isBinaryName(node.name())) {
+                continue;
+            }
+            String path = index.resolvePath(entry.getKey());
+            if (!ctx.signatures().isAllowedPath(path.toLowerCase(Locale.ROOT))) {
+                into.add(path);
+            }
+        }
+    }
+
+    /**
+     * Content-inspect every binary on the drives that does not live in a trusted
+     * location — so a cheat cannot escape inspection simply by sitting outside
+     * the user's folders. Bounded by the collector's remaining time and a file
+     * count, and it reports when it had to stop early rather than silently truncating.
+     */
+    private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline) {
         int inspected = 0;
         boolean truncated = false;
 
-        for (var entry : index.nodes().entrySet()) {
+        for (String path : candidates) {
             if (ctx.isCancelled()) {
                 return;
             }
             if (inspected >= DEEP_SCAN_MAX_FILES || Instant.now().isAfter(deadline)) {
                 truncated = true;
                 break;
-            }
-            Ntfs.Node node = entry.getValue();
-            if (node.directory() || node.name() == null
-                    || !FileInspection.isBinaryName(node.name())) {
-                continue;
-            }
-            String path = index.resolvePath(entry.getKey());
-            if (ctx.signatures().isAllowedPath(path.toLowerCase(Locale.ROOT))) {
-                continue; // OS / Steam / vendor code
             }
             try {
                 Path file = Path.of(path);
@@ -213,8 +237,56 @@ public final class FileScanCheck implements CheckModule {
             if (programData != null) {
                 roots.add(Path.of(programData));
             }
+            roots.addAll(knownFolders());
         }
-        return roots;
+        return new ArrayList<>(new java.util.LinkedHashSet<>(roots));
+    }
+
+    /** Values under User Shell Folders: Desktop, Documents, Downloads, Videos, Pictures, Music. */
+    private static final String[] SHELL_FOLDERS = {"Desktop", "Personal", "{374DE290-123F-4565-9164-39C4925E467B}",
+            "My Video", "My Pictures", "My Music"};
+
+    /**
+     * Where Windows really keeps this user's folders: Desktop, Downloads and Documents
+     * are often moved to OneDrive or to another drive (D:\Downloads), out of the
+     * profile paths above.
+     */
+    static List<Path> knownFolders() {
+        List<Path> out = new ArrayList<>();
+        String key = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders";
+        for (String name : SHELL_FOLDERS) {
+            String expanded = expandEnv(ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKCU,
+                    key, name), System.getenv());
+            if (expanded != null && !expanded.isBlank() && !expanded.contains("%")) {
+                try {
+                    out.add(Path.of(expanded));
+                } catch (Exception ignored) {
+                    // not a usable path
+                }
+            }
+        }
+        return out;
+    }
+
+    /** "%USERPROFILE%\Downloads" with the given environment; unknown variables stay as they are. */
+    static String expandEnv(String raw, java.util.Map<String, String> env) {
+        if (raw == null) {
+            return null;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("%([^%]+)%").matcher(raw);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            String value = null;
+            for (var e : env.entrySet()) {  // Windows variable names are case-insensitive
+                if (e.getKey().equalsIgnoreCase(m.group(1))) {
+                    value = e.getValue();
+                    break;
+                }
+            }
+            m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(value != null ? value : m.group()));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     private static String parentOf(String winPath) {

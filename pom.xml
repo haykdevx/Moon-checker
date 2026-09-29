@@ -6,7 +6,7 @@
 
     <groupId>ru.moon</groupId>
     <artifactId>moon-checker</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
     <name>Moon Checker</name>
     <description>Automated CS2 anti-cheat inspection tool for the MOON server (cs2-moon.ru)</description>

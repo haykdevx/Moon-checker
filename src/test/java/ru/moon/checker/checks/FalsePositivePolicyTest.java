@@ -74,6 +74,28 @@ class FalsePositivePolicyTest {
     }
 
     @Test
+    void launchOptionsAreMatchedWhole() {
+        assertTrue(Cs2IntegrityCheck.hasOption("-novid -insecure +fps_max 0", "-insecure"));
+        assertFalse(Cs2IntegrityCheck.hasOption("-novid -toolsmode", "-tools"));
+        assertFalse(Cs2IntegrityCheck.hasOption("+exec c:\\configs\\-tools\\a.cfg", "-tools"));
+    }
+
+    @Test
+    void relocatedUserFoldersAreFound() {
+        assertEquals("C:\\Users\\Иван\\Downloads",
+                FileScanCheck.expandEnv("%USERPROFILE%\\Downloads", java.util.Map.of("UserProfile", "C:\\Users\\Иван")));
+        assertEquals("D:\\Загрузки", FileScanCheck.expandEnv("D:\\Загрузки", java.util.Map.of()));
+        assertEquals("%OneDrive%\\Desktop", FileScanCheck.expandEnv("%OneDrive%\\Desktop", java.util.Map.of()),
+                "an unknown variable is left alone (and the folder skipped)");
+    }
+
+    @Test
+    void theFileCollectorFinishesInsideTheEnginesLimit() {
+        assertTrue(FileScanCheck.BUDGET.compareTo(ru.moon.checker.core.ScanEngine.DEFAULT_MODULE_TIMEOUT
+                .minusSeconds(30)) <= 0, "a big multi-drive PC must not end as a timed-out (incomplete) scan");
+    }
+
+    @Test
     void aFeatureUpdateIsNotAReinstall() {
         assertTrue(AntiForensicCheck.featureUpdate(new String[]{"MoSetup", "Source OS (Updated on 9/20/2026 10:12:03)"}));
         assertFalse(AntiForensicCheck.featureUpdate(new String[]{"MoSetup", "Status", "Pid"}));

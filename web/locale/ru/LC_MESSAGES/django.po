@@ -899,6 +899,11 @@ msgstr "Поиск"
 msgid "Settings"
 msgstr "Настройки"
 
+#: core/context.py
+#: templates/checks/stats.html
+msgid "Statistics"
+msgstr "Статистика"
+
 #: core/views.py
 msgid "A finished check faster than this (by the server's clock) is flagged."
 msgstr "Проверка быстрее этого (по часам сервера) помечается как подозрительная."
@@ -1302,6 +1307,7 @@ msgstr "Проверок пока нет"
 
 #: templates/checks/_queues.html
 #: templates/checks/detail.html
+#: templates/checks/player_history.html
 msgid "PC"
 msgstr "ПК"
 
@@ -1317,6 +1323,7 @@ msgstr "Идут сейчас"
 #: templates/checks/_session_rows.html
 #: templates/checks/appeals.html
 #: templates/checks/detail.html
+#: templates/checks/player_history.html
 msgid "TEST"
 msgstr "ТЕСТ"
 
@@ -1340,6 +1347,7 @@ msgstr "Смотреть"
 #: templates/checks/_queues.html
 #: templates/checks/appeals.html
 #: templates/checks/detail.html
+#: templates/checks/player_history.html
 msgid "admin"
 msgstr "админ"
 
@@ -1570,6 +1578,7 @@ msgstr "Права администратора"
 
 #: templates/checks/detail.html
 #: templates/checks/new.html
+#: templates/checks/player_history.html
 msgid "All checks"
 msgstr "Все проверки"
 
@@ -1612,6 +1621,10 @@ msgstr "Категория"
 #: templates/checks/detail.html
 msgid "Check first"
 msgstr "Сначала проверьте"
+
+#: templates/checks/detail.html
+msgid "Checked %(done)s of %(total)s required parts"
+msgstr "Проверено %(done)s из %(total)s обязательных разделов"
 
 #: templates/checks/detail.html
 msgid "Checker"
@@ -1711,6 +1724,10 @@ msgstr "Фильтр по тексту…"
 #: templates/checks/search.html
 msgid "Finding"
 msgstr "Находка"
+
+#: templates/checks/detail.html
+msgid "Full history of this player"
+msgstr "Вся история игрока"
 
 #: templates/checks/detail.html
 msgid "Hi! Please take the MOON check:\n1) Download the checker: %(url)s\n2) Unzip it, right-click MoonCheck.exe → Run as administrator.\n3) Enter the code %(code)s — you will see my nickname “%(alias)s”.\n4) Press “Start check” and don't close the window until it says the results were delivered."
@@ -2045,6 +2062,64 @@ msgstr "Вы принимаете решение"
 msgid "You get a code and a ready message"
 msgstr "Вы получите код и готовое сообщение"
 
+#: templates/checks/player_history.html
+#: templates/checks/stats.html
+msgid "%(n)s check"
+msgid_plural "%(n)s checks"
+msgstr[0] "%(n)s проверка"
+msgstr[1] "%(n)s проверки"
+msgstr[2] "%(n)s проверок"
+
+#: templates/checks/player_history.html
+msgid "Checks, newest first"
+msgstr "Проверки, новые сверху"
+
+#: templates/checks/player_history.html
+msgid "Every check of this player: by nickname, Steam account or PC name."
+msgstr "Все проверки этого игрока — по нику, аккаунту Steam или имени ПК."
+
+#: templates/checks/player_history.html
+msgid "Findings that keep coming back"
+msgstr "Повторяющиеся находки"
+
+#: templates/checks/player_history.html
+msgid "History"
+msgstr "История"
+
+#: templates/checks/player_history.html
+msgid "Nicknames"
+msgstr "Ники"
+
+#: templates/checks/player_history.html
+msgid "No checks found for this player."
+msgstr "Проверок этого игрока не найдено."
+
+#: templates/checks/player_history.html
+msgid "PCs"
+msgstr "ПК"
+
+#: templates/checks/player_history.html
+msgid "Seen as"
+msgstr "Встречался как"
+
+#: templates/checks/player_history.html
+#: templates/checks/stats.html
+msgid "bans"
+msgstr "банов"
+
+#: templates/checks/player_history.html
+msgid "checks"
+msgstr "проверок"
+
+#: templates/checks/player_history.html
+#: templates/checks/stats.html
+msgid "found clean"
+msgstr "признаны чистыми"
+
+#: templates/checks/player_history.html
+msgid "with findings"
+msgstr "с находками"
+
 #: templates/checks/rules.html
 msgid "A file matched a known cheat byte for byte (exact SHA-256). Nothing else can produce this result."
 msgstr "Файл побайтно совпал с известным читом (точный SHA-256). Никакая другая находка не даёт этот итог."
@@ -2132,6 +2207,88 @@ msgstr "Введите хотя бы 3 символа."
 #: templates/checks/search.html
 msgid "e.g. loader.exe or a site name"
 msgstr "например, loader.exe или адрес сайта"
+
+#: templates/checks/stats.html
+msgid "%(n)s appeal"
+msgid_plural "%(n)s appeals"
+msgstr[0] "%(n)s апелляция"
+msgstr[1] "%(n)s апелляции"
+msgstr[2] "%(n)s апелляций"
+
+#: templates/checks/stats.html
+msgid "%(n)s bans"
+msgstr "банов: %(n)s"
+
+#: templates/checks/stats.html
+msgid "%(n)s day"
+msgid_plural "%(n)s days"
+msgstr[0] "%(n)s день"
+msgstr[1] "%(n)s дня"
+msgstr[2] "%(n)s дней"
+
+#: templates/checks/stats.html
+msgid "%(pct)s%% of the resolved ones overturned"
+msgstr "из рассмотренных отменено %(pct)s%%"
+
+#: templates/checks/stats.html
+msgid "Checks per admin"
+msgstr "Проверки по админам"
+
+#: templates/checks/stats.html
+msgid "Finished checks per day"
+msgstr "Завершённые проверки по дням"
+
+#: templates/checks/stats.html
+msgid "Finished checks per day, coloured by the checker result"
+msgstr "Завершённые проверки по дням, цвет — итог чекера"
+
+#: templates/checks/stats.html
+msgid "Most frequent important findings"
+msgstr "Самые частые важные находки"
+
+#: templates/checks/stats.html
+msgid "No appeals in this period."
+msgstr "За этот период апелляций нет."
+
+#: templates/checks/stats.html
+msgid "No decisions in this period."
+msgstr "За этот период решений нет."
+
+#: templates/checks/stats.html
+msgid "No finished checks in this period."
+msgstr "За этот период завершённых проверок нет."
+
+#: templates/checks/stats.html
+msgid "Period"
+msgstr "Период"
+
+#: templates/checks/stats.html
+msgid "What the admins decided"
+msgstr "Что решили админы"
+
+#: templates/checks/stats.html
+msgid "What the checker concluded"
+msgstr "Что показал чекер"
+
+#: templates/checks/stats.html
+msgid "What the checks found and what the team decided. Test checks are not counted."
+msgstr "Что нашли проверки и что решила команда. Тестовые проверки не учитываются."
+
+#: templates/checks/stats.html
+msgid "checks created"
+msgstr "проверок создано"
+
+#: templates/checks/stats.html
+msgid "finished"
+msgstr "завершено"
+
+#: templates/checks/stats.html
+msgid "minutes per check, average"
+msgstr "минут на проверку в среднем"
+
+#: templates/checks/stats.html
+msgid "without a decision"
+msgstr "без решения"
 
 #: templates/core/audit.html
 msgid "Action log"

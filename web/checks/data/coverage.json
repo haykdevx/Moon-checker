@@ -544,6 +544,27 @@
       "meaning": "Windows was upgraded in place in the last 7 days (feature update), which rewrites the install date.",
       "lookalikes": "This is the lookalike of a reinstall.",
       "limits": "Context only: history from before the update may be shorter."
+    },
+    {
+      "id": "cs2:unsafe-launch-option",
+      "kind": "CONFIGURATION",
+      "meaning": "CS2 is set to start with an option that lowers protection: -insecure (VAC off), -allow_third_party_software, -tools, -nosteam.",
+      "lookalikes": "Map makers use -tools; offline practice and demo tools use -insecure or allow third-party software.",
+      "limits": "Lowers the assurance of the scan; never a verdict."
+    },
+    {
+      "id": "cs2:unsigned-binary",
+      "kind": "INDICATOR",
+      "meaning": "A program library in CS2's bin folders carries no code signature.",
+      "lookalikes": "CS2 ships some third-party libraries; compare the name with a clean install.",
+      "limits": "LOW until measured on real installs; the check sees whether a certificate is present, not whose it is."
+    },
+    {
+      "id": "cs2:config-script",
+      "kind": "INDICATOR",
+      "meaning": "A CS2 config contains a movement or fire script pattern (bunny-hop, jumpthrow, auto-fire alias).",
+      "lookalikes": "Practice configs and scroll-jump binds are common and allowed on many servers.",
+      "limits": "LOW: shown to the reviewer; the server's own rules decide."
     }
   ]
 }

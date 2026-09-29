@@ -11,6 +11,7 @@ def panel(request):
         nav.append(("checks:appeals", _("Appeals")))
         if user.can("checks.view_all") or user.can("checks.create"):
             nav.append(("checks:search", _("Search")))
+        nav.append(("checks:stats", _("Statistics")))
         if user.can("team.view"):
             nav.append(("accounts:team", _("Team")))
         nav.append(("checks:rules", _("How it checks")))

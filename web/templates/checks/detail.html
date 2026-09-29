@@ -80,6 +80,12 @@
       <div class="verdict-label">{% translate "Checker result" %}</div>
       <div class="verdict">{{ s.verdict|outcome_label }}</div>
       <p>{{ s.verdict|outcome_help }}</p>
+      {% if parts %}
+      <div class="parts" aria-label="{% translate 'Parts of the check' %}">
+        <div class="parts-head">{% blocktranslate with done=coverage_done total=parts|length %}Checked {{ done }} of {{ total }} required parts{% endblocktranslate %}</div>
+        <ul>{% for p in parts %}<li class="part part-{% if p.ok %}ok{% else %}bad{% endif %}" title="{% if p.error %}{{ p.error }}{% else %}{{ p.status }}{% endif %}"><span aria-hidden="true">{% if p.ok %}✓{% else %}✕{% endif %}</span> {{ p.id|collector_name }}{% if not p.ok %} <span class="sr-only">— {{ p.status }}</span>{% endif %}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
     </section>
 
     <section class="card stack" aria-labelledby="first-title">
@@ -288,6 +294,7 @@
     {% if related %}
     <section class="card">
       <h2>{% translate "Other checks of this player or PC" %}</h2>
+      <p class="small"><a href="{% url 'checks:player_history' %}?name={{ s.player_name|urlencode }}{% if s.player_steam %}&amp;steam={{ s.player_steam|urlencode }}{% endif %}{% if s.client.hostname %}&amp;pc={{ s.client.hostname|urlencode }}{% endif %}">{% translate "Full history of this player" %} →</a></p>
       <ul class="flags">
         {% for r in related %}<li><span><a href="{% url 'checks:detail' r.pk %}">{{ r.created_at|date:"j E Y" }} · {{ r.player_name }}</a>
           {% if r.verdict %}<span class="badge tone-{{ r.verdict|outcome_tone }}">{{ r.verdict|outcome_label }}</span>{% else %}<span class="badge st-{{ r.status }}">{{ r.status|status_label }}</span>{% endif %}

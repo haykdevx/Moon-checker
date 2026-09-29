@@ -219,7 +219,11 @@ def detail(request, pk):
     coverage = meta.get("coverage") or {}
     coverage_done = sum(1 for m in coverage.get("required", []) if coverage.get("modules", {}).get(m) == "OK")
     important, other = split_findings(findings)
+    parts = [{"id": m, "status": coverage.get("modules", {}).get(m, "?"),
+              "ok": coverage.get("modules", {}).get(m) == "OK",
+              "error": (coverage.get("errors") or {}).get(m, "")} for m in coverage.get("required", [])]
     return render(request, "checks/detail.html", {
+        "parts": parts,
         "s": session, "findings": findings, "truncated": truncated, "modules": sorted(modules.items()),
         "important": important, "other": other,
         "warnings": [fl for fl in session.flags if fl.get("level") in ("bad", "warn")],

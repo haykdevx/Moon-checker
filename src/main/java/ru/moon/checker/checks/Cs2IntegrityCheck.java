@@ -163,10 +163,12 @@ public final class Cs2IntegrityCheck implements CheckModule {
                     byte[] head = readHead(f);
                     Pe pe = Pe.parse(head);
                     if (pe.isPe() && !pe.signed()) {
-                        ctx.emit(Finding.builder(Category.CS2, Severity.MEDIUM,
+                        // context until measured on real installs: CS2 ships third-party libraries, and
+                        // "signed" here only means a certificate is present (a self-signed cheat passes)
+                        ctx.emit(Finding.builder(Category.CS2, Severity.LOW,
                                         "Неподписанный бинарник в папке CS2 / Unsigned binary in the CS2 folder")
-                                .module(ID)
-                                .detail("Valve подписывает файлы игры; этот — нет. Требует ручной проверки.")
+                                .module(ID).rule("cs2:unsigned-binary")
+                                .detail("Valve подписывает свои файлы игры; этот не подписан. Сверьте имя с чистой установкой.")
                                 .evidence(f.toString())
                                 .openPath(dir.toString())
                                 .source("CS2 bin · signature")
@@ -199,10 +201,13 @@ public final class Cs2IntegrityCheck implements CheckModule {
         for (String opts : Cs2Locator.launchOptions(cs2.steamRoot())) {
             String lower = opts.toLowerCase(Locale.ROOT);
             for (String[] bad : BAD_LAUNCH_OPTIONS) {
-                if (lower.contains(bad[0])) {
-                    ctx.emit(Finding.builder(Category.CS2, Severity.HIGH,
+                if (hasOption(lower, bad[0])) {
+                    // a setting that lowers protection (mappers use -tools, practice uses -insecure):
+                    // it lowers trust in the report and is never a verdict on its own
+                    ctx.emit(Finding.builder(Category.CS2, Severity.MEDIUM,
                                     "Опасная опция запуска CS2 / Unsafe CS2 launch option")
-                            .module(ID)
+                            .module(ID).kind(ru.moon.checker.core.EvidenceKind.CONFIGURATION)
+                            .rule("cs2:unsafe-launch-option")
                             .detail(bad[0] + " — " + bad[1])
                             .evidence(opts)
                             .source("Steam launch options")
@@ -225,9 +230,10 @@ public final class Cs2IntegrityCheck implements CheckModule {
                 String text = Files.readString(f).toLowerCase(Locale.ROOT);
                 for (String[] pattern : CFG_PATTERNS) {
                     if (text.contains(pattern[0])) {
-                        ctx.emit(Finding.builder(Category.CS2, Severity.MEDIUM,
+                        // practice configs and jump binds are common; shown to the reviewer, not a reason on its own
+                        ctx.emit(Finding.builder(Category.CS2, Severity.LOW,
                                         "Скрипт в конфиге CS2 / Script in a CS2 config")
-                                .module(ID)
+                                .module(ID).rule("cs2:config-script")
                                 .detail(pattern[1] + "  (" + pattern[0] + ")")
                                 .evidence(f.toString())
                                 .openPath(cfg.toString())
@@ -245,6 +251,16 @@ public final class Cs2IntegrityCheck implements CheckModule {
                 // unreadable cfg
             }
         }, ctx);
+    }
+
+    /** "-tools" as a whole option, not inside "-toolsmode" or a path. */
+    static boolean hasOption(String lowerOptions, String option) {
+        for (String token : lowerOptions.split("\\s+")) {
+            if (token.equals(option)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private byte[] readHead(Path f) throws Exception {
