@@ -62,12 +62,22 @@ public final class FileScanCheck implements CheckModule {
      * PC with several large drives finishes instead of timing out (an incomplete scan).
      */
     static final Duration BUDGET = Duration.ofMinutes(4).plusSeconds(20);
+    /** Our own budget, but never past the engine's deadline minus a margin to report cleanly. */
+    static Instant stopAt(Instant now, Instant engineDeadline) {
+        Instant own = now.plus(BUDGET);
+        if (engineDeadline == null) {
+            return own;
+        }
+        Instant engine = engineDeadline.minusSeconds(20);
+        return engine.isBefore(own) ? engine : own;
+    }
+
     /** Candidates kept for the whole-drive pass; bounds memory on a drive with millions of files. */
     private static final int MAX_CANDIDATES = 200_000;
 
     @Override
     public void run(ScanContext ctx) {
-        Instant hardStop = Instant.now().plus(BUDGET);
+        Instant hardStop = stopAt(Instant.now(), ctx.deadline());
         boolean indexed = false;
         List<String> candidates = new ArrayList<>();
         // 1. every fixed drive by name through the MFT; keep the binaries outside trusted folders
@@ -106,6 +116,9 @@ public final class FileScanCheck implements CheckModule {
             for (char drive : Volumes.fixedDrives()) {
                 if (ctx.isCancelled()) {
                     return;
+                }
+                if (Instant.now().isAfter(hardStop)) {
+                    break;
                 }
                 Path driveRoot = Path.of(drive + ":\\");
                 ctx.log(I18n.t("log.scanning", driveRoot.toString()));

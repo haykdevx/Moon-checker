@@ -65,19 +65,24 @@ public final class UserHives {
         }
 
         // 1. every currently-loaded user hive under HKEY_USERS
+        java.util.Set<String> loadedSids = new java.util.HashSet<>();
         for (String sid : Registry.subKeys(Registry.HKU, "")) {
             if (sid.startsWith("S-1-5-21") && !sid.endsWith("_Classes")) {
                 users.add(new User(Registry.HKU, sid + "\\", sid));
+                loadedSids.add(sid.toUpperCase(java.util.Locale.ROOT));
             }
         }
         if (users.isEmpty()) {
             users.add(new User(Registry.HKCU, "", "current"));
         }
+        java.util.Set<String> loadedProfiles = loadedProfilePaths(loadedSids);
 
-        // 2. logged-off profiles: mount NTUSER.DAT (fails for locked/loaded ones)
+        // 2. logged-off profiles: mount NTUSER.DAT. A signed-in user's hive is already under
+        //    HKEY_USERS (read above) and its file is locked, so it is skipped, not re-mounted.
         for (Path profile : Platform.userProfiles()) {
             Path ntuser = profile.resolve("NTUSER.DAT");
-            if (!Files.isRegularFile(ntuser)) {
+            if (!Files.isRegularFile(ntuser)
+                    || loadedProfiles.contains(profile.toString().toLowerCase(java.util.Locale.ROOT))) {
                 continue;
             }
             String tempKey = "MoonChk_" + COUNTER.incrementAndGet();
@@ -89,5 +94,26 @@ public final class UserHives {
             }
         }
         return new Scope(users, mounted);
+    }
+
+    /** Profile folders (lower case) of the users whose hives are loaded, from ProfileList. */
+    private static java.util.Set<String> loadedProfilePaths(java.util.Set<String> loadedSids) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        String base = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList";
+        for (String sid : Registry.subKeys(Registry.HKLM, base)) {
+            if (loadedSids.contains(sid.toUpperCase(java.util.Locale.ROOT))) {
+                String path = Registry.getString(Registry.HKLM, base + "\\" + sid, "ProfileImagePath");
+                if (path != null) {
+                    out.add(expand(path).toLowerCase(java.util.Locale.ROOT));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** ProfileImagePath is REG_EXPAND_SZ ("%SystemDrive%\\Users\\x"). */
+    static String expand(String path) {
+        String drive = System.getenv("SystemDrive");
+        return path.replaceAll("(?i)%SystemDrive%", java.util.regex.Matcher.quoteReplacement(drive != null ? drive : "C:"));
     }
 }

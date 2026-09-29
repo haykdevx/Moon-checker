@@ -16,6 +16,7 @@ public final class ScanContext {
     private final ScanListener listener;
     private final FindingSink sink;
     private final AtomicBoolean cancelled;
+    private final java.time.Instant deadline;
 
     public ScanContext(SignatureDb signatures, CheckId checkId, EnvironmentInfo env,
                        ScanListener listener, FindingSink sink) {
@@ -25,6 +26,13 @@ public final class ScanContext {
     /** Variant that shares a cancellation flag across per-module contexts. */
     public ScanContext(SignatureDb signatures, CheckId checkId, EnvironmentInfo env,
                        ScanListener listener, FindingSink sink, AtomicBoolean cancelled) {
+        this(signatures, checkId, env, listener, sink, cancelled, null);
+    }
+
+    /** With the moment the engine will stop this collector, so long collectors can pace themselves. */
+    public ScanContext(SignatureDb signatures, CheckId checkId, EnvironmentInfo env,
+                       ScanListener listener, FindingSink sink, AtomicBoolean cancelled, java.time.Instant deadline) {
+        this.deadline = deadline;
         this.signatures = signatures;
         this.checkId = checkId;
         this.env = env;
@@ -47,6 +55,11 @@ public final class ScanContext {
 
     public boolean isElevated() {
         return env.elevated();
+    }
+
+    /** When the engine stops this collector (null: no limit, e.g. in tests). */
+    public java.time.Instant deadline() {
+        return deadline;
     }
 
     public boolean isCancelled() {

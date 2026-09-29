@@ -85,6 +85,36 @@ class ScanEngineTest {
         assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict(), "a timed-out collector must not read as clean");
     }
 
+    @Test
+    void aQueuedCollectorGetsItsFullBudget() {
+        // one thread, three 250 ms collectors, 400 ms each: the old engine started every clock at
+        // queue time, so the second and third timed out on a PC with fewer threads than collectors
+        java.util.List<CheckModule> slow = new java.util.ArrayList<>();
+        java.util.List<java.time.Instant> deadlines = new java.util.concurrent.CopyOnWriteArrayList<>();
+        for (String id : new String[]{"a", "b", "c"}) {
+            slow.add(new CheckModule() {
+                public String id() { return id; }
+                public String displayName() { return id; }
+                public Category category() { return Category.FILES; }
+                public boolean windowsOnly() { return false; }
+                public void run(ScanContext ctx) throws Exception {
+                    deadlines.add(ctx.deadline());
+                    Thread.sleep(250);
+                }
+            });
+        }
+        ScanEngine engine = new ScanEngine(slow, ScanListener.NOOP, java.time.Duration.ofMillis(400),
+                java.time.Duration.ofSeconds(10)).concurrency(1);
+        EnvironmentInfo env = new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm");
+        ScanResult r = engine.run(SignatureDb.empty(), CheckId.generate(), env);
+        for (String id : new String[]{"a", "b", "c"}) {
+            assertEquals(ModuleStatus.OK, r.moduleStatus().get(id), id + ": " + r.coverage().errors());
+        }
+        assertEquals(3, deadlines.size());
+        assertTrue(deadlines.get(2).isAfter(deadlines.get(0).plusMillis(400)),
+                "each collector's deadline counts from its own start");
+    }
+
     private static final RulesProvenance RULES = new RulesProvenance("bundled", "test", 1, null);
 
     @Test

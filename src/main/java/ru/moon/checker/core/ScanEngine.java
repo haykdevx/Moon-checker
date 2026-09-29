@@ -45,6 +45,7 @@ public final class ScanEngine {
     private Platform.Support platformSupport = Platform.support();
     private RulesProvenance rules;
     private List<CheckModule> fullSuite = List.of();
+    private int concurrency = 0;
 
     public ScanEngine(List<CheckModule> modules, ScanListener listener) {
         this(modules, listener, DEFAULT_MODULE_TIMEOUT, DEFAULT_OVERALL_TIMEOUT);
@@ -79,6 +80,12 @@ public final class ScanEngine {
         return this;
     }
 
+    /** How many collectors run at once (0 = twice the CPU cores); tests use it to force queueing. */
+    public ScanEngine concurrency(int threads) {
+        this.concurrency = threads;
+        return this;
+    }
+
     /** Where the rules passed to {@link #run} came from (see SignatureLoader). */
     public ScanEngine rules(RulesProvenance provenance) {
         this.rules = provenance;
@@ -97,7 +104,8 @@ public final class ScanEngine {
         CountDownLatch latch = new CountDownLatch(modules.size());
         listener.onScanStart(modules.size());
 
-        int threads = Math.max(2, Math.min(modules.size(), Runtime.getRuntime().availableProcessors() * 2));
+        int threads = concurrency > 0 ? concurrency
+                : Math.max(2, Math.min(modules.size(), Runtime.getRuntime().availableProcessors() * 2));
         ExecutorService pool = Executors.newFixedThreadPool(threads, daemon("moon-check"));
         ScheduledExecutorService watchdog = Executors.newSingleThreadScheduledExecutor(daemon("moon-watchdog"));
         Map<String, Future<?>> futures = new ConcurrentHashMap<>();
@@ -106,10 +114,9 @@ public final class ScanEngine {
             status.put(module.id(), ModuleStatus.PENDING);
         }
         for (CheckModule module : modules) {
-            Future<?> f = pool.submit(() ->
-                    runOne(module, signatures, checkId, env, findings, status, reported, latch));
-            futures.put(module.id(), f);
-            watchdog.schedule(() -> {
+            // the collector's clock starts when it starts running, not when it is queued: with fewer
+            // threads than collectors (2-4 cores) the last ones used to lose minutes waiting and time out
+            Runnable armWatchdog = () -> watchdog.schedule(() -> {
                 Future<?> fut = futures.get(module.id());
                 if (fut != null && !fut.isDone()) {
                     // reason first: the interrupted module can settle and release the latch
@@ -119,6 +126,9 @@ public final class ScanEngine {
                     settle(module, ModuleStatus.TIMEOUT, status, reported, latch, 0);
                 }
             }, moduleTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            Future<?> f = pool.submit(() ->
+                    runOne(module, signatures, checkId, env, findings, status, reported, latch, armWatchdog));
+            futures.put(module.id(), f);
         }
 
         boolean completed;
@@ -182,7 +192,7 @@ public final class ScanEngine {
 
     private void runOne(CheckModule module, SignatureDb signatures, CheckId checkId,
                         EnvironmentInfo env, List<Finding> findings, Map<String, ModuleStatus> status,
-                        java.util.Set<String> reported, CountDownLatch latch) {
+                        java.util.Set<String> reported, CountDownLatch latch, Runnable armWatchdog) {
         if (cancelled.get()) {
             errors.putIfAbsent(module.id(), "scan was cancelled before this collector ran");
             settle(module, ModuleStatus.SKIPPED, status, reported, latch, 0);
@@ -196,12 +206,14 @@ public final class ScanEngine {
 
         status.put(module.id(), ModuleStatus.RUNNING);
         listener.onModuleStart(module);
+        Instant deadline = Instant.now().plus(moduleTimeout);
+        armWatchdog.run();
 
         AtomicInteger count = new AtomicInteger();
         ScanContext ctx = new ScanContext(signatures, checkId, env, listener, f -> {
             findings.add(f);
             count.incrementAndGet();
-        }, cancelled);
+        }, cancelled, deadline);
 
         ModuleStatus outcome;
         try {

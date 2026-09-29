@@ -90,6 +90,14 @@ class FalsePositivePolicyTest {
     }
 
     @Test
+    void theFileCollectorStopsBeforeTheEnginesDeadline() {
+        java.time.Instant now = java.time.Instant.parse("2026-09-29T10:00:00Z");
+        assertEquals(now.plus(FileScanCheck.BUDGET), FileScanCheck.stopAt(now, null));
+        assertEquals(now.plusSeconds(70), FileScanCheck.stopAt(now, now.plusSeconds(90)),
+                "a 90 s self-test budget: stop 20 s early to report instead of being killed");
+    }
+
+    @Test
     void theFileCollectorFinishesInsideTheEnginesLimit() {
         assertTrue(FileScanCheck.BUDGET.compareTo(ru.moon.checker.core.ScanEngine.DEFAULT_MODULE_TIMEOUT
                 .minusSeconds(30)) <= 0, "a big multi-drive PC must not end as a timed-out (incomplete) scan");
