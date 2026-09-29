@@ -308,6 +308,8 @@ public final class ScanPanel extends JPanel implements ScanListener {
             ModuleRow row = rows.get(module.id());
             if (row != null) {
                 row.set(ModuleStatus.RUNNING, "", false);
+                // at 150 % the list is taller than its pane: keep the running part in view
+                row.scrollRectToVisible(new java.awt.Rectangle(0, 0, row.getWidth(), row.getHeight()));
             }
             current.setText(module.displayName());
         });
