@@ -30,12 +30,31 @@ change is tested, and what still needs a real Windows PC.
 | Start-up | An exception while opening the window left an invisible process | A Russian error message with the log file path | review |
 | Messages | `MessageFormat` swallowed text after an apostrophe | Apostrophes escaped; ru/en keys checked equal | `MessagesTest` |
 
+## Results on a Windows 11 test machine (2026-09-29)
+
+A local virtual machine: Windows 11 25H2 Enterprise evaluation, Russian system locale (console
+code page 866), Secure Boot on, no TPM, 4 cores, 8 GB, one 64 GB drive. Two accounts: `igrok`
+(the desktop) and `Игорь` (Cyrillic, administrator). Every problem below was found there
+and fixed in the build that then passed.
+
+| Test | Result | What it found and what was fixed |
+|---|---|---|
+| Self-test (`--selftest`) | pass | — |
+| Full scan as administrator, nothing planted | 9 of 9 required parts, about 20 s | First runs: `files` and `amcache` **timed out** (incomplete scan). Causes: every collector's clock started when the scan was queued, not when it ran; the file walk looped through `C:\ProgramData\Application Data` (a junction back to itself); a PowerShell signature check per program file; hashing without hash rules. Fixed: clocks start per collector, junctions and OneDrive online-only files are not followed or read, signatures checked only for files that already look suspicious. 208 s → 20 s. |
+| Clean-PC findings | only two, both correct | "Recent Windows reinstall" (true for a new VM) and "virtual machine" (lowers assurance, does not ask for review). No false driver, Defender, test-signing or stream findings. |
+| `scripts/windows-smoke.ps1` | 8 of 8 pass | Program disguised as `скриншот.png` in `Проверка Игрока\` reported with a readable path; a program hidden in a stream reported HIGH; a cheat-named file reported; `Zone.Identifier` and `SmartScreen` streams not reported; platform security line present; no test-signing finding. (The script needed a UTF-8 BOM for Windows PowerShell 5.1.) |
+| Running game (`cs2live`) | pass | A stand-in `cs2.exe` loaded a library from `C:\Users\Public\Downloads` → HIGH "DLL from a user folder loaded into CS2"; a transparent always-on-top window over it → MEDIUM overlay finding. |
+| Code → checker → panel | pass | Code entered in the window, the panel showed the admin and player, the scan uploaded; the panel page shows the Cyrillic paths, verdict and parts. |
+| Window at 100 % (1280×800) | pass after fixes | Start-screen text was cut off on the right (Swing counts a CSS pixel as 1.3 screen pixels); the report signature was painted over by the buttons; ✓ showed as an empty box (Segoe UI has no such glyph); grey context notes were counted as red "улик" with a wrong plural; verdict reasons were English. All fixed. |
+| Window at 150 % (1920×1080, a gaming laptop) | pass after a fix | Opens maximized and sharp; the results screen showed only two findings under a fixed-height explanation — now a divider the admin can drag, with more rows by default. |
+| Same file found twice | fixed | The user-folder walk and the whole-drive pass both read `Downloads`; each file is now inspected and reported once. |
+
 ## Still needs a real Windows PC
 
-The test VM (Windows 11 25H2 Enterprise evaluation, ru-RU locale, Cyrillic user, Secure
-Boot on, no TPM) covers what a VM can; results are added below when the run finishes.
 A VM cannot tell us about: real gaming hardware and drivers, a PC with Steam and CS2
-installed and played, OneDrive-redirected folders, third-party antivirus, and HiDPI laptops.
+installed and played (the CS2 and Steam parts only saw "not installed" here), OneDrive-
+redirected folders, third-party antivirus with HTTPS scanning, several physical drives, and a
+1366×768 laptop screen.
 
 ## First test on a real PC — step by step
 
