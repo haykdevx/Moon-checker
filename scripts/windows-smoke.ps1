@@ -1,4 +1,6 @@
-# Moon Checker — Windows smoke test (checker 1.2.0).
+﻿# Moon Checker — Windows smoke test (checker 1.2.0).
+# Saved as UTF-8 WITH a BOM: Windows PowerShell 5.1 reads a script without one in the ANSI code page,
+# and the Cyrillic test names and dashes below would break the parser.
 #
 # Run on a real Windows PC (ideally one with Steam + CS2) before trusting a build on
 # players. From an elevated PowerShell in the unpacked MoonCheck folder (or the repo):
@@ -61,21 +63,22 @@ Write-Host "created: $lab"
 
 Section "3. Headless scan"
 $out = Join-Path $lab "reports"
-& $Java -jar $Checker --cli --out $out
+& $Java '-Dstdout.encoding=UTF-8' -jar $Checker --cli --out $out
 $json = Get-ChildItem $out -Filter *.json -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $json) { Write-Error "no evidence bundle produced"; exit 1 }
 $report = Get-Content $json.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
 $evidence = @($report.evidence)
+# @(...) around every use: Windows PowerShell 5.1 gives a single object from ConvertFrom-Json no .Count
 function Found($needle) { @($evidence | Where-Object { "$($_.evidence) $($_.detail)" -like "*$needle*" }) }
 
 Section "4. Results"
 $rows = @()
 function Row($what, $ok, $note) { $script:rows += [pscustomobject]@{ Check = $what; Result = $(if ($ok) { "PASS" } else { "FAIL" }); Note = $note } }
-Row "disguised program in a Cyrillic folder is reported" ((Found "скриншот.png").Count -gt 0) "path must be readable, not ????"
-Row "program hidden in a stream is reported HIGH" ((Found "payload" | Where-Object severity -in "HIGH","CRITICAL").Count -gt 0) ""
-Row "cheat-name match is reported" ((Found "nixware_loader").Count -gt 0) ""
-Row "Zone.Identifier stream is NOT reported" ((Found "Zone.Identifier").Count -eq 0) "every download has one"
-Row "SmartScreen stream is NOT reported" ((Found "SmartScreen").Count -eq 0) "Edge writes one"
+Row "disguised program in a Cyrillic folder is reported" (@(Found "скриншот.png").Count -gt 0) "path must be readable, not ????"
+Row "program hidden in a stream is reported HIGH" (@(Found "payload" | Where-Object { $_.severity -in "HIGH","CRITICAL" }).Count -gt 0) ""
+Row "cheat-name match is reported" (@(Found "nixware_loader").Count -gt 0) ""
+Row "Zone.Identifier stream is NOT reported" (@(Found "Zone.Identifier").Count -eq 0) "every download has one"
+Row "SmartScreen stream is NOT reported" (@(Found "SmartScreen").Count -eq 0) "Edge writes one"
 Row "platform security line present" (@($evidence | Where-Object rule -eq "kernel:platform-posture").Count -eq 1) ""
 Row "no test-signing finding on a normal PC" (@($evidence | Where-Object { $_.rule -in "kernel:dse-off","kernel:boot-integrity-weakened" }).Count -eq 0) "unless you enabled it"
 $cov = $report.coverage
