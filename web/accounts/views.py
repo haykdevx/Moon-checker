@@ -24,6 +24,7 @@ from . import policy, totp
 from .forms import (ChangePasswordForm, ConfirmTotpForm, DisableTotpForm, InviteAcceptForm, InviteForm,
                     LoginForm, MemberForm, ProfileForm, RoleForm, SetPasswordForm, TwoFactorForm)
 from .models import Invite, Role, User
+from .permissions import OWNER_SLUG
 
 PENDING_2FA_SECONDS = 300
 LOCK_WINDOW = 15 * 60
@@ -368,23 +369,20 @@ def member_detail(request, alias):
             "display_name": member.display_name, "is_active": member.is_active})
         if request.method == "POST" and form.is_valid():
             new_role, active = form.cleaned_data["role"], form.cleaned_data["is_active"]
-            if policy.would_orphan_owners(member, new_role=new_role, deactivate=not active):
-                messages.error(request, _t("That would leave the panel without an active owner."))
-                return redirect("accounts:member", alias=member.username)
-            changes = {}
-            if new_role != member.role:
-                changes["role"] = [member.role.slug, new_role.slug]
-            if active != member.is_active:
-                changes["active"] = [member.is_active, active]
-            if form.cleaned_data["display_name"] != member.display_name:
-                changes["display_name"] = [member.display_name, form.cleaned_data["display_name"]]
-            member.role, member.is_active = new_role, active
-            member.display_name = form.cleaned_data["display_name"]
-            if "role" in changes or "active" in changes:
-                member.session_epoch += 1  # force re-login with the new rights
-            member.save()
-            if changes:
-                record(request, "member.updated", member.username, **changes)
+            with transaction.atomic():
+                # every active owner row and the member are locked in a fixed order, so two owners
+                # demoting each other at the same moment are serialised and the second one sees the
+                # first change (PostgreSQL row locks; on SQLite the transaction itself is exclusive)
+                list(User.objects.select_for_update().filter(role__slug=OWNER_SLUG, is_active=True)
+                     .order_by("pk").values_list("pk", flat=True))
+                member = User.objects.select_for_update().get(pk=member.pk)
+                if not policy.can_manage_member(actor, member) or \
+                        not policy.assignable_roles(actor).filter(pk=new_role.pk).exists():
+                    raise PermissionDenied
+                if policy.would_orphan_owners(member, new_role=new_role, deactivate=not active):
+                    messages.error(request, _t("That would leave the panel without an active owner."))
+                    return redirect("accounts:member", alias=member.username)
+                _apply_member_change(request, member, new_role, active, form.cleaned_data["display_name"])
             messages.success(request, _t("Member updated."))
             return redirect("accounts:member", alias=member.username)
     events = AuditEvent.objects.filter(target=member.username)[:25] if actor.can("audit.view") else []
@@ -393,6 +391,23 @@ def member_detail(request, alias):
         "check_count": member.check_sessions.count(),
         "flash_link": request.session.pop("flash_link", None),
     })
+
+
+def _apply_member_change(request, member, new_role, active, display_name):
+    changes = {}
+    if new_role != member.role:
+        changes["role"] = [member.role.slug, new_role.slug]
+    if active != member.is_active:
+        changes["active"] = [member.is_active, active]
+    if display_name != member.display_name:
+        changes["display_name"] = [member.display_name, display_name]
+    member.role, member.is_active = new_role, active
+    member.display_name = display_name
+    if "role" in changes or "active" in changes:
+        member.session_epoch += 1  # force re-login with the new rights
+    member.save()
+    if changes:
+        record(request, "member.updated", member.username, **changes)
 
 
 @perm_required("team.manage")

@@ -101,6 +101,9 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": env("SQLITE_PATH", str(BASE_DIR / "dev.sqlite3")),
+            # SQLite has no row locks: take the write lock when a transaction starts, so a
+            # check-then-write block (last-owner protection) cannot interleave with another
+            "OPTIONS": {"transaction_mode": "IMMEDIATE"},
         }
     }
 

@@ -10,7 +10,7 @@ from urllib.parse import quote
 import segno
 from django.utils import timezone
 
-from .models import RecoveryCode, hash_token
+from .models import RecoveryCode, User, hash_token
 
 ISSUER = "Moon Panel"
 STEP = 30
@@ -41,14 +41,26 @@ def match_step(secret, code, last_step=0, now=None, window=1):
     return None
 
 
-def verify_user(user, code):
-    """Checks a TOTP code for an enrolled user and consumes its time step."""
-    step = match_step(user.totp_secret, code, user.totp_last_step)
+def verify_user(user, code, now=None):
+    """Checks a TOTP code for an enrolled user and consumes its time step.
+
+    The step is consumed by one conditional UPDATE against the stored row, not the in-memory
+    user: of two requests with the same code (or two stale copies of the user) exactly one
+    wins, on SQLite and PostgreSQL alike. The UPDATE also requires the same secret and 2FA
+    still enabled, so a code checked against an enrolment that was reset or replaced in the
+    meantime does not sign anyone in.
+    """
+    secret = user.totp_secret
+    if not user.totp_enabled or not secret:
+        return False
+    step = match_step(secret, code, 0, now)  # the stored last step decides below
     if step is None:
         return False
-    user.totp_last_step = step
-    user.save(update_fields=["totp_last_step"])
-    return True
+    won = User.objects.filter(pk=user.pk, totp_enabled=True, totp_secret=secret,
+                              totp_last_step__lt=step).update(totp_last_step=step)
+    if won:
+        user.totp_last_step = step
+    return won == 1
 
 
 def provisioning_uri(user, secret):
@@ -72,12 +84,13 @@ def issue_recovery_codes(user, count=10):
 
 
 def use_recovery_code(user, code):
+    """Consumes a recovery code once (conditional UPDATE on the code's own row: exactly one of
+    two concurrent uses succeeds). Codes belong to the current enrolment: disabling or resetting
+    2FA deletes them, and a user whose stored 2FA is off cannot use one."""
     code = (code or "").strip().upper()
     if len(code) == 10 and "-" not in code:
         code = f"{code[:5]}-{code[5:]}"
-    rc = user.recovery_codes.filter(code_hash=hash_token(code), used_at__isnull=True).first()
-    if rc is None:
+    if not User.objects.filter(pk=user.pk, totp_enabled=True).exists():
         return False
-    rc.used_at = timezone.now()
-    rc.save(update_fields=["used_at"])
-    return True
+    return RecoveryCode.objects.filter(user_id=user.pk, code_hash=hash_token(code), used_at__isnull=True) \
+        .update(used_at=timezone.now()) == 1
