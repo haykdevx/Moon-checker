@@ -68,6 +68,14 @@ marked closed without a regression test or a recorded platform run.
 | K2 | Kernel | Component states conflated ("absent" for access denied, I/O errors, exceptions); incomplete report threw a generic error | Closed | `ABSENT`, `INACCESSIBLE`, `FAILED`, incompatible, partial, `COLLECTED`; failures → `PARTIAL`; every collected comparison states that an empty diff is not proof | `KernelComponentTest.otherProtocolsAndTruncationAreNamed`, catalogue `kernel:cross-view`, `kernel:component-inaccessible` |
 | K3 | Kernel | Parser not fuzzed; module not statically checked | Done | 20,000-case seeded fuzz of `KernelReport.parse`; `make W=1` and GCC `-fanalyzer` on `moonmon.c` clean (compile only, never loaded) | `KernelComponentTest.theParserSurvives…`; `docs/kernel.md` |
 | K4 | Kernel | Production signing and runtime validation not established | Open — release blockers | Microsoft docs (2026-03-23): attestation signing is for testing only, needs EV cert + Partner Center; retail → WHCP/HLK. No isolated load/stress run yet; no Windows build/SDV/Driver Verifier here; Windows cross-view diff not implemented | `docs/kernel.md` "Release blockers" |
+| H1 | Panel: object access | Swept every session-scoped endpoint over direct HTTP; found one gap: a deletion request whose check was already gone could be handled by any member with delete rights | Closed | Orphan requests need `checks.view_all`; all other endpoints already 404 for invisible checks | `tests/test_object_access.py` (9 endpoints GET/POST, lists/search/stats/player history, audit/settings, player tokens) |
+| H2 | Panel: retention | The audit log kept player names, PC names, codes and the player's IP / browser string forever — after a deletion request and after retention purges | Closed | `scrub_player_data` on player deletion and retention purge (actions, times and admin identities stay); audit events expire after `MOON_AUDIT_RETENTION_DAYS` (730) | `PlayerDataRetentionTests` |
+| H3 | Panel: abuse | Progress endpoint had no per-check write limit | Closed | 120 updates per minute per check (heartbeat is one per 5 s), then 429 | `test_a_flood_of_progress_updates_is_limited` |
+| S1 | Supply chain (panel) | Dependencies as version ranges; base image by tag | Closed | `requirements.lock` with SHA-256 hashes (`pip install --require-hashes`), base image pinned by digest; image build verified; `pip-audit`: no known vulnerabilities (2026-09-29) | docker build + import smoke; pip-audit output |
+| S2 | Supply chain (checker) | `jackson-databind` 2.17.2 had 9 OSV advisories (GHSA-3pjw…, -5jmj…, -gx83…, -hgj6…, -j3rv…, -q4xh…, -rmj7…, -vvgp…, -wjgm…) | Closed | 2.18.10 (fixes all nine); OSV query over every runtime dependency: none known | 244 Java tests; OSV batch query |
+| S3 | Supply chain (build) | Bundled JRE downloaded as "latest" and launch4j downloaded without any checksum | Closed | JRE pinned to Temurin 21.0.12.1+1 with Adoptium's published SHA-256; launch4j pinned to the hash of the copy used since 2026-09-14 (trust on first use, stated); mismatches stop the build | `scripts/build-exe.sh` |
+| S4 | Reproducibility | Jar, exe and zip differed between builds of the same source | Closed | Fixed `outputTimestamp`, clean builds, PE TimeDateStamp + checksum normalised (`scripts/pe-normalize.py`, checksum verified against Windows' own notepad.exe and kernel32.dll), deterministic zip | Two consecutive builds: identical jar, exe and zip SHA-256; normalised exe runs on Windows (exit 0) |
+| S5 | Delivery | `MoonCheck.exe` is not Authenticode-signed | Open — blocker | Needs a code-signing certificate (EV recommended); until then Windows shows an unknown-publisher warning and the claimed-build check stays a claim | `Get-AuthenticodeSignature` = NotSigned |
 
 ## Verification log
 
@@ -89,6 +97,8 @@ marked closed without a regression test or a recorded platform run.
 | 2026-09-29 | Benign corpus, Linux host + Windows VM | 61,423 files, 0 outcome-moving (Wilson 95 % upper 0.0063 %) |
 | 2026-09-29 | `moonmon.c` `make W=1`, `-fanalyzer` (Linux 7.0 headers) | clean; not loaded |
 | 2026-09-29 | Java suite after D1–D3, K1–K3 | 244 pass, 1 skipped |
+| 2026-09-29 | Panel suite after H1–H3 | SQLite 141 OK (4 PostgreSQL-only skipped); PostgreSQL 17: 141 OK; no missing migrations |
+| 2026-09-29 | Reproducible build, twice | jar `000de50e…`, exe `70a294e8…`, zip `19f78c26…` identical both times |
 
 PostgreSQL run: `docker run -d --rm --name moon-test-pg -e POSTGRES_DB=moon -e POSTGRES_USER=moon
 -e POSTGRES_PASSWORD=moontest -p 127.0.0.1:55432:5432 postgres:17-alpine`, then in `web/`:

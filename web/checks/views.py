@@ -413,7 +413,11 @@ def resolve_appeal(request, pk):
 @require_POST
 def handle_request(request, pk):
     req = get_object_or_404(DataRequest, pk=pk, status=DataRequest.OPEN)
-    if req.session is not None and not visible_sessions(request.user).filter(pk=req.session_id).exists():
+    if req.session is None:
+        # the check is already gone: only someone who may see every check handles what is left of it
+        if not request.user.can("checks.view_all"):
+            raise Http404
+    elif not visible_sessions(request.user).filter(pk=req.session_id).exists():
         raise Http404
     form = HandleRequestForm(request.POST)
     if not form.is_valid() or (form.cleaned_data["status"] == DataRequest.REFUSED and not form.cleaned_data["note"]):
@@ -425,6 +429,8 @@ def handle_request(request, pk):
     req.save()
     if req.status == DataRequest.DONE and req.session is not None:
         req.session.delete()  # report, findings and appeals go with it; the request row stays as the record
+        from core.audit import scrub_player_data
+        scrub_player_data([target])  # and the audit trail keeps what happened, not who the player was
     record(request, "data.deletion_" + ("done" if req.status == DataRequest.DONE else "refused"), target,
            note=req.note)
     messages.success(request, _t("Request handled."))

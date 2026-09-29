@@ -2,11 +2,13 @@
 import logging
 from datetime import timedelta
 
+from django.conf import settings
+
 from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import Invite
-from core.audit import record
+from core.audit import record, scrub_player_data
 from core.models import SiteSettings
 
 from . import notify
@@ -54,7 +56,12 @@ def purge_old(now=None):
         old = CheckSession.objects.filter(created_at__lt=cutoff).exclude(status__in=CheckSession.OPEN_STATUSES)
         deleted = old.count()
         if deleted:
+            gone = [str(pk) for pk in old.values_list("pk", flat=True)]
             old.delete()
+            scrub_player_data(gone)
             record(None, "retention.purged", f"{deleted} checks", days=days)
+    # the audit log itself is kept for a limited time (accountability, not an archive)
+    from core.models import AuditEvent
+    AuditEvent.objects.filter(at__lt=now - timedelta(days=settings.MOON_AUDIT_RETENTION_DAYS)).delete()
     Invite.objects.filter(expires_at__lt=now - timedelta(days=30)).delete()
     return deleted

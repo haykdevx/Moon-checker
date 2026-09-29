@@ -31,21 +31,42 @@ mvn_run() {
 }
 
 L4J_URL="https://downloads.sourceforge.net/project/launch4j/launch4j-3/3.50/launch4j-3.50-linux-x64.tgz"
-JRE_URL="https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse"
+# the bundled runtime is a fixed release, checked against the SHA-256 Adoptium publishes for it
+# (api.adoptium.net/v3/assets/release_name/...). To update: change both lines together.
+JRE_URL="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip"
+JRE_SHA256="d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636"
+# launch4j publishes no checksum we could verify against: this is the hash of the copy every build has used
+# since 2026-09-14 (trust on first use) — a different download is refused rather than silently used
+L4J_SHA256="a6ad95c2fb6300410543288308b4eeae72ecd1df033928dfc524ba539bbc4d36"
+
+verify_sha256() {  # file expected
+  local got
+  got=$(sha256sum "$1" | cut -d' ' -f1)
+  if [ "$got" != "$2" ]; then
+    echo "!! $1: SHA-256 $got, expected $2 — refusing to build with it" >&2
+    exit 1
+  fi
+}
 
 echo ">> Building shaded jar ($VERSION)"
-mvn_run -q -B -ntp -DskipTests package
+mvn_run -q -B -ntp -DskipTests clean package   # clean: re-shading a stale jar reorders its entries
+# the release's fixed build time (pom: project.build.outputTimestamp) for the exe header and zip entries
+EPOCH=$(date -u -d "$(grep -o '<project.build.outputTimestamp>[^<]*' "$ROOT/pom.xml" | cut -d'>' -f2)" +%s)
 cp "$ROOT/target/moon-checker.jar" "$BUILD/moon-checker.jar"
 
 if [ ! -d "$BUILD/launch4j" ]; then
   echo ">> Downloading launch4j"
-  curl -sL -o "$BUILD/l4j.tgz" "$L4J_URL"
+  [ -f "$BUILD/l4j.tgz" ] || curl -sfL -o "$BUILD/l4j.tgz" "$L4J_URL"
+  verify_sha256 "$BUILD/l4j.tgz" "$L4J_SHA256"
   tar xzf "$BUILD/l4j.tgz" -C "$BUILD"
 fi
 
-if [ ! -d "$BUILD/runtime-src" ]; then
+if [ ! -f "$BUILD/jre.zip" ]; then
   echo ">> Downloading Temurin 21 Windows JRE"
-  curl -sL -o "$BUILD/jre.zip" "$JRE_URL"
+  curl -sfL -o "$BUILD/jre.zip" "$JRE_URL"
+fi
+verify_sha256 "$BUILD/jre.zip" "$JRE_SHA256"
+if [ ! -d "$BUILD/runtime-src" ]; then
   mkdir -p "$BUILD/jre-tmp" && (cd "$BUILD/jre-tmp" && unzip -q ../jre.zip)
   mv "$BUILD/jre-tmp/"jdk-* "$BUILD/runtime-src"
   rm -rf "$BUILD/jre-tmp"
@@ -114,13 +135,18 @@ mkdir -p "$DIST"
 rm -f "$DIST/MoonCheck.exe" # launch4j can exit 0 on a config error: never ship a stale exe
 java -jar "$BUILD/launch4j/launch4j.jar" "$BUILD/l4j-config.xml"
 [ -s "$DIST/MoonCheck.exe" ] || { echo "launch4j did not produce MoonCheck.exe" >&2; exit 1; }
+# launch4j writes the current time into the PE header: fix it and recompute the checksum (reproducible exe)
+python3 "$ROOT/scripts/pe-normalize.py" "$DIST/MoonCheck.exe" "$EPOCH"
 
 echo ">> Staging bundled runtime"
 rm -rf "$DIST/runtime"
 cp -r "$BUILD/runtime-src" "$DIST/runtime"
 
 echo ">> Packaging zip"
-(cd "$DIST" && zip -qr -9 "$BUILD/MoonCheck-$VERSION-win64.zip" MoonCheck.exe runtime)
+rm -f "$BUILD/MoonCheck-$VERSION-win64.zip"
+# fixed entry times and order, no extra attributes: the same inputs give the same zip
+find "$DIST/MoonCheck.exe" "$DIST/runtime" -exec touch -h -d "@$EPOCH" {} +
+(cd "$DIST" && find MoonCheck.exe runtime | LC_ALL=C sort | TZ=UTC zip -q -9 -X -D -@ "$BUILD/MoonCheck-$VERSION-win64.zip")
 
 echo ">> Staging panel downloads"
 rm -rf "$BUILD/panel-downloads"

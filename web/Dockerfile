@@ -1,4 +1,5 @@
-FROM python:3.13-slim
+# pinned by digest: the same base image on every build (update deliberately: docker pull, then this line)
+FROM python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -8,8 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN groupadd --gid 10001 moon && useradd --uid 10001 --gid moon --create-home --shell /usr/sbin/nologin moon
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# requirements.lock: exact versions with SHA-256 hashes (pip-compile --generate-hashes from requirements.txt);
+# pip refuses any file whose hash differs, so a tampered or substituted package fails the build
+COPY requirements.txt requirements.lock ./
+RUN pip install --require-hashes --no-deps -r requirements.lock
 
 COPY . .
 # the source is read by the unprivileged "moon" user, whatever the permissions in the build context

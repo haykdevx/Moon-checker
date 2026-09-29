@@ -177,6 +177,9 @@ def progress(request, session_id):
     session, err = _authenticate(request, session_id)
     if err:
         return err
+    # a heartbeat every few seconds is normal; a flood of writes is not
+    if ratelimit.hit("progress", str(session.pk), 60) > 120:
+        return _error(429, "too_many_requests", "Progress updates are too frequent.", retryAfter=30)
     try:
         data = ingest.sanitize_progress(_small_json(request))
     except ingest.IngestError as e:
