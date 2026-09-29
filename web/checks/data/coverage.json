@@ -531,7 +531,7 @@
       "kind": "INDICATOR",
       "meaning": "A file carries a hidden NTFS stream: named like a cheat (CRITICAL), large enough to hold a program (≥32 KiB, HIGH), otherwise small (LOW).",
       "lookalikes": "Windows, browsers, antivirus and sync tools write small streams (Zone.Identifier, SmartScreen, KAVICHS, Dropbox, Mac metadata) — these are skipped while small.",
-      "limits": "Streams under allowlisted paths are skipped unless named like a cheat."
+      "limits": "Unknown streams are reported wherever the file lives; in a system or program folder with an unverified publisher they are low-weight context. A verified publisher or approved hash silences the heuristic part; cheat-named streams are always CRITICAL."
     },
     {
       "id": "defender:game-hack-detected",
@@ -600,7 +600,7 @@
       "id": "cs2:module-user-folder",
       "kind": "INDICATOR",
       "meaning": "A DLL loaded into cs2.exe comes from Temp, Downloads, the Desktop, AppData or another user folder — how most internal cheats get in.",
-      "lookalikes": "Overlays that live in AppData are recognised by their DLL name (Discord, Overwolf, Medal).",
+      "lookalikes": "Overlays that live in AppData (Discord, Overwolf, Medal) pass only when their publisher is verified (valid signature, pinned root, exact vendor name); a familiar DLL name alone does not.",
       "limits": "HIGH; manually mapped cheats do not appear in the module list."
     },
     {
@@ -621,7 +621,7 @@
       "id": "cs2:overlay-window",
       "kind": "INDICATOR",
       "meaning": "A transparent, always-on-top window covers the game and belongs to a program that is not a known overlay — the shape of an external ESP.",
-      "lookalikes": "Rare overlays not on the list (a stream widget, a crosshair app); the owning program is named in the finding.",
+      "lookalikes": "Steam, Discord, NVIDIA, AMD, RivaTuner, OBS and Windows shell overlays pass only with a known program name AND a verified publisher; an unverified one is reported with a note.",
       "limits": "MEDIUM (HIGH from a user folder); ESPs drawn through a DirectX hook have no window."
     },
     {
@@ -630,6 +630,34 @@
       "meaning": "CS2 was not running, so the live checks did not run.",
       "lookalikes": "—",
       "limits": "Ask the player to start CS2 and run the check again to see what is loaded into the game."
+    },
+    {
+      "id": "cs2:module-proxy-dll",
+      "kind": "INDICATOR",
+      "meaning": "A Windows library name (version.dll, dxgi.dll, winmm.dll…) is loaded into cs2.exe from the game folder instead of System32 — DLL proxying, a way into the game without an injector.",
+      "lookalikes": "Some games ship their own copies of such libraries; CS2 does not. A verified publisher clears it.",
+      "limits": "MEDIUM; only libraries loaded at the moment of the check; a proxy that unloads itself is not seen."
+    },
+    {
+      "id": "files:scan-scope",
+      "kind": "CONTEXT",
+      "meaning": "What the Windows file scan covered: drives indexed by name, files in user folders, outcomes (inspected, not an executable, too large, unreadable, cloud-only), the whole-drive content pass and what it skipped.",
+      "lookalikes": "—",
+      "limits": "Never changes the outcome; required parts that could not be covered make the collector PARTIAL instead."
+    },
+    {
+      "id": "linuxfiles:scan-scope",
+      "kind": "CONTEXT",
+      "meaning": "What the Linux file scan covered: files in the required folders, outcomes, the excluded Steam-library and Flatpak folders and how much of them was walked afterwards.",
+      "lookalikes": "—",
+      "limits": "Never changes the outcome; a required folder that could not be read completely makes the collector PARTIAL."
+    },
+    {
+      "id": "linuxfiles:process-memory-access",
+      "kind": "INDICATOR",
+      "meaning": "An ELF program in a scanned folder refers to process_vm_readv / process_vm_writev — reading or writing another process's memory, what external Linux cheats do.",
+      "lookalikes": "Debuggers, profilers and game-modding tools use the same calls.",
+      "limits": "LOW alone; MEDIUM together with CS2 offset strings. Static reference only: a program can resolve the call at run time."
     }
   ]
 }

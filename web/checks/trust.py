@@ -111,7 +111,7 @@ def evaluate(session, report, now):
                 "All %(n)s required collectors report that they completed (their own statement)."),
                 n=len(coverage.get("required", [])))
     else:
-        failed = sorted(k for k, v in report["modules"].items() if v in ("ERROR", "TIMEOUT"))
+        failed = sorted(k for k, v in report["modules"].items() if v in ("ERROR", "TIMEOUT", "PARTIAL"))
         if failed:
             add(CONSISTENCY, WARN, "modules", gettext_noop("Modules that did not finish: %(list)s."),
                 list=", ".join(failed))

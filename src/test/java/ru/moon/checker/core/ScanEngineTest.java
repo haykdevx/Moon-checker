@@ -165,4 +165,25 @@ class ScanEngineTest {
         assertEquals(Consent.TEXT_VERSION, r.consent().textVersion());
         assertEquals(Verdict.NO_EVIDENCE, r.verdict());
     }
+
+    @Test
+    void aCollectorThatCouldNotCoverEverythingIsPartialNotOk() {
+        CheckModule partial = new CheckModule() {
+            public String id() { return "walker"; }
+            public String displayName() { return "walker"; }
+            public Category category() { return Category.FILES; }
+            public boolean windowsOnly() { return false; }
+            public void run(ScanContext ctx) {
+                ctx.partial("/home/p/Downloads: time budget used up after 12 files");
+            }
+        };
+        ScanResult r = new ScanEngine(List.of(partial), ScanListener.NOOP)
+                .platformSupport(new Platform.Support(true, "test")).rules(RULES)
+                .run(SignatureDb.empty(), CheckId.generate(),
+                        new EnvironmentInfo("PC", "os", "user", true, "1.0.0", "abc", "jvm"));
+        assertEquals(ModuleStatus.PARTIAL, r.moduleStatus().get("walker"));
+        assertEquals(List.of("walker"), r.coverage().missing());
+        assertTrue(r.coverage().errors().get("walker").contains("time budget"));
+        assertEquals(Verdict.INCOMPLETE_SCAN, r.verdict(), "a partial walk must never read as 'no evidence'");
+    }
 }

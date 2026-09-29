@@ -50,7 +50,7 @@ public final class FileInspection {
             ".wav", ".flac", ".ogg", ".zip", ".rar", ".7z", ".tar", ".gz",
             ".iso", ".vdf", ".lua", ".py", ".js", ".css"
     };
-    private static final long STRING_SCAN_MAX = 48L * 1024 * 1024;  // 48 MiB deep-scan cap
+    static final long STRING_SCAN_MAX = 48L * 1024 * 1024;  // 48 MiB deep-scan cap
     private static final long HASH_MAX = 512L * 1024 * 1024;        // 512 MiB hashing cap
     private static final int MIN_STRING = 4;
     private static final int OFFSET_HIT_HIGH = 3;   // this many offset names => strong
@@ -87,11 +87,84 @@ public final class FileInspection {
                 || pathLower.matches(".*\\\\[a-z]:\\\\[^\\\\]+\\.(exe|dll)$"); // loose "in drive root"
     }
 
+    /** What {@link #inspect} did with a file (collectors count these to state their limits). */
+    public enum Outcome {
+        /** Read and inspected (content heuristics ran, if the format allows). */
+        INSPECTED,
+        /** Not an executable by content; only the name, streams and disguise checks applied. */
+        NOT_EXECUTABLE,
+        /** An executable larger than the content cap: name, streams and hash only. */
+        TOO_LARGE,
+        /** Starts like an executable but the header is broken: string and entropy checks only. */
+        MALFORMED,
+        /** Could not be read (permissions, locked, vanished). */
+        UNREADABLE,
+        /** A cloud-only placeholder: reading it would download it. Name matched only. */
+        CLOUD_ONLY,
+        /** Zero bytes. */
+        EMPTY
+    }
+
+    /** Executable formats recognised by content (extension-independent). */
+    public enum Format { PE, ELF, MZ_MALFORMED, ELF_MALFORMED, NONE, UNREADABLE }
+
+    /** Reads at most a few hundred bytes: the MZ header and PE signature, or the ELF identification. */
+    public static Format format(Path file) {
+        try (var ch = Files.newByteChannel(file)) {
+            java.nio.ByteBuffer head = java.nio.ByteBuffer.allocate(64).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            while (head.hasRemaining() && ch.read(head) > 0) {
+                // fill
+            }
+            int n = head.position();
+            head.flip();
+            return format(head, n, ch);
+        } catch (IOException | RuntimeException e) {
+            return Format.UNREADABLE;
+        }
+    }
+
+    static Format format(java.nio.ByteBuffer head, int n, java.nio.channels.SeekableByteChannel ch) throws IOException {
+        if (n >= 2 && head.get(0) == 'M' && head.get(1) == 'Z') {
+            if (n < 64) {
+                return Format.MZ_MALFORMED;
+            }
+            long peOffset = Integer.toUnsignedLong(head.getInt(0x3C));
+            if (peOffset < 64 || ch == null || peOffset + 4 > ch.size() || peOffset > 16L * 1024 * 1024) {
+                return Format.MZ_MALFORMED;
+            }
+            java.nio.ByteBuffer sig = java.nio.ByteBuffer.allocate(4);
+            ch.position(peOffset);
+            while (sig.hasRemaining() && ch.read(sig) > 0) {
+                // fill
+            }
+            return sig.position() == 4 && sig.get(0) == 'P' && sig.get(1) == 'E' && sig.get(2) == 0 && sig.get(3) == 0
+                    ? Format.PE : Format.MZ_MALFORMED;
+        }
+        if (n >= 4 && head.get(0) == 0x7F && head.get(1) == 'E' && head.get(2) == 'L' && head.get(3) == 'F') {
+            if (n < 20) {
+                return Format.ELF_MALFORMED;
+            }
+            int cls = head.get(4), data = head.get(5), version = head.get(6);
+            return (cls == 1 || cls == 2) && (data == 1 || data == 2) && version == 1 ? Format.ELF : Format.ELF_MALFORMED;
+        }
+        return Format.NONE;
+    }
+
+    /** One heuristic observation, before the identity gate decides how it is reported. */
+    private record Hit(Severity severity, String title, String rule, String detail, String evidence, String source) {
+    }
+
     /**
-     * Inspect one file: signature name match, hash match, embedded CS2 offset
-     * strings, and injector-style imports. Emits findings via the context.
+     * Inspect one file: name match, streams, disguise, hash, and — for executables recognised by
+     * content, of any name — embedded CS2 offset strings, injection imports and entropy.
+     *
+     * <p>Exact matches (cheat name, cheat-named stream, known hash) are reported as they are.
+     * Heuristic observations pass an identity check instead of a location allowlist: a file whose
+     * signature this rule set vouches for (or whose hash is approved) is not reported; a file in a
+     * system or program folder that could not be identified is reported as low-weight context; a
+     * signed file whose signature no longer matches is reported at least as MEDIUM.
      */
-    public static void inspect(Path file, ScanContext ctx, String module, Category category) {
+    public static Outcome inspect(Path file, ScanContext ctx, String module, Category category) {
         String name = file.getFileName().toString();
         String nameLower = name.toLowerCase(Locale.ROOT);
         String pathStr = file.toString();
@@ -112,66 +185,54 @@ public final class FileInspection {
         try {
             size = Files.size(file);
         } catch (IOException e) {
-            return;
+            return Outcome.UNREADABLE;
         }
         if (size <= 0) {
-            return;
+            return Outcome.EMPTY;
         }
         if (isCloudPlaceholder(file)) {
-            return; // OneDrive "files on demand": reading it would download it; the name was matched above
+            return Outcome.CLOUD_ONLY; // OneDrive "files on demand": reading it would download it
         }
-
-        // Trusted location? Heuristics (ADS, disguise, offsets, imports, entropy)
-        // are suppressed for OS/Steam/vendor paths; exact name and hash matches
-        // above and below are never suppressed.
-        boolean trustedPath = ctx.signatures().isAllowedPath(pathLower);
+        List<Hit> hits = new java.util.ArrayList<>();
 
         // 2. hidden Alternate Data Streams — a classic cheat-payload hiding spot
         for (ru.moon.checker.win.AlternateStreams.Stream st : ru.moon.checker.win.AlternateStreams.list(pathStr)) {
             var streamRule = ctx.signatures().matchCheatName(st.name());
-            if (trustedPath && streamRule.isEmpty()) {
-                continue; // Windows itself uses streams on system files
+            String detail = "Stream \"" + st.name() + "\" (" + st.size() + " bytes)"
+                    + streamRule.map(r -> " — " + r.label()).orElse("");
+            if (streamRule.isPresent()) {
+                ctx.emit(Finding.builder(category, Severity.CRITICAL,
+                                "Скрытый поток данных (ADS) / Hidden alternate data stream")
+                        .module(module).rule("files:alternate-data-stream").detail(detail)
+                        .evidence(pathStr + ":" + st.name()).source("NTFS ADS").openPath(parent(file)).build());
+                continue;
             }
-            // a cheat-named stream is critical; a stream big enough to hold a program is high;
-            // a small unknown stream (notes, tags some software writes) is context for the reviewer
-            Severity sev = streamRule.isPresent() ? Severity.CRITICAL
-                    : st.size() >= ru.moon.checker.win.AlternateStreams.PAYLOAD_BYTES ? Severity.HIGH : Severity.LOW;
-            ctx.emit(Finding.builder(category, sev,
-                            "Скрытый поток данных (ADS) / Hidden alternate data stream")
-                    .module(module).rule("files:alternate-data-stream")
-                    .detail("Stream \"" + st.name() + "\" (" + st.size() + " bytes)"
-                            + streamRule.map(r -> " — " + r.label()).orElse(""))
-                    .evidence(pathStr + ":" + st.name())
-                    .source("NTFS ADS")
-                    .openPath(parent(file))
-                    .build());
+            // a stream big enough to hold a program is high; a small unknown stream is context
+            hits.add(new Hit(st.size() >= ru.moon.checker.win.AlternateStreams.PAYLOAD_BYTES ? Severity.HIGH : Severity.LOW,
+                    "Скрытый поток данных (ADS) / Hidden alternate data stream", "files:alternate-data-stream",
+                    detail, pathStr + ":" + st.name(), "NTFS ADS"));
         }
 
-        // 3. executable disguised under a document/media extension (MZ header).
-        //    Only probe files whose extension isn't already a known binary one,
-        //    and only raise the finding for genuinely non-executable extensions —
-        //    .cpl/.drv/.ocx/.tlb etc. are legitimately PE images.
-        boolean binaryExt = isBinaryName(nameLower);
-        boolean mz = !binaryExt && peekMz(file);
-        boolean disguised = mz && isNonExecutableName(nameLower) && !trustedPath;
-        if (disguised) {
-            ctx.emit(Finding.builder(category, Severity.HIGH,
-                            "Исполняемый файл под чужим расширением / Executable disguised by extension")
-                    .module(module)
-                    .detail("PE (MZ) content with a non-executable extension")
-                    .evidence(pathStr)
-                    .source("content vs extension · heuristic")
-                    .openPath(parent(file))
-                    .build());
+        // 3. what the content is, whatever the name says
+        Format format = format(file);
+        if (format == Format.UNREADABLE) {
+            emitGated(hits, file, null, ctx, module, category);
+            return Outcome.UNREADABLE;
+        }
+        boolean executable = format == Format.PE || format == Format.ELF;
+        boolean looksExecutable = executable || format == Format.MZ_MALFORMED || format == Format.ELF_MALFORMED;
+        if (looksExecutable && isNonExecutableName(nameLower)) {
+            hits.add(new Hit(Severity.HIGH, "Исполняемый файл под чужим расширением / Executable disguised by extension",
+                    null, (format == Format.ELF || format == Format.ELF_MALFORMED ? "ELF" : "PE (MZ)")
+                    + " content with a non-executable extension", pathStr, "content vs extension · heuristic"));
         }
 
-        // 4. exact hash match (streamed) — for binaries, disguised PEs, or when
-        //    the signature DB actually contains hashes (to catch renamed cheats)
+        // 4. exact hash match (streamed) — for any executable by content, or every file when the
+        //    rule set carries hashes (to catch renamed cheats)
         boolean hashAll = !ctx.signatures().hashes().isEmpty();
-        // hashing a big binary costs seconds: only when a hash rule or allowlisted hash can use it
         boolean hashUseful = hashAll || !ctx.signatures().allowHashes().isEmpty();
         String fileHash = null;
-        if (hashUseful && (binaryExt || mz || hashAll) && size <= HASH_MAX) {
+        if (hashUseful && (looksExecutable || hashAll) && size <= HASH_MAX) {
             String hash = Hashing.sha256File(file);
             fileHash = hash;
             if (hash != null) {
@@ -189,27 +250,29 @@ public final class FileInspection {
             }
         }
 
-        // 5. deep content scan for reasonably-sized binaries (or disguised PEs)
-        if (size > STRING_SCAN_MAX || !(binaryExt || mz)) {
-            return;
+        if (!looksExecutable) {
+            emitGated(hits, file, fileHash, ctx, module, category);
+            return Outcome.NOT_EXECUTABLE;
+        }
+        // a broken header still gets the string and entropy checks (they parse nothing); only the
+        // PE import parse needs a valid header
+        // 5. content heuristics, bounded: an executable above the cap keeps its name, stream and hash checks
+        if (size > STRING_SCAN_MAX) {
+            emitGated(hits, file, fileHash, ctx, module, category);
+            return Outcome.TOO_LARGE;
         }
         byte[] data;
         try {
             data = Files.readAllBytes(file);
         } catch (IOException | OutOfMemoryError e) {
-            return;
+            emitGated(hits, file, fileHash, ctx, module, category);
+            return Outcome.UNREADABLE;
         }
-
-        if (trustedPath) {
-            return; // exact name/hash matches already reported above
-        }
-        // Heuristics are computed first; the signature check (a PowerShell start, about a second
-        // on a player's PC) runs only when one of them would fire — not for every binary.
-        List<Finding> heuristic = new java.util.ArrayList<>();
 
         List<String> strings = BinStrings.all(data, MIN_STRING);
         int offsetHits = 0;
         boolean dumpName = false;
+        boolean processMemory = false;
         StringBuilder matched = new StringBuilder();
         java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         for (String s : strings) {
@@ -222,55 +285,119 @@ public final class FileInspection {
                     }
                 }
             }
+            processMemory |= (format == Format.ELF || format == Format.ELF_MALFORMED)
+                    && (s.equals("process_vm_readv") || s.equals("process_vm_writev"));
         }
         if (offsetHits > 0) {
             // One game field name alone is common in legitimate Source-engine tools (demo and movie
             // tools, server plugins, SDK code): it is shown as LOW and does not ask for a review.
-            Severity sev = offsetSeverity(offsetHits, dumpName);
-            heuristic.add(Finding.builder(category, sev,
-                            "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary")
-                    .module(module)
-                    .detail(offsetHits + " match(es): " + trimTail(matched.toString()))
-                    .evidence(pathStr)
-                    .source("binary strings · heuristic")
-                    .openPath(parent(file))
-                    .build());
+            hits.add(new Hit(offsetSeverity(offsetHits, dumpName),
+                    "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary", null,
+                    offsetHits + " match(es): " + trimTail(matched.toString()), pathStr, "binary strings · heuristic"));
         }
 
-        Pe pe = Pe.parse(data);
-        if (pe.isPe() && pe.looksLikeInjector()) {
-            boolean suspicious = isSuspiciousLocation(pathLower) || !pe.signed();
-            Severity sev = suspicious ? Severity.HIGH : Severity.LOW;
-            heuristic.add(Finding.builder(category, sev,
-                            "Импорт функций инъекции в процесс / Process-injection imports")
-                    .module(module)
-                    .detail("Imports remote-injection APIs" + (pe.signed() ? "" : ", unsigned")
-                            + (isSuspiciousLocation(pathLower) ? ", suspicious location" : ""))
-                    .evidence(pathStr)
-                    .source("PE imports · heuristic")
-                    .openPath(parent(file))
-                    .build());
+        if (format == Format.PE) {
+            Pe pe = Pe.parse(data);
+            if (pe.isPe() && pe.looksLikeInjector()) {
+                boolean suspicious = isSuspiciousLocation(pathLower) || !pe.signed();
+                hits.add(new Hit(suspicious ? Severity.HIGH : Severity.LOW,
+                        "Импорт функций инъекции в процесс / Process-injection imports", null,
+                        "Imports remote-injection APIs" + (pe.signed() ? "" : ", unsigned")
+                                + (isSuspiciousLocation(pathLower) ? ", suspicious location" : ""),
+                        pathStr, "PE imports · heuristic"));
+            }
+        } else if (processMemory) {
+            // the Linux counterpart of injection imports; debuggers use it too, so it only asks with offsets
+            hits.add(new Hit(offsetHits > 0 ? Severity.MEDIUM : Severity.LOW,
+                    "Доступ к памяти другого процесса / Reads or writes another process's memory",
+                    "linuxfiles:process-memory-access", "ELF refers to process_vm_readv / process_vm_writev",
+                    pathStr, "ELF symbols · heuristic"));
         }
 
         // 6. packed / encrypted binary sitting in a user-writable location
-        if (isSuspiciousLocation(pathLower)) {
+        if (isSuspiciousLocation(pathLower) || Locations.classify(pathStr) == Locations.Kind.USER_WRITABLE) {
             double entropy = ru.moon.checker.parse.Entropy.shannon(data);
             if (entropy >= PACKED_ENTROPY) {
-                heuristic.add(Finding.builder(category, Severity.LOW,
-                                "Упакованный/зашифрованный бинарник / Packed or encrypted binary")
-                        .module(module)
-                        .detail(String.format(Locale.ROOT, "entropy %.2f/8.0 in a user-writable location", entropy))
-                        .evidence(pathStr)
-                        .source("entropy · heuristic")
-                        .openPath(parent(file))
-                        .build());
+                hits.add(new Hit(Severity.LOW, "Упакованный/зашифрованный бинарник / Packed or encrypted binary", null,
+                        String.format(Locale.ROOT, "entropy %.2f/8.0 in a user-writable location", entropy),
+                        pathStr, "entropy · heuristic"));
             }
         }
+        emitGated(hits, file, fileHash, ctx, module, category);
+        return executable ? Outcome.INSPECTED : Outcome.MALFORMED;
+    }
 
-        // an explicitly allowlisted hash or a valid signature from a known vendor suppresses them
-        if (!heuristic.isEmpty() && !isTrusted(file, fileHash, ctx)) {
-            heuristic.forEach(ctx::emit);
+    /** Identity of a file for the heuristic gate. */
+    enum Identity { VERIFIED, BROKEN, UNVERIFIED }
+
+    /**
+     * Reports heuristic observations according to the file's identity (never its location alone):
+     * verified → not reported; signature broken → at least MEDIUM; unverified in a system or program
+     * folder → LOW context; unverified elsewhere → as observed.
+     */
+    private static void emitGated(List<Hit> hits, Path file, String fileHash, ScanContext ctx, String module,
+                                  Category category) {
+        if (hits.isEmpty()) {
+            return;
         }
+        Identity id = identity(file, fileHash, ctx);
+        if (id == Identity.VERIFIED) {
+            return;
+        }
+        Locations.Kind where = Locations.ofFile(file);
+        for (Hit h : hits) {
+            Gate g = gate(id, where, h.severity());
+            Finding.Builder b = Finding.builder(category, g.severity(), h.title()).module(module)
+                    .detail(h.detail() + g.note()).evidence(h.evidence()).source(h.source()).openPath(parent(file));
+            if (h.rule() != null) {
+                b.rule(h.rule());
+            }
+            if (g.kind() != null) {
+                b.kind(g.kind());
+            }
+            ctx.emit(b.build());
+        }
+    }
+
+    /** How one heuristic observation is reported; {@code null} from {@link #gate} means not at all. */
+    record Gate(Severity severity, EvidenceKind kind, String note) {
+    }
+
+    /**
+     * The identity gate, as a pure decision: a verified publisher (or approved hash) → not reported;
+     * a signature that no longer matches → at least MEDIUM; unverified in a system or program folder →
+     * LOW context (location alone proves nothing, but the folder needs administrator rights); unverified
+     * anywhere else → as observed.
+     */
+    static Gate gate(Identity id, Locations.Kind where, Severity observed) {
+        return switch (id) {
+            case VERIFIED -> null;
+            case BROKEN -> new Gate(observed.rank() < Severity.MEDIUM.rank() ? Severity.MEDIUM : observed, null,
+                    "; its signature no longer matches the file (changed after signing)");
+            case UNVERIFIED -> where.protectedByDefault()
+                    ? new Gate(Severity.LOW, EvidenceKind.CONTEXT, "; in a " + (where == Locations.Kind.SYSTEM
+                    ? "system" : "program") + " folder, publisher not verified (location alone proves nothing)")
+                    : new Gate(observed, null, "; publisher not verified");
+        };
+    }
+
+    private static Identity identity(Path file, String fileHash, ScanContext ctx) {
+        if (fileHash == null && !ctx.signatures().allowHashes().isEmpty()) {
+            fileHash = Hashing.sha256File(file);
+        }
+        if (fileHash != null && ctx.signatures().isAllowedHash(fileHash)) {
+            return Identity.VERIFIED;
+        }
+        if (ru.moon.checker.core.Platform.isWindows()) {
+            var sig = ru.moon.checker.win.Authenticode.verify(file);
+            if (sig.broken()) {
+                return Identity.BROKEN;
+            }
+            if (ctx.signatures().isTrustedIdentity(sig.valid(), sig.rootSha1(), sig.signerNames())) {
+                return Identity.VERIFIED;
+            }
+        }
+        return Identity.UNVERIFIED;
     }
 
     /**
@@ -286,37 +413,68 @@ public final class FileInspection {
         return dumpName || distinctNames >= 2 ? Severity.MEDIUM : Severity.LOW;
     }
 
-    /**
-     * Whether heuristic findings should be suppressed for this file: an
-     * explicitly allowlisted hash, or (Windows) a valid Authenticode signature
-     * from a trusted vendor. Exact cheat-name / cheat-hash matches are reported
-     * before this is consulted, so a signed cheat is still caught.
-     */
-    private static boolean isTrusted(Path file, String fileHash, ScanContext ctx) {
-        if (fileHash != null && ctx.signatures().isAllowedHash(fileHash)) {
-            return true;
+    /** What a bounded walk covered, and why it stopped if it did not finish. */
+    public record Walk(Path root, int files, boolean rootMissing, boolean rootUnreadable, boolean fileLimitHit,
+                       boolean timeUp, boolean cancelled, int deniedDirs, int skippedLinks, int depthLimited) {
+        /** Every file under the root (to the depth asked) was offered to the callback. */
+        public boolean complete() {
+            return !rootUnreadable && !fileLimitHit && !timeUp && !cancelled && deniedDirs == 0;
         }
-        if (ru.moon.checker.core.Platform.isWindows()) {
-            var sig = ru.moon.checker.win.Authenticode.verify(file);
-            return sig.valid() && ctx.signatures().isAllowedSigner(sig.signer());
-        }
-        return false;
-    }
 
-    private static boolean peekMz(Path file) {
-        try (var in = Files.newInputStream(file)) {
-            return in.read() == 'M' && in.read() == 'Z';
-        } catch (Exception e) {
-            return false;
+        /** Why not complete, in one line for the coverage report. */
+        public String shortfall() {
+            List<String> why = new java.util.ArrayList<>();
+            if (rootUnreadable) {
+                why.add("folder not readable");
+            }
+            if (fileLimitHit) {
+                why.add("file limit of " + files + " reached");
+            }
+            if (timeUp) {
+                why.add("time budget used up after " + files + " files");
+            }
+            if (cancelled) {
+                why.add("cancelled");
+            }
+            if (deniedDirs > 0) {
+                why.add(deniedDirs + " subfolder(s) not readable");
+            }
+            return root + ": " + String.join(", ", why);
         }
     }
 
     /** Walk a directory tree (bounded) invoking {@code onFile} for each file. */
     public static int walk(Path root, int maxFiles, int maxDepth, Consumer<Path> onFile, ScanContext ctx) {
-        if (root == null || !Files.isDirectory(root)) {
-            return 0;
+        return scan(root, maxFiles, maxDepth, null, onFile, ctx).files();
+    }
+
+    /**
+     * Walks {@code root} to {@code maxDepth}, offering every regular file to {@code onFile}, and
+     * reports what it could not cover: a missing or unreadable root, the file limit, the time limit,
+     * cancellation, unreadable subfolders. Links, junctions and mount points below the root are not
+     * followed (counted in {@code skippedLinks}): they loop, or lead somewhere scanned on its own.
+     */
+    public static Walk scan(Path root, int maxFiles, int maxDepth, java.time.Instant stopAt, Consumer<Path> onFile,
+                            ScanContext ctx) {
+        return scan(root, maxFiles, maxDepth, stopAt, null, onFile, ctx);
+    }
+
+    /** As above; folders for which {@code skip} is true are not entered (a declared exclusion). */
+    public static Walk scan(Path root, int maxFiles, int maxDepth, java.time.Instant stopAt,
+                            java.util.function.Predicate<Path> skip, Consumer<Path> onFile, ScanContext ctx) {
+        if (root == null || !Files.exists(root)) {
+            return new Walk(root, 0, true, false, false, false, false, 0, 0, 0);
+        }
+        if (!Files.isDirectory(root) || !Files.isReadable(root)) {
+            return new Walk(root, 0, false, true, false, false, false, 0, 0, 0);
         }
         final int[] count = {0};
+        final int[] denied = {0};
+        final int[] links = {0};
+        final int[] deep = {0};
+        final boolean[] limit = {false};
+        final boolean[] late = {false};
+        final boolean[] stopped = {false};
         try {
             Files.walkFileTree(root, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
                     maxDepth, new SimpleFileVisitor<>() {
@@ -325,6 +483,10 @@ public final class FileInspection {
                             // Windows' compatibility junctions ("C:\\ProgramData\\Application Data" points back
                             // at ProgramData) made the walk loop 8 levels deep; Java does not see them as links
                             if (!dir.equals(root) && (attrs.isSymbolicLink() || attrs.isOther() || isReparsePoint(dir))) {
+                                links[0]++;
+                                return FileVisitResult.SKIP_SUBTREE;
+                            }
+                            if (!dir.equals(root) && skip != null && skip.test(dir)) {
                                 return FileVisitResult.SKIP_SUBTREE;
                             }
                             return FileVisitResult.CONTINUE;
@@ -332,10 +494,21 @@ public final class FileInspection {
 
                         @Override
                         public FileVisitResult visitFile(Path f, BasicFileAttributes attrs) {
-                            if (ctx.isCancelled() || count[0] >= maxFiles) {
+                            if (ctx != null && ctx.isCancelled()) {
+                                stopped[0] = true;
                                 return FileVisitResult.TERMINATE;
                             }
-                            if (attrs.isRegularFile()) {
+                            if (count[0] >= maxFiles) {
+                                limit[0] = true;
+                                return FileVisitResult.TERMINATE;
+                            }
+                            if (stopAt != null && java.time.Instant.now().isAfter(stopAt)) {
+                                late[0] = true;
+                                return FileVisitResult.TERMINATE;
+                            }
+                            if (attrs.isDirectory()) {
+                                deep[0]++;   // a folder at the depth limit: its content was not listed
+                            } else if (attrs.isRegularFile()) {
                                 onFile.accept(f);
                                 count[0]++;
                             }
@@ -344,13 +517,16 @@ public final class FileInspection {
 
                         @Override
                         public FileVisitResult visitFileFailed(Path f, IOException exc) {
-                            return FileVisitResult.CONTINUE; // skip unreadable
+                            if (exc instanceof java.nio.file.AccessDeniedException || Files.isDirectory(f)) {
+                                denied[0]++;
+                            }
+                            return FileVisitResult.CONTINUE; // a file that vanished or is locked: skip
                         }
                     });
         } catch (IOException e) {
-            // best-effort
+            return new Walk(root, count[0], false, true, limit[0], late[0], stopped[0], denied[0], links[0], deep[0]);
         }
-        return count[0];
+        return new Walk(root, count[0], false, false, limit[0], late[0], stopped[0], denied[0], links[0], deep[0]);
     }
 
     private static final int FILE_ATTRIBUTE_REPARSE_POINT = 0x400;

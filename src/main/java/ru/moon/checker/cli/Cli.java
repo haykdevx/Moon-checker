@@ -249,12 +249,13 @@ public final class Cli {
     private static int selftestExit(ScanResult r) {
         long ok = r.moduleStatus().values().stream().filter(s -> s == ModuleStatus.OK).count();
         long bad = r.moduleStatus().values().stream()
-                .filter(s -> s == ModuleStatus.ERROR || s == ModuleStatus.TIMEOUT).count();
+                .filter(s -> s == ModuleStatus.ERROR || s == ModuleStatus.TIMEOUT || s == ModuleStatus.PARTIAL).count();
         System.out.println();
         System.out.println("SELFTEST: ok=" + ok + " failed=" + bad
                 + " of " + r.moduleStatus().size() + " modules");
         for (Map.Entry<String, ModuleStatus> e : r.moduleStatus().entrySet()) {
-            if (e.getValue() == ModuleStatus.ERROR || e.getValue() == ModuleStatus.TIMEOUT) {
+            if (e.getValue() == ModuleStatus.ERROR || e.getValue() == ModuleStatus.TIMEOUT
+                    || e.getValue() == ModuleStatus.PARTIAL) {
                 System.out.println("  FAILED: " + e.getKey() + " -> " + e.getValue());
             }
         }

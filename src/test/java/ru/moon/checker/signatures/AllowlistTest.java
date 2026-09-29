@@ -1,45 +1,77 @@
 package ru.moon.checker.signatures;
 
 import org.junit.jupiter.api.Test;
+import ru.moon.checker.win.Authenticode;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * The allowlist must suppress heuristics on trusted binaries while never
- * hiding an exact cheat-name or cheat-hash match.
+ * What may silence a heuristic finding: a verified publisher (valid signature, pinned root,
+ * exact vendor name) or an approved hash. Locations are not on this list any more (review
+ * finding: substring path fragments let {@code Downloads\x\steam\steamapps\common\…} count as
+ * Steam) — see LocationsTest for how locations are classified now.
  */
 class AllowlistTest {
 
     private final SignatureDb db = SignatureLoader.load(null).db();
+    private static final String MS_ROOT_2010 = "3B1EFD3A66EA28B16697394703A72CA340A05BD5";
 
     @Test
-    void bundledAllowlistCoversOsAndGamePaths() {
-        assertTrue(db.isAllowedPath("c:\\windows\\system32\\kernelbase.dll"));
-        assertTrue(db.isAllowedPath("c:\\program files (x86)\\steam\\steamapps\\common\\cs2\\game\\bin\\client.dll"));
-        assertTrue(db.isAllowedPath("/usr/lib/x86_64-linux-gnu/libc.so.6"));
-        assertTrue(db.isAllowedPath("/home/p/.steam/debian-installation/compatibilitytools.d/ge-proton8-32/files/taskmgr.exe"));
+    void aVerifiedVendorNeedsAValidSignatureAPinnedRootAndTheExactName() {
+        List<String> ms = Authenticode.names("CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US");
+        assertTrue(db.isTrustedIdentity(true, MS_ROOT_2010, ms));
+        assertFalse(db.isTrustedIdentity(false, MS_ROOT_2010, ms), "status not Valid");
+        assertFalse(db.isTrustedIdentity(true, "00".repeat(20), ms),
+                "a root the player added to their own store is not pinned");
+        assertFalse(db.isTrustedIdentity(true, "", ms));
+        List<String> valve = Authenticode.names("CN=Valve Corp., O=Valve Corp., L=Bellevue, S=Washington, C=US");
+        assertTrue(db.isTrustedIdentity(true, "0563B8630D62D75ABBC8AB1E4BDFB5A899B24D43", valve));
     }
 
     @Test
-    void userWritableLocationsAreNotAllowlisted() {
-        assertFalse(db.isAllowedPath("c:\\users\\p\\appdata\\local\\temp\\nixware.exe"));
-        assertFalse(db.isAllowedPath("c:\\users\\p\\downloads\\loader.exe"));
-        assertFalse(db.isAllowedPath("/home/p/downloads/loader"));
-        assertFalse(db.isAllowedPath(null));
+    void aSignerNameContainingAVendorIsNotThatVendor() {
+        for (String dn : new String[]{"CN=Not Microsoft Corporation Ltd, O=Evil",
+                "CN=Microsoft Corporation Fan Club, O=Microsoft Corporation Fan Club",
+                "CN=valve corp. cheats, O=x", "CN=random publisher ltd"}) {
+            assertFalse(db.isTrustedIdentity(true, MS_ROOT_2010, Authenticode.names(dn)), dn);
+        }
     }
 
     @Test
-    void trustedSignersRecognised() {
-        assertTrue(db.isAllowedSigner("cn=microsoft corporation, o=microsoft corporation, l=redmond"));
-        assertTrue(db.isAllowedSigner("cn=valve corp., o=valve corp., l=bellevue"));
-        assertFalse(db.isAllowedSigner("cn=some random publisher ltd"));
-        assertFalse(db.isAllowedSigner(null));
+    void distinguishedNamesAreParsedWithQuotesAndCommas() {
+        assertEquals(List.of("advanced micro devices, inc", "advanced micro devices, inc"),
+                Authenticode.names("CN=\"Advanced Micro Devices, Inc.\", O=\"Advanced Micro Devices, Inc.\", C=US"));
+        assertTrue(db.isTrustedIdentity(true, MS_ROOT_2010,
+                Authenticode.names("CN=\"Advanced Micro Devices, Inc.\", O=\"Advanced Micro Devices, Inc.\", C=US")));
+        assertEquals(List.of(), Authenticode.names(""));
+    }
+
+    @Test
+    void everyPinnedRootSaysWhereItsThumbprintCameFrom() {
+        assertFalse(db.trustedRoots().isEmpty());
+        for (SignatureDb.TrustedRoot r : db.trustedRoots()) {
+            assertTrue(r.sha1().matches("[0-9A-F]{40}"), r.toString());
+            assertNotNull(r.source(), r.name());
+            assertFalse(r.source().isBlank(), r.name());
+        }
+    }
+
+    @Test
+    void powershellLinesAreParsed() {
+        var r = Authenticode.parseLine("3\tValid\tabcd\tCN=Valve Corp., O=Valve Corp.");
+        assertEquals("Valid", r.status());
+        assertEquals("ABCD", r.rootSha1());
+        assertEquals(List.of("valve corp", "valve corp"), r.signerNames());
+        assertTrue(Authenticode.parseLine("3\tHashMismatch\t\t").broken());
+        assertNull(Authenticode.parseLine("WARNING: something"));
     }
 
     @Test
     void hashAllowlistIsExactMatch() {
         SignatureDb custom = new SignatureDb("t", null, null, null, null, null, null, null,
-                null, null, java.util.List.of("ABCDEF0123456789"));
+                null, List.of("ABCDEF0123456789"), null);
         assertTrue(custom.isAllowedHash("abcdef0123456789"), "must be case-insensitive");
         assertFalse(custom.isAllowedHash("abcdef012345678a"));
         assertFalse(custom.isAllowedHash(null));
@@ -47,13 +79,13 @@ class AllowlistTest {
 
     @Test
     void allowlistDoesNotCountAsDetectionRules() {
-        // ruleCount() is shown to admins as "detections"; allowlists must not inflate it
+        // ruleCount() is shown to admins as "detections"; allowlists and pinned roots must not inflate it
         assertEquals(158, db.ruleCount());
     }
 
     @Test
-    void cheatSignaturesStillMatchInsideTrustedPaths() {
-        // a cheat dropped into a trusted directory is still caught by name
+    void cheatSignaturesStillMatchInsideSystemFolders() {
+        // a cheat dropped into a system directory is still caught by name
         assertTrue(db.matchCheatName("c:\\windows\\system32\\nixware.dll").isPresent());
     }
 }

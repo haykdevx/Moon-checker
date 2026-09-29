@@ -241,6 +241,7 @@ public final class ScanPanel extends JPanel implements ScanListener {
                 case OK -> MoonTheme.TEXT2;
                 case RUNNING -> MoonTheme.TEXT;
                 case ERROR, TIMEOUT -> MoonTheme.CHEAT;
+                case PARTIAL -> MoonTheme.SUSPICIOUS;
                 case SKIPPED -> MoonTheme.GHOST;
                 default -> MoonTheme.FAINT;
             });
@@ -284,6 +285,13 @@ public final class ScanPanel extends JPanel implements ScanListener {
                             java.awt.BasicStroke.JOIN_ROUND));
                     g2.drawLine(x + 1, cy - 5, x + 11, cy + 5);
                     g2.drawLine(x + 11, cy - 5, x + 1, cy + 5);
+                }
+                case PARTIAL -> { // finished, but not everything it must cover: an amber "!"
+                    g2.setColor(MoonTheme.SUSPICIOUS);
+                    g2.setStroke(new java.awt.BasicStroke(2.2f, java.awt.BasicStroke.CAP_ROUND,
+                            java.awt.BasicStroke.JOIN_ROUND));
+                    g2.drawLine(x + 6, cy - 6, x + 6, cy + 2);
+                    g2.drawLine(x + 6, cy + 6, x + 6, cy + 6);
                 }
                 case SKIPPED -> {
                     g2.setColor(MoonTheme.GHOST);

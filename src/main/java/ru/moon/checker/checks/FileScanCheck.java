@@ -81,81 +81,122 @@ public final class FileScanCheck implements CheckModule {
     /** Candidates kept for the whole-drive pass; bounds memory on a drive with millions of files. */
     private static final int MAX_CANDIDATES = 200_000;
 
+    /** Files per user folder before the walk stops and says so (the time budget usually decides first). */
+    static final int USER_FOLDER_FILES = 50_000;
+
     @Override
     public void run(ScanContext ctx) {
         Instant started = Instant.now();
         Instant hardStop = stopAt(started, ctx.deadline());
-        boolean indexed = false;
+        Scope scope = new Scope();
         List<String> candidates = new ArrayList<>();
         // a file in Downloads is met again in the whole-drive pass: read it once, report it once
         java.util.Set<String> inspected = new java.util.HashSet<>();
-        // 1. every fixed drive by name through the MFT; keep the binaries outside trusted folders
+
+        // 1. REQUIRED (elevated, Windows): every fixed drive by name through the MFT; keep the binaries
         //    for the content pass and drop the index before the next drive (memory)
         if (Ntfs.isSupported() && ctx.isElevated()) {
             for (char drive : Volumes.fixedDrives()) {
                 if (ctx.isCancelled()) {
                     return;
                 }
+                String fs = Volumes.fileSystem(drive);
+                if (!fs.isEmpty() && !fs.equalsIgnoreCase("NTFS")) {
+                    scope.notes.add(drive + ": " + fs + " (no NTFS file table; its user folders and root are walked)");
+                    continue;
+                }
                 ctx.log(I18n.t("log.mft", drive));
                 Ntfs.Index index = Ntfs.buildIndex(drive);
                 if (index.size() > 0) {
-                    indexed = true;
+                    scope.indexedDrives++;
                     matchNames(ctx, index);
-                    collectCandidates(ctx, index, candidates);
+                    collectCandidates(ctx, index, candidates, scope);
+                } else {
+                    ctx.partial("drive " + drive + ": the NTFS file table could not be read, so names on it were not "
+                            + "matched");
                 }
             }
+        } else if (Platform.isWindows()) {
+            scope.notes.add("not elevated: no whole-drive name search (the scan is incomplete for that reason)");
         }
-
         phase("mft", started, candidates.size());
 
-        // 2. deep inspection of user-writable locations, wherever Windows keeps them
+        // 2. REQUIRED: content of user-writable locations, wherever Windows keeps them
         for (Path root : deepScanRoots()) {
             if (ctx.isCancelled()) {
                 return;
             }
-            if (Instant.now().isAfter(hardStop)) {
-                break;
-            }
             ctx.log(I18n.t("log.scanning", root.toString()));
-            FileInspection.walk(root, 8000, 8,
-                    f -> inspectOnce(f, ctx, inspected), ctx);
+            FileInspection.Walk walk = FileInspection.scan(root, USER_FOLDER_FILES, 8, hardStop,
+                    f -> scope.count(inspectOnce(f, ctx, inspected)), ctx);
+            scope.userFiles += walk.files();
+            if (!walk.rootMissing() && !walk.complete()) {
+                ctx.partial(walk.shortfall());
+            }
         }
-
         phase("user folders", started, -1);
 
-        // 3. shallow sweep of every drive root — catches cheats dropped loose in
-        //    C:\, D:\ or a top-level folder that isn't a user profile
+        // 3. extra: shallow sweep of every drive root — cheats dropped loose in C:\, D:\ or a top-level folder
         if (Platform.isWindows()) {
             for (char drive : Volumes.fixedDrives()) {
-                if (ctx.isCancelled()) {
-                    return;
-                }
-                if (Instant.now().isAfter(hardStop)) {
+                if (ctx.isCancelled() || Instant.now().isAfter(hardStop)) {
                     break;
                 }
                 Path driveRoot = Path.of(drive + ":\\");
                 ctx.log(I18n.t("log.scanning", driveRoot.toString()));
-                FileInspection.walk(driveRoot, 4000, 2,
-                        f -> inspectOnce(f, ctx, inspected), ctx);
+                FileInspection.scan(driveRoot, 4000, 2, hardStop, f -> scope.count(inspectOnce(f, ctx, inspected)), ctx);
+            }
+        }
+        phase("drive roots", started, -1);
+
+        // 4. extra: content of every other binary on the drives, most exposed locations first, with the time left
+        if (!candidates.isEmpty()) {
+            deepScanWholeDrive(ctx, candidates, hardStop, inspected, scope);
+        }
+        phase("whole-drive content", started, -1);
+        emitScope(ctx, scope);
+    }
+
+    /** What this run covered: shown to the reviewer as context, so limits are never silent. */
+    static final class Scope {
+        final java.util.EnumMap<FileInspection.Outcome, Integer> outcomes = new java.util.EnumMap<>(FileInspection.Outcome.class);
+        final java.util.EnumMap<Locations.Kind, Integer> candidatesByPlace = new java.util.EnumMap<>(Locations.Kind.class);
+        final List<String> notes = new ArrayList<>();
+        int indexedDrives, userFiles, systemBinariesByNameOnly, wholeDriveInspected, wholeDriveCandidates;
+        boolean wholeDriveTruncated;
+
+        void count(FileInspection.Outcome o) {
+            if (o != null) {
+                outcomes.merge(o, 1, Integer::sum);
             }
         }
 
-        phase("drive roots", started, -1);
-
-        // 4. content of every other binary on the drives, with the time that is left
-        if (!candidates.isEmpty()) {
-            deepScanWholeDrive(ctx, candidates, hardStop, inspected);
+        String summary() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("NTFS drives indexed by name: ").append(indexedDrives)
+                    .append("; files in user folders: ").append(userFiles)
+                    .append("; outcomes: ").append(outcomes)
+                    .append("; whole-drive content pass: ").append(wholeDriveInspected).append(" of ")
+                    .append(wholeDriveCandidates).append(" candidate programs")
+                    .append(wholeDriveTruncated ? " (stopped at its limit)" : "")
+                    .append(" by place ").append(candidatesByPlace)
+                    .append("; Windows-folder programs matched by name only: ").append(systemBinariesByNameOnly);
+            for (String n : notes) {
+                sb.append("; ").append(n);
+            }
+            sb.append(". Programs over ").append(FileInspection.STRING_SCAN_MAX / (1024 * 1024))
+                    .append(" MiB: name, streams and hash only; OneDrive online-only files: name only.");
+            return sb.toString();
         }
-        phase("whole-drive content", started, -1);
+    }
 
-        if (!indexed && Platform.isWindows() && !ctx.isElevated()) {
-            ctx.emit(Finding.builder(Category.FILES, ru.moon.checker.core.Severity.INFO,
-                            "Полный поиск по диску недоступен без прав администратора")
-                    .module(ID)
-                    .detail("MFT enumeration requires elevation; only user folders were deep-scanned.")
-                    .source("engine")
-                    .build());
-        }
+    private void emitScope(ScanContext ctx, Scope scope) {
+        ctx.emit(Finding.builder(Category.FILES, ru.moon.checker.core.Severity.INFO,
+                        "Что охватила проверка файлов / What the file scan covered")
+                .module(ID).kind(ru.moon.checker.core.EvidenceKind.CONTEXT).rule("files:scan-scope")
+                .detail(scope.summary())
+                .source("file scan")
+                .build());
     }
 
     private void matchNames(ScanContext ctx, Ntfs.Index index) {
@@ -184,10 +225,12 @@ public final class FileScanCheck implements CheckModule {
     private static final int DEEP_SCAN_MAX_FILES = 20_000;
 
     /**
-     * Binaries outside trusted folders (Windows, Program Files, Steam, vendor installs —
-     * allowlisted for heuristics anyway), from one drive's MFT, for the content pass.
+     * Programs (by name) from one drive's file table for the content pass. Windows-folder
+     * programs are left to name matching (counted in the scope note); everything else is kept,
+     * user-writable places first, program folders last, so the time budget goes where cheats
+     * are usually dropped. Location decides order here, never whether a finding is reported.
      */
-    private void collectCandidates(ScanContext ctx, Ntfs.Index index, List<String> into) {
+    private void collectCandidates(ScanContext ctx, Ntfs.Index index, List<String> into, Scope scope) {
         for (var entry : index.nodes().entrySet()) {
             if (ctx.isCancelled() || into.size() >= MAX_CANDIDATES) {
                 return;
@@ -197,10 +240,24 @@ public final class FileScanCheck implements CheckModule {
                 continue;
             }
             String path = index.resolvePath(entry.getKey());
-            if (!ctx.signatures().isAllowedPath(path.toLowerCase(Locale.ROOT))) {
-                into.add(path);
+            Locations.Kind place = Locations.classify(path);
+            if (place == Locations.Kind.SYSTEM) {
+                scope.systemBinariesByNameOnly++;
+                continue;
             }
+            scope.candidatesByPlace.merge(place, 1, Integer::sum);
+            into.add(path);
         }
+    }
+
+    /** User-writable first, then other folders, then program folders. */
+    static int priority(String path) {
+        return switch (Locations.classify(path)) {
+            case USER_WRITABLE, NETWORK, UNKNOWN -> 0;
+            case OTHER -> 1;
+            case PROGRAM -> 2;
+            case SYSTEM -> 3;
+        };
     }
 
     /**
@@ -209,9 +266,12 @@ public final class FileScanCheck implements CheckModule {
      * the user's folders. Bounded by the collector's remaining time and a file
      * count, and it reports when it had to stop early rather than silently truncating.
      */
-    private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline, java.util.Set<String> seen) {
+    private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline, java.util.Set<String> seen,
+                                    Scope scope) {
         int inspected = 0;
         boolean truncated = false;
+        candidates.sort(java.util.Comparator.comparingInt(FileScanCheck::priority));
+        scope.wholeDriveCandidates = candidates.size();
 
         for (String path : candidates) {
             if (ctx.isCancelled()) {
@@ -224,7 +284,7 @@ public final class FileScanCheck implements CheckModule {
             try {
                 Path file = Path.of(path);
                 if (!seen.contains(key(file)) && Files.isRegularFile(file)) {
-                    inspectOnce(file, ctx, seen);
+                    scope.count(inspectOnce(file, ctx, seen));
                     inspected++;
                 }
             } catch (Exception ignored) {
@@ -232,6 +292,8 @@ public final class FileScanCheck implements CheckModule {
             }
         }
         ctx.log(I18n.t("log.deepscan", inspected));
+        scope.wholeDriveInspected = inspected;
+        scope.wholeDriveTruncated = truncated;
         if (truncated) {
             ctx.emit(Finding.builder(Category.FILES, ru.moon.checker.core.Severity.INFO,
                             "Глубокое сканирование остановлено по лимиту / Deep scan hit its budget")
@@ -318,10 +380,8 @@ public final class FileScanCheck implements CheckModule {
         return sb.toString();
     }
 
-    private static void inspectOnce(Path file, ScanContext ctx, java.util.Set<String> seen) {
-        if (seen.add(key(file))) {
-            FileInspection.inspect(file, ctx, ID, Category.FILES);
-        }
+    private static FileInspection.Outcome inspectOnce(Path file, ScanContext ctx, java.util.Set<String> seen) {
+        return seen.add(key(file)) ? FileInspection.inspect(file, ctx, ID, Category.FILES) : null;
     }
 
     /** One spelling per file: Windows paths are case-insensitive and may arrive with either slash. */

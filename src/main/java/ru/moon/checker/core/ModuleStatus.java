@@ -4,6 +4,11 @@ package ru.moon.checker.core;
 public enum ModuleStatus {
     /** Completed normally. */
     OK("status.ok"),
+    /**
+     * Ran to the end but could not inspect everything it is required to (limits reached,
+     * folders unreadable). Counts as not completed: "nothing found" cannot be concluded.
+     */
+    PARTIAL("status.partial"),
     /** Not applicable on this platform / preconditions not met. */
     SKIPPED("status.skipped"),
     /** Threw an exception; partial or no results. */

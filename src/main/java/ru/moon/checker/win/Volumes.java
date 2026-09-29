@@ -18,6 +18,20 @@ public final class Volumes {
     private Volumes() {
     }
 
+    /** "NTFS", "exFAT", "FAT32", "ReFS"…, or "" when Windows does not say. */
+    public static String fileSystem(char letter) {
+        if (!Platform.isWindows()) {
+            return "";
+        }
+        try {
+            char[] fs = new char[64];
+            boolean ok = Kernel32.INSTANCE.GetVolumeInformation(letter + ":\\", null, 0, null, null, null, fs, fs.length);
+            return ok ? com.sun.jna.Native.toString(fs) : "";
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     public static List<Character> fixedDrives() {
         List<Character> out = new ArrayList<>();
         if (!Platform.isWindows()) {

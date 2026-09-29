@@ -17,6 +17,7 @@ public final class ScanContext {
     private final FindingSink sink;
     private final AtomicBoolean cancelled;
     private final java.time.Instant deadline;
+    private final java.util.List<String> shortfalls = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public ScanContext(SignatureDb signatures, CheckId checkId, EnvironmentInfo env,
                        ScanListener listener, FindingSink sink) {
@@ -60,6 +61,22 @@ public final class ScanContext {
     /** When the engine stops this collector (null: no limit, e.g. in tests). */
     public java.time.Instant deadline() {
         return deadline;
+    }
+
+    /**
+     * Records that this collector could not cover part of what it is required to inspect (a
+     * limit, an unreadable folder). The engine then settles it as {@link ModuleStatus#PARTIAL}
+     * with these reasons, so the scan cannot read as complete. Expected exclusions (a file
+     * type the collector does not handle) are not shortfalls; report those as context.
+     */
+    public void partial(String reason) {
+        if (reason != null && !reason.isBlank()) {
+            shortfalls.add(reason);
+        }
+    }
+
+    public java.util.List<String> shortfalls() {
+        return java.util.List.copyOf(shortfalls);
     }
 
     public boolean isCancelled() {

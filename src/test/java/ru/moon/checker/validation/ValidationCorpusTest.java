@@ -183,7 +183,9 @@ class ValidationCorpusTest {
             rows.add(new boolean[]{false, raised(inspect(write(dir, "lib-" + i + peExt[i % 6], randomPe(rnd)), BUNDLED),
                     "files:executable-disguised-by-extension")});
         }
-        // a disguised PE inside an allowlisted location is not reported: heuristics trust those paths
+        // a folder whose name matches a trusted root ("opt/vendor" inside a temp folder) trusts nothing:
+        // locations are matched as whole roots, and a location alone never silences a finding (review finding;
+        // before 2026-09-29 these 20 were suppressed by the substring "/opt/")
         Path trusted = Files.createDirectories(dir.resolve("opt").resolve("vendor"));
         int suppressed = 0;
         for (int i = 0; i < 20; i++) {
@@ -192,14 +194,14 @@ class ValidationCorpusTest {
                 suppressed++;
             }
         }
+        assertEquals(0, suppressed, "a nested 'opt' folder is not /opt");
         Confusion c = Confusion.of(rows);
         Map<String, Object> m = new LinkedHashMap<>(c.json());
-        m.put("suppressedInAllowlistedPath", suppressed + "/20");
+        m.put("suppressedInNestedOptFolder", suppressed + "/20");
         m.put("detectionsFromHeuristic", wrongKind);
         RESULTS.put("2-disguised-extension", m);
         assertEquals(new Confusion(60, 0, 0, 120), c);
         assertEquals(0, wrongKind, "a heuristic never produces a DETECTION");
-        assertEquals(20, suppressed);
     }
 
     // ---- 3. CS2 offset names inside a binary --------------------------------------------
@@ -311,8 +313,8 @@ class ValidationCorpusTest {
         List<SignatureRule> offsets = db.offsetStrings().stream()
                 .map(r -> new SignatureRule(r.pattern(), r.sha256(), r.severity(), r.note(), true)).toList();
         return new SignatureDb(db.version() + "+substring-offsets", db.cheatNames(), db.domains(), db.hashes(),
-                offsets, db.vulnerableDrivers(), db.cleaners(), db.macroTools(), db.allowPaths(), db.allowSigners(),
-                db.allowHashes());
+                offsets, db.vulnerableDrivers(), db.cleaners(), db.macroTools(), db.allowSigners(),
+                db.allowHashes(), db.trustedRoots());
     }
 
     /** {@code n} different entries of {@code from}, in random order. */

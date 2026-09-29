@@ -44,8 +44,9 @@ file exists even when a number has moved. The corpora are generated from seed `2
 panel fuzz uses the same seed. All of it is deterministic except section 8.
 
 Toolchain used: Temurin JDK 21.0.12.1, Maven 3.9.9, Python 3.14.4, Django 5.2.17, on Ubuntu
-26.04 x86_64. The generated files live in JUnit's temporary directory (`/tmp/junit…`). Those
-tests assume that path is not under an allowlisted location (`/usr/`, `/opt/`, `/lib/` …).
+26.04 x86_64. The generated files live in JUnit's temporary directory (`/tmp/junit…`), a
+user-writable location. Since 2026-09-29 locations are whole roots (`checks/Locations.java`), so
+a folder named `opt` or `usr` inside the temporary directory changes nothing.
 
 ## 3. Exact-hash rules
 
@@ -72,8 +73,10 @@ design. That is why a hash match is the only `DETECTION` and everything else is 
 
 ## 4. Executable disguised by extension
 
-Rule `files:executable-disguised-by-extension` fires on content that starts with `MZ` under a
-document, media or archive extension, outside an allowlisted path.
+Rule `files:executable-disguised-by-extension` fires on content that starts like an executable
+(`MZ`, or the ELF magic) under a document, media or archive extension. Since 2026-09-29 no
+location silences it; only a verified publisher or an approved hash does
+(`docs/hardening-record.md`, finding C1).
 
 **Corpus.**
 
@@ -82,14 +85,16 @@ document, media or archive extension, outside an allowlisted path.
   - 60 real-format files with those extensions (PNG, JPEG, MP4 and ZIP headers, or plain
     settings text);
   - 60 `MZ` files with legitimate PE extensions (`.dll .cpl .drv .ocx .sys .exe`).
-- 20 disguised PEs inside an allowlisted directory (`…/opt/vendor/`), which must be suppressed.
+- 20 disguised PEs inside a nested folder named like a system root (`/tmp/junit…/opt/vendor/`),
+  which must still be reported.
 
-| TP | FP | FN | TN | Precision | Recall | Suppressed in allowlisted path | `DETECTION`s from the heuristic |
+| TP | FP | FN | TN | Precision | Recall | Suppressed in the nested `opt` folder | `DETECTION`s from the heuristic |
 |---|---|---|---|---|---|---|---|
-| 60 | 0 | 0 | 120 | 1.0 | 1.0 | 20/20 | 0 |
+| 60 | 0 | 0 | 120 | 1.0 | 1.0 | 0/20 | 0 |
 
-The suppression is a deliberate blind spot. This heuristic does not report a disguised PE
-anywhere under an allowlisted location. Exact name and hash matches there are still reported.
+Before 2026-09-29 those 20 were suppressed: the allowlist matched the substring `/opt/`
+anywhere in the path. That blind spot is closed; a disguised program in a real system or
+program folder is now reported as low-weight context unless its publisher is verified.
 
 ## 5. CS2 offset names in a binary: the decision
 

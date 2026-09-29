@@ -97,6 +97,18 @@ public final class LiveGameCheck implements CheckModule {
         }
         Set<String> overlays = new LinkedHashSet<>();
         List<String> programs = new ArrayList<>();
+        // one PowerShell start for every module outside Windows' own folders
+        List<java.nio.file.Path> toVerify = new ArrayList<>();
+        for (Tlhelp32.MODULEENTRY32W m : modules) {
+            if (LiveGamePolicy.needsIdentity(LiveGamePolicy.place(m.szExePath(), gameRoot))) {
+                try {
+                    toVerify.add(java.nio.file.Path.of(m.szExePath()));
+                } catch (Exception ignored) {
+                    // an odd path: stays unverified
+                }
+            }
+        }
+        var identities = ru.moon.checker.win.Authenticode.verifyAll(toVerify);
         for (Tlhelp32.MODULEENTRY32W m : modules) {
             String path = m.szExePath();
             String name = m.szModule();
@@ -108,20 +120,31 @@ public final class LiveGameCheck implements CheckModule {
                         .detail(cheat.get().label()).evidence(path).source("cs2.exe modules").build());
                 continue;
             }
-            switch (LiveGamePolicy.place(path, gameRoot)) {
-                case USER_WRITABLE -> ctx.emit(Finding.builder(Category.CS2, Severity.HIGH,
+            LiveGamePolicy.Place place = LiveGamePolicy.place(path, gameRoot);
+            boolean verified = verified(identities.get(path), ctx);
+            switch (LiveGamePolicy.module(name, place, verified)) {
+                case USER_FOLDER -> ctx.emit(Finding.builder(Category.CS2, Severity.HIGH,
                                 "В CS2 загружена DLL из пользовательской папки / DLL from a user folder loaded into CS2")
                         .module(ID).rule("cs2:module-user-folder")
-                        .detail("Внутренние читы попадают в игру именно так; проверьте, что это за файл.")
+                        .detail("Внутренние читы попадают в игру именно так; издатель файла не подтверждён"
+                                + (LiveGamePolicy.OVERLAY_DLLS.contains(name.toLowerCase(Locale.ROOT))
+                                ? " (имя как у оверлея, но подписи нет — имя ничего не доказывает)" : "") + ".")
                         .evidence(path).source("cs2.exe modules").build());
                 case UNUSUAL -> ctx.emit(Finding.builder(Category.CS2, Severity.MEDIUM,
                                 "В CS2 загружена DLL из необычной папки / DLL from an unusual folder loaded into CS2")
                         .module(ID).rule("cs2:module-unusual-folder")
-                        .detail("Не папка игры, Windows или программ.").evidence(path).source("cs2.exe modules").build());
-                case KNOWN_OVERLAY -> overlays.add(name);
-                case PROGRAM -> programs.add(name);
-                case GAME, SYSTEM -> {
-                    // the game's own and Windows' libraries
+                        .detail("Не папка игры, Windows или программ; издатель не подтверждён.")
+                        .evidence(path).source("cs2.exe modules").build());
+                case PROXY -> ctx.emit(Finding.builder(Category.CS2, Severity.MEDIUM,
+                                "Системная библиотека загружена из папки игры / Windows library name loaded from the game folder")
+                        .module(ID).rule("cs2:module-proxy-dll")
+                        .detail("CS2 берёт " + name + " из System32; копия в папке игры подменяет её (DLL proxying). "
+                                + "Издатель не подтверждён.")
+                        .evidence(path).source("cs2.exe modules").build());
+                case OVERLAY -> overlays.add(name);
+                case PROGRAM -> programs.add(name + (verified ? "" : " (publisher not verified)"));
+                case IGNORE -> {
+                    // Windows' own libraries and the game's own files
                 }
             }
         }
@@ -129,11 +152,16 @@ public final class LiveGameCheck implements CheckModule {
             ctx.emit(Finding.builder(Category.CS2, Severity.INFO,
                             "Сторонние модули в CS2 (оверлеи, программы) / Third-party modules in CS2")
                     .module(ID).kind(EvidenceKind.CONTEXT).rule("cs2:modules-context")
-                    .detail((overlays.isEmpty() ? "" : "overlays: " + String.join(", ", overlays))
+                    .detail((overlays.isEmpty() ? "" : "verified overlays: " + String.join(", ", overlays))
                             + (programs.isEmpty() ? "" : (overlays.isEmpty() ? "" : "; ")
-                            + "programs: " + String.join(", ", programs)))
+                            + "program libraries: " + String.join(", ", programs)))
                     .source("cs2.exe modules").build());
         }
+    }
+
+    /** The publisher of a file is one this rule set vouches for (see SignatureDb#isTrustedIdentity). */
+    private static boolean verified(ru.moon.checker.win.Authenticode.Result r, ScanContext ctx) {
+        return r != null && ctx.signatures().isTrustedIdentity(r.valid(), r.rootSha1(), r.signerNames());
     }
 
     private void overlays(ScanContext ctx, WinProcess.Proc game, List<WinProcess.Proc> processes) {
@@ -170,23 +198,39 @@ public final class LiveGameCheck implements CheckModule {
         if (gameRect == null) {
             return; // the game has no visible window (minimised to the tray or still loading)
         }
+        final int[] rect = gameRect;
+        List<Object[]> over = windows.stream().filter(w -> (int) w[0] != game.pid()
+                && LiveGamePolicy.overlayStyle((int) w[1]) && LiveGamePolicy.coverage((int[]) w[2], rect) >= LiveGamePolicy.COVER)
+                .toList();
+        List<java.nio.file.Path> owners = new ArrayList<>();
+        for (Object[] w : over) {
+            WinProcess.Proc owner = byPid.get((int) w[0]);
+            if (owner != null && owner.path() != null) {
+                try {
+                    owners.add(java.nio.file.Path.of(owner.path()));
+                } catch (Exception ignored) {
+                    // unverified
+                }
+            }
+        }
+        var identities = ru.moon.checker.win.Authenticode.verifyAll(owners);
         Set<Integer> reported = new java.util.HashSet<>();
-        for (Object[] w : windows) {
+        for (Object[] w : over) {
             int pid = (int) w[0];
             WinProcess.Proc owner = byPid.get(pid);
             String exe = owner != null ? owner.name() : "?";
-            if (pid == game.pid() || !LiveGamePolicy.overlayStyle((int) w[1])
-                    || LiveGamePolicy.coverage((int[]) w[2], gameRect) < LiveGamePolicy.COVER
-                    || LiveGamePolicy.knownOverlayProcess(exe) || !reported.add(pid)) {
+            String path = owner != null && owner.path() != null ? owner.path() : exe;
+            // a known overlay program only with a verified publisher: a name alone is not an identity
+            if (LiveGamePolicy.trustedOverlayOwner(exe, verified(identities.get(path), ctx)) || !reported.add(pid)) {
                 continue;
             }
-            String path = owner != null && owner.path() != null ? owner.path() : exe;
-            boolean userFolder = DriverPlacement.of(path) == DriverPlacement.Place.USER_WRITABLE;
+            boolean userFolder = Locations.classify(path) == Locations.Kind.USER_WRITABLE;
             ctx.emit(Finding.builder(Category.CS2, userFolder ? Severity.HIGH : Severity.MEDIUM,
                             "Прозрачное окно поверх игры / Transparent window over the game")
                     .module(ID).rule("cs2:overlay-window")
                     .detail("Окно «всегда сверху» и прозрачное, закрывает игру; так рисуют ESP внешние читы. "
-                            + "Программа: " + exe)
+                            + "Программа: " + exe + (LiveGamePolicy.knownOverlayProcess(exe)
+                            ? " (имя как у известного оверлея, но издатель не подтверждён)" : ""))
                     .evidence(path).source("window list").build());
         }
     }

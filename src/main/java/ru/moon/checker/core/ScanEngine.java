@@ -225,7 +225,13 @@ public final class ScanEngine {
         ModuleStatus outcome;
         try {
             module.run(ctx);
-            outcome = ModuleStatus.OK;
+            if (ctx.shortfalls().isEmpty()) {
+                outcome = ModuleStatus.OK;
+            } else {
+                outcome = ModuleStatus.PARTIAL;
+                String why = "partial: " + String.join("; ", ctx.shortfalls());
+                errors.putIfAbsent(module.id(), why.length() > 300 ? why.substring(0, 297) + "…" : why);
+            }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             outcome = ModuleStatus.TIMEOUT;

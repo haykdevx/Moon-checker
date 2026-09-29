@@ -32,10 +32,20 @@ public record SignatureDb(
         List<SignatureRule> vulnerableDrivers,
         List<SignatureRule> cleaners,
         List<SignatureRule> macroTools,
-        List<String> allowPaths,
         List<String> allowSigners,
-        List<String> allowHashes
+        List<String> allowHashes,
+        List<TrustedRoot> trustedRoots
 ) {
+    /**
+     * A certificate root a vendor's code-signing chain may end in, pinned by SHA-1 thumbprint.
+     * A root the player installed into their own Windows store is not on this list.
+     *
+     * @param source where the thumbprint was taken from (it is not typed in from memory)
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TrustedRoot(String sha1, String name, String source) {
+    }
+
     public SignatureDb {
         version = version == null ? "unknown" : version;
         cheatNames = nullToEmpty(cheatNames);
@@ -45,9 +55,12 @@ public record SignatureDb(
         vulnerableDrivers = nullToEmpty(vulnerableDrivers);
         cleaners = nullToEmpty(cleaners);
         macroTools = nullToEmpty(macroTools);
-        allowPaths = lowerAll(allowPaths);
-        allowSigners = lowerAll(allowSigners);
+        allowSigners = allowSigners == null ? List.of() : allowSigners.stream()
+                .filter(s -> s != null && !s.isBlank()).map(SignatureDb::normalizeName).toList();
         allowHashes = lowerAll(allowHashes);
+        trustedRoots = trustedRoots == null ? List.of() : trustedRoots.stream()
+                .filter(r -> r != null && r.sha1() != null && r.sha1().matches("(?i)[0-9a-f]{40}"))
+                .map(r -> new TrustedRoot(r.sha1().toUpperCase(Locale.ROOT), r.name(), r.source())).toList();
     }
 
     private static List<String> lowerAll(List<String> in) {
@@ -71,38 +84,32 @@ public record SignatureDb(
         return new SignatureDb("empty", null, null, null, null, null, null, null, null, null, null);
     }
 
+    /** "Valve Corp." → "valve corp" (same rule as the signer names read from a certificate). */
+    static String normalizeName(String v) {
+        String s = v == null ? "" : v.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        while (s.endsWith(".")) {
+            s = s.substring(0, s.length() - 1).trim();
+        }
+        return s;
+    }
+
     // ---- allowlist (false-positive suppression) --------------------------
 
     /**
-     * True when the path lives in a trusted location (OS directories, Steam,
-     * Proton/Wine, vendor installs). Heuristic findings — offset strings,
-     * injection imports, entropy, disguised extension — are suppressed for
-     * these, because legitimate system and game binaries trip them. Exact
-     * cheat-name and hash matches are NEVER suppressed.
+     * Whether a file's signature is an identity this rule set vouches for: Windows says the
+     * signature is valid, its chain ends in a pinned root, and the signer's CN or O equals an
+     * allowed vendor name exactly (after trimming case, spaces and trailing dots). A substring
+     * is not enough: "Not Microsoft Corporation Ltd" is not "Microsoft Corporation".
+     *
+     * <p>This only ever decides whether a heuristic finding needs a reviewer; exact cheat-name
+     * and hash matches are reported regardless.
      */
-    public boolean isAllowedPath(String pathLower) {
-        if (pathLower == null) {
+    public boolean isTrustedIdentity(boolean valid, String rootSha1, List<String> signerNames) {
+        if (!valid || rootSha1 == null || signerNames == null) {
             return false;
         }
-        for (String p : allowPaths) {
-            if (pathLower.contains(p)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** True when a code-signing subject is a trusted vendor. */
-    public boolean isAllowedSigner(String signerLower) {
-        if (signerLower == null) {
-            return false;
-        }
-        for (String s : allowSigners) {
-            if (signerLower.contains(s)) {
-                return true;
-            }
-        }
-        return false;
+        boolean pinned = trustedRoots.stream().anyMatch(r -> r.sha1().equalsIgnoreCase(rootSha1));
+        return pinned && signerNames.stream().map(SignatureDb::normalizeName).anyMatch(allowSigners::contains);
     }
 
     /** True when this exact file hash is explicitly known-good. */
