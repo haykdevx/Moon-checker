@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.28-cs2",
+  "version": "2026.09.29-cs2",
   "cheatNames": [
     {
       "pattern": "neverlose",
@@ -867,6 +867,7 @@
     "\\windows\\syswow64\\",
     "\\windows\\winsxs\\",
     "\\windows\\servicing\\",
+    "\\programdata\\microsoft\\windows defender\\",
     "\\program files\\",
     "\\program files (x86)\\",
     "\\steam\\steamapps\\common\\",

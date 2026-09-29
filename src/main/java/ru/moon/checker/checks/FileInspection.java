@@ -117,6 +117,9 @@ public final class FileInspection {
         if (size <= 0) {
             return;
         }
+        if (isCloudPlaceholder(file)) {
+            return; // OneDrive "files on demand": reading it would download it; the name was matched above
+        }
 
         // Trusted location? Heuristics (ADS, disguise, offsets, imports, entropy)
         // are suppressed for OS/Steam/vendor paths; exact name and hash matches
@@ -165,8 +168,10 @@ public final class FileInspection {
         // 4. exact hash match (streamed) — for binaries, disguised PEs, or when
         //    the signature DB actually contains hashes (to catch renamed cheats)
         boolean hashAll = !ctx.signatures().hashes().isEmpty();
+        // hashing a big binary costs seconds: only when a hash rule or allowlisted hash can use it
+        boolean hashUseful = hashAll || !ctx.signatures().allowHashes().isEmpty();
         String fileHash = null;
-        if ((binaryExt || mz || hashAll) && size <= HASH_MAX) {
+        if (hashUseful && (binaryExt || mz || hashAll) && size <= HASH_MAX) {
             String hash = Hashing.sha256File(file);
             fileHash = hash;
             if (hash != null) {
@@ -195,11 +200,12 @@ public final class FileInspection {
             return;
         }
 
-        // Full trust decision for the content heuristics: trusted path, an
-        // explicitly allowlisted hash, or a valid signature from a known vendor.
-        if (trustedPath || isTrusted(file, fileHash, ctx)) {
+        if (trustedPath) {
             return; // exact name/hash matches already reported above
         }
+        // Heuristics are computed first; the signature check (a PowerShell start, about a second
+        // on a player's PC) runs only when one of them would fire — not for every binary.
+        List<Finding> heuristic = new java.util.ArrayList<>();
 
         List<String> strings = BinStrings.all(data, MIN_STRING);
         int offsetHits = 0;
@@ -221,7 +227,7 @@ public final class FileInspection {
             // One game field name alone is common in legitimate Source-engine tools (demo and movie
             // tools, server plugins, SDK code): it is shown as LOW and does not ask for a review.
             Severity sev = offsetSeverity(offsetHits, dumpName);
-            ctx.emit(Finding.builder(category, sev,
+            heuristic.add(Finding.builder(category, sev,
                             "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary")
                     .module(module)
                     .detail(offsetHits + " match(es): " + trimTail(matched.toString()))
@@ -235,7 +241,7 @@ public final class FileInspection {
         if (pe.isPe() && pe.looksLikeInjector()) {
             boolean suspicious = isSuspiciousLocation(pathLower) || !pe.signed();
             Severity sev = suspicious ? Severity.HIGH : Severity.LOW;
-            ctx.emit(Finding.builder(category, sev,
+            heuristic.add(Finding.builder(category, sev,
                             "Импорт функций инъекции в процесс / Process-injection imports")
                     .module(module)
                     .detail("Imports remote-injection APIs" + (pe.signed() ? "" : ", unsigned")
@@ -250,7 +256,7 @@ public final class FileInspection {
         if (isSuspiciousLocation(pathLower)) {
             double entropy = ru.moon.checker.parse.Entropy.shannon(data);
             if (entropy >= PACKED_ENTROPY) {
-                ctx.emit(Finding.builder(category, Severity.LOW,
+                heuristic.add(Finding.builder(category, Severity.LOW,
                                 "Упакованный/зашифрованный бинарник / Packed or encrypted binary")
                         .module(module)
                         .detail(String.format(Locale.ROOT, "entropy %.2f/8.0 in a user-writable location", entropy))
@@ -259,6 +265,11 @@ public final class FileInspection {
                         .openPath(parent(file))
                         .build());
             }
+        }
+
+        // an explicitly allowlisted hash or a valid signature from a known vendor suppresses them
+        if (!heuristic.isEmpty() && !isTrusted(file, fileHash, ctx)) {
+            heuristic.forEach(ctx::emit);
         }
     }
 
@@ -310,6 +321,16 @@ public final class FileInspection {
             Files.walkFileTree(root, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
                     maxDepth, new SimpleFileVisitor<>() {
                         @Override
+                        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                            // Windows' compatibility junctions ("C:\\ProgramData\\Application Data" points back
+                            // at ProgramData) made the walk loop 8 levels deep; Java does not see them as links
+                            if (!dir.equals(root) && (attrs.isSymbolicLink() || attrs.isOther() || isReparsePoint(dir))) {
+                                return FileVisitResult.SKIP_SUBTREE;
+                            }
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                        @Override
                         public FileVisitResult visitFile(Path f, BasicFileAttributes attrs) {
                             if (ctx.isCancelled() || count[0] >= maxFiles) {
                                 return FileVisitResult.TERMINATE;
@@ -330,6 +351,42 @@ public final class FileInspection {
             // best-effort
         }
         return count[0];
+    }
+
+    private static final int FILE_ATTRIBUTE_REPARSE_POINT = 0x400;
+    private static final int FILE_ATTRIBUTE_OFFLINE = 0x1000;
+    private static final int FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x40000;
+    private static final int FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x400000;
+
+    /** Windows file attributes, or -1 when unknown (not Windows, no access). */
+    static int windowsAttributes(Path p) {
+        if (!ru.moon.checker.core.Platform.isWindows()) {
+            return -1;
+        }
+        try {
+            return com.sun.jna.platform.win32.Kernel32.INSTANCE.GetFileAttributes(p.toString());
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /** A junction, symbolic link or mount point (directories are not followed into them). */
+    static boolean isReparsePoint(Path p) {
+        return isReparse(windowsAttributes(p));
+    }
+
+    static boolean isReparse(int attributes) {
+        return attributes != -1 && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    }
+
+    /** OneDrive / cloud-only placeholder: content lives in the cloud until something reads it. */
+    static boolean isCloudPlaceholder(Path p) {
+        return isCloudOnly(windowsAttributes(p));
+    }
+
+    static boolean isCloudOnly(int attributes) {
+        return attributes != -1 && (attributes & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN
+                | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)) != 0;
     }
 
     private static String parent(Path p) {

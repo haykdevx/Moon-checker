@@ -62,6 +62,12 @@ public final class FileScanCheck implements CheckModule {
      * PC with several large drives finishes instead of timing out (an incomplete scan).
      */
     static final Duration BUDGET = Duration.ofMinutes(4).plusSeconds(20);
+    /** Phase timings in the log: the only way to see on a player's PC where the time went. */
+    private static void phase(String name, Instant started, int count) {
+        ru.moon.checker.core.Log.info("files: " + name + " done at +" + Duration.between(started, Instant.now()).toSeconds()
+                + "s" + (count >= 0 ? " (" + count + " candidates)" : ""));
+    }
+
     /** Our own budget, but never past the engine's deadline minus a margin to report cleanly. */
     static Instant stopAt(Instant now, Instant engineDeadline) {
         Instant own = now.plus(BUDGET);
@@ -77,7 +83,8 @@ public final class FileScanCheck implements CheckModule {
 
     @Override
     public void run(ScanContext ctx) {
-        Instant hardStop = stopAt(Instant.now(), ctx.deadline());
+        Instant started = Instant.now();
+        Instant hardStop = stopAt(started, ctx.deadline());
         boolean indexed = false;
         List<String> candidates = new ArrayList<>();
         // 1. every fixed drive by name through the MFT; keep the binaries outside trusted folders
@@ -97,6 +104,8 @@ public final class FileScanCheck implements CheckModule {
             }
         }
 
+        phase("mft", started, candidates.size());
+
         // 2. deep inspection of user-writable locations, wherever Windows keeps them
         for (Path root : deepScanRoots()) {
             if (ctx.isCancelled()) {
@@ -109,6 +118,8 @@ public final class FileScanCheck implements CheckModule {
             FileInspection.walk(root, 8000, 8,
                     f -> FileInspection.inspect(f, ctx, ID, Category.FILES), ctx);
         }
+
+        phase("user folders", started, -1);
 
         // 3. shallow sweep of every drive root — catches cheats dropped loose in
         //    C:\, D:\ or a top-level folder that isn't a user profile
@@ -127,10 +138,13 @@ public final class FileScanCheck implements CheckModule {
             }
         }
 
+        phase("drive roots", started, -1);
+
         // 4. content of every other binary on the drives, with the time that is left
         if (!candidates.isEmpty()) {
             deepScanWholeDrive(ctx, candidates, hardStop);
         }
+        phase("whole-drive content", started, -1);
 
         if (!indexed && Platform.isWindows() && !ctx.isElevated()) {
             ctx.emit(Finding.builder(Category.FILES, ru.moon.checker.core.Severity.INFO,

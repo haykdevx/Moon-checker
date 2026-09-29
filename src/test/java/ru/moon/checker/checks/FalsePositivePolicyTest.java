@@ -74,6 +74,17 @@ class FalsePositivePolicyTest {
     }
 
     @Test
+    void junctionsAreNotWalkedAndCloudFilesAreNotRead() {
+        // C:\ProgramData\Application Data is a junction back to ProgramData (found on the first Windows run)
+        assertTrue(FileInspection.isReparse(0x10 | 0x400), "directory + reparse point = junction");
+        assertFalse(FileInspection.isReparse(0x10), "a plain directory");
+        assertFalse(FileInspection.isReparse(-1), "unknown attributes: walk normally");
+        assertTrue(FileInspection.isCloudOnly(0x20 | 0x400000), "OneDrive online-only file");
+        assertTrue(FileInspection.isCloudOnly(0x1000), "offline file");
+        assertFalse(FileInspection.isCloudOnly(0x20), "an ordinary local file");
+    }
+
+    @Test
     void launchOptionsAreMatchedWhole() {
         assertTrue(Cs2IntegrityCheck.hasOption("-novid -insecure +fps_max 0", "-insecure"));
         assertFalse(Cs2IntegrityCheck.hasOption("-novid -toolsmode", "-tools"));
