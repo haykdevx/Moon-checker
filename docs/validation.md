@@ -350,6 +350,41 @@ English words (in `/usr/share/dict/words`): `#2 #7 #10 #13 #18 #19 #20 #23 #29 #
 Three of them (`#7`, `#10`, `#23`) are substring rules, so they also match inside longer
 words, as `#10` did above.
 
+*Since 2026-09-29* (rules `2026.09.29-classified`, `docs/rules-pipeline.md`) 19 name rules are
+marked `ambiguous` — the dictionary words above plus legitimate product names: they match only
+program or archive names (or a bare process name) and are capped at MEDIUM. A real Linux run on
+the development machine had reported `midnight-jazz.md` and `primordials.js` as CRITICAL cheat
+files; both are now not matched (`WordBoundaryTest.anAmbiguousNameMatchesProgramsOnlyAndAsksForALookNotAVerdict`).
+Dual-use tools (debuggers, memory editors) are INFO context.
+
+## 8b. Benign corpus through the full file inspection (2026-09-29)
+
+`--evaluate-benign <folder>` runs every file through the same inspection a scan uses (content
+formats, name rules, streams, disguise, offset strings, imports, entropy, and the identity gate
+that asks Windows for signatures). The folders are legitimate, so every reported file is a false
+positive and every file that would move the outcome is a false "needs a look". Raw results:
+`docs/evidence/benign/*.json`.
+
+| Machine | Folder | Files | Executables inspected | Files with any finding | Files that would move the outcome | 95 % upper bound (Wilson) |
+|---|---|---|---|---|---|---|
+| Linux host (Ubuntu 26.04, kernel 7.0) | `/usr/bin` | 1293 | 983 | 5 | 0 | 0.296 % |
+| Linux host (Ubuntu 26.04, kernel 7.0) | `/usr/libexec` | 255 | 221 | 0 | 0 | 1.484 % |
+| Linux host (Ubuntu 26.04, kernel 7.0) | `/usr/lib/x86_64-linux-gnu` | 6078 | 4039 | 16 | 0 | 0.063 % |
+| Windows 11 25H2 VM | `C:\ProgramData\Microsoft\Windows Defender` | 457 | 282 | 0 | 0 | 0.834 % |
+| Windows 11 25H2 VM | `C:\Program Files` | 29171 | 4288 | 0 | 0 | 0.013 % |
+| Windows 11 25H2 VM | `C:\Program Files (x86)` | 3250 | 456 | 0 | 0 | 0.118 % |
+| Windows 11 25H2 VM | `C:\Windows\System32` | 16271 | 8590 | 0 | 0 | 0.024 % |
+| Windows 11 25H2 VM | `C:\Windows\SysWOW64` | 4648 | 3655 | 0 | 0 | 0.083 % |
+| **all** | | **61423** | | | **0** | **0.0063 %** |
+
+Zero outcome-moving files in 61,423, so the false "needs a look" rate per file is below 0.0063 %
+with 95 % confidence on these folders. What this does **not** show: the Windows VM has only
+Microsoft software installed (no Steam, no games, no overlays, no third-party antivirus or RGB
+tools), so the rate on a gaming PC's Program Files is unmeasured; user folders (Downloads,
+AppData) were not part of this corpus; and nothing here measures detection of real cheats. The
+five low-weight Linux hits are `process_vm_*` references in system programs (debugging tools),
+shown as LOW and never outcome-moving; the Linux PE hits are Windows DLLs shipped for Wine.
+
 ## 9. Known limitations and what is needed next
 
 - **No real labelled data.** Real-world precision and recall per rule family need the corpus

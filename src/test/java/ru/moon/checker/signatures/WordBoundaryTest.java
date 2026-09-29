@@ -3,6 +3,8 @@ package ru.moon.checker.signatures;
 import org.junit.jupiter.api.Test;
 import ru.moon.checker.core.Severity;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -63,5 +65,39 @@ class WordBoundaryTest {
         assertTrue(db.matchCheatName("cheatengine77.exe").isPresent());
         assertTrue(db.matchDomain("https://neverlose.cc/market").isPresent());
         assertFalse(db.allOffsetMatches("... dwEntityList ...").isEmpty());
+    }
+
+    @Test
+    void anAmbiguousNameMatchesProgramsOnlyAndAsksForALookNotAVerdict() {
+        // found on a real Linux run: midnight-jazz.md and primordials.js were reported as CRITICAL cheats
+        SignatureDb db = SignatureLoader.load(null).db();
+        assertTrue(db.matchCheatName("midnight-jazz.md").isEmpty());
+        assertTrue(db.matchCheatName("primordials.js").isEmpty());
+        assertTrue(db.matchCheatName("predatorsense.exe").isEmpty(), "word boundary: part of a longer word");
+        assertTrue(db.matchCheatName("midnight commander - wikipedia").isEmpty());
+        var exe = db.matchCheatName("midnight.exe");
+        assertTrue(exe.isPresent());
+        assertEquals(Severity.MEDIUM, exe.get().severity(), "ambiguous: capped");
+        assertTrue(db.matchCheatName("midnight").isPresent(), "a bare process name");
+        assertEquals(Severity.CRITICAL, db.matchCheatName("nixware_loader.exe").get().severity(),
+                "a distinctive product name keeps its severity");
+        assertEquals(Severity.CRITICAL, db.matchCheatName("nixware notes.txt").get().severity(),
+                "and matches any name");
+    }
+
+    @Test
+    void dualUseToolsAreContextAndEveryRuleSaysWhereItComesFrom() {
+        SignatureDb db = SignatureLoader.load(null).db();
+        assertEquals(Severity.INFO, db.matchCheatName("x64dbg.exe").get().severity());
+        assertEquals("dual-use", db.matchCheatName("processhacker.exe").get().ruleClass());
+        for (var list : List.of(db.cheatNames(), db.domains(), db.offsetStrings(), db.vulnerableDrivers(), db.cleaners(),
+                db.macroTools())) {
+            for (SignatureRule r : list) {
+                assertNotNull(r.ruleClass(), r.pattern());
+                assertNotNull(r.source(), r.pattern());
+                assertTrue(List.of("reviewed", "provisional").contains(r.status()), r.pattern() + ": " + r.status());
+            }
+        }
+        assertTrue(db.hashes().isEmpty(), "no hash without a classified sample (docs/rules-pipeline.md)");
     }
 }

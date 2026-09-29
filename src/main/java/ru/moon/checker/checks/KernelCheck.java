@@ -59,17 +59,35 @@ public final class KernelCheck implements CheckModule {
         ctx.log(I18n.t("log.kernel"));
         KernelBridge.Report report = KernelBridge.read();
         ru.moon.checker.kernel.KernelReport parsed = null;
-        if (report.present()) {
-            parsed = ru.moon.checker.kernel.KernelReport.parse(report.lines());
-            consumeDriverReport(ctx, parsed.records(), report.source());
-            hiddenProcesses(ctx, parsed, report.source());
-        } else {
-            ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
+        switch (report.state()) {
+            case COLLECTED -> {
+                parsed = ru.moon.checker.kernel.KernelReport.parse(report.lines());
+                consumeDriverReport(ctx, parsed.records(), report.source());
+                int hidden = hiddenProcesses(ctx, parsed, report.source());
+                if (parsed.complete()) {
+                    ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
+                                    "Сверка с ядром выполнена / Kernel cross-view compared")
+                            .module(ID).kind(EvidenceKind.CONTEXT).rule("kernel:cross-view")
+                            .detail(parsed.records().size() + " kernel records compared with the user-mode view; "
+                                    + hidden + " discrepancy(ies) left after re-checking races. An empty result is "
+                                    + "not proof of a clean kernel: a kernel-mode rootkit, a manually mapped driver, "
+                                    + "a hypervisor or DMA device is invisible to both views.")
+                            .source(report.source()).build());
+                }
+            }
+            case ABSENT -> ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
                             "Kernel-драйвер Moon не загружен / Moon kernel driver not loaded")
                     .module(ID)
                     .detail("Работает режим пользователя (user-mode fallback). Загрузите драйвер для скрытых объектов.")
                     .source("kernel bridge")
                     .build());
+            case INACCESSIBLE -> ctx.emit(Finding.builder(Category.KERNEL, Severity.INFO,
+                            "Kernel-компонент есть, но недоступен / Kernel component present but not accessible")
+                    .module(ID).kind(EvidenceKind.CONTEXT).rule("kernel:component-inaccessible")
+                    .detail(report.source() + ": " + report.detail() + " — run the checker as administrator/root.")
+                    .source("kernel bridge").build());
+            case FAILED -> ctx.partial("kernel component " + report.source() + " is installed but its report could not "
+                    + "be read (" + report.detail() + "); the user-mode checks ran without it");
         }
         if (Platform.isWindows()) {
             windowsFallback(ctx);
@@ -79,9 +97,8 @@ public final class KernelCheck implements CheckModule {
             linuxPosture(ctx);
         }
         if (parsed != null && !parsed.complete()) {
-            // the component is installed but its view is partial: that is missing telemetry,
-            // not a clean result — surface it as a collection error (incomplete scan)
-            throw new IllegalStateException("kernel component report incomplete: " + parsed.problem());
+            // installed, but its view is incompatible or cut short: missing telemetry, not a clean result
+            ctx.partial("kernel component report incomplete: " + parsed.problem());
         }
     }
 
@@ -122,28 +139,47 @@ public final class KernelCheck implements CheckModule {
      * candidate is re-verified, because a process legitimately exiting between
      * the two reads would otherwise look hidden.
      */
-    private void hiddenProcesses(ScanContext ctx, ru.moon.checker.kernel.KernelReport parsed, String source) {
+    private int hiddenProcesses(ScanContext ctx, ru.moon.checker.kernel.KernelReport parsed, String source) {
         java.util.Set<Integer> kernelPids =
                 ru.moon.checker.kernel.HiddenObjects.parseKernelPids(parsed.records());
         if (kernelPids.isEmpty()) {
-            return;
+            return 0;
         }
-        java.util.Set<Integer> visible =
-                new java.util.HashSet<>(ru.moon.checker.linux.Proc.pids());
-        for (Integer pid : ru.moon.checker.kernel.HiddenObjects.hiddenPids(kernelPids, visible)) {
-            // re-verify: still absent from /proc?
-            if (java.nio.file.Files.exists(java.nio.file.Path.of("/proc", String.valueOf(pid)))) {
-                continue;
-            }
-            String comm = ru.moon.checker.kernel.HiddenObjects.commOf(parsed.records(), pid);
+        java.util.Map<Integer, String> kernelNames = new java.util.HashMap<>();
+        for (Integer pid : kernelPids) {
+            kernelNames.put(pid, ru.moon.checker.kernel.HiddenObjects.commOf(parsed.records(), pid));
+        }
+        java.util.List<Integer> hidden = ru.moon.checker.kernel.HiddenObjects.confirmedHidden(kernelPids,
+                new java.util.HashSet<>(ru.moon.checker.linux.Proc.pids()),
+                pid -> java.nio.file.Files.exists(java.nio.file.Path.of("/proc", String.valueOf(pid))),
+                () -> new java.util.HashSet<>(ru.moon.checker.linux.Proc.pids()),
+                KernelCheck::commNow, kernelNames);
+        for (Integer pid : hidden) {
+            String comm = kernelNames.get(pid);
             ctx.emit(Finding.builder(Category.KERNEL, Severity.CRITICAL,
                             "Скрытый процесс (руткит) / Process hidden from user-mode")
                     .module(ID).kind(EvidenceKind.CONCEALMENT).rule("kernel:hidden-process")
                     .detail("PID " + pid + (comm != null ? " (" + comm + ")" : "")
-                            + " виден ядру, но отсутствует в /proc")
+                            + " виден ядру и отвечает по /proc/" + pid + ", но пропущен в списке /proc "
+                            + "(перепроверено дважды) — фильтр списка процессов")
                     .evidence("pid " + pid)
                     .source(source)
                     .build());
+        }
+        return hidden.size();
+    }
+
+    /** /proc/<pid>/comm with the kernel module's sanitising, so the two names compare like for like. */
+    static String commNow(int pid) {
+        try {
+            String raw = java.nio.file.Files.readString(java.nio.file.Path.of("/proc", String.valueOf(pid), "comm")).strip();
+            StringBuilder sb = new StringBuilder();
+            for (char c : raw.toCharArray()) {
+                sb.append(c >= 0x21 && c <= 0x7e ? c : '?');
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
         }
     }
 

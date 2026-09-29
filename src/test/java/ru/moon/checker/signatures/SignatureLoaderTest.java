@@ -91,4 +91,51 @@ class SignatureLoaderTest {
         assertTrue(SignatureLoader.compareVersions("2026.09.14", "2026.10.01") < 0);
         assertEquals(0, SignatureLoader.compareVersions("1.2.3", "1.2.3"));
     }
+
+    @Test
+    void aNewerRuleFormatIsRefusedUntilTheCheckerIsUpdated(@TempDir Path dir) throws Exception {
+        KeyPair k = keyPair();
+        write(dir, NEWER.replace("{\"version\"", "{\"format\":" + (SignatureLoader.FORMAT + 1) + ",\"version\""), k);
+        SignatureLoader.Result r = SignatureLoader.load(dir, List.of(k.getPublic()));
+        assertEquals("bundled", r.origin());
+        assertTrue(r.provenance().note().contains("format"), r.provenance().note());
+    }
+
+    @Test
+    void aSignedEmptyRuleSetIsRefused(@TempDir Path dir) throws Exception {
+        KeyPair k = keyPair();
+        write(dir, "{\"version\":\"2099.01.01\",\"cheatNames\":[]}", k);
+        SignatureLoader.Result r = SignatureLoader.load(dir, List.of(k.getPublic()));
+        assertEquals("bundled", r.origin());
+        assertTrue(r.db().ruleCount() > 0);
+        assertTrue(r.provenance().note().contains("no rules"), r.provenance().note());
+    }
+
+    @Test
+    void anInterruptedUpdateIsIgnoredAndTheNextCompleteOneIsUsed(@TempDir Path dir) throws Exception {
+        KeyPair k = keyPair();
+        write(dir, NEWER, k);                                           // a complete, signed update
+        byte[] full = Files.readAllBytes(dir.resolve(SignatureLoader.OVERRIDE_FILE));
+        Files.write(dir.resolve(SignatureLoader.OVERRIDE_FILE), java.util.Arrays.copyOf(full, full.length / 2));
+        SignatureLoader.Result cut = SignatureLoader.load(dir, List.of(k.getPublic()));
+        assertEquals("bundled", cut.origin(), "a cut-off download fails the signature");
+        String newerStill = NEWER.replace("2099.01.01", "2099.02.01");
+        Files.writeString(dir.resolve(SignatureLoader.OVERRIDE_FILE), newerStill);   // new file, old signature
+        assertEquals("bundled", SignatureLoader.load(dir, List.of(k.getPublic())).origin());
+        write(dir, newerStill, k);                                      // recovery: the next complete pair
+        SignatureLoader.Result ok = SignatureLoader.load(dir, List.of(k.getPublic()));
+        assertEquals("signed-override", ok.origin());
+        assertEquals("2099.02.01", ok.db().version());
+    }
+
+    @Test
+    void withdrawnRulesStayInTheFileButAreNotUsed(@TempDir Path dir) throws Exception {
+        KeyPair k = keyPair();
+        write(dir, "{\"version\":\"2099.01.01\",\"cheatNames\":[{\"pattern\":\"moon-test-artifact\",\"severity\":\"HIGH\","
+                + "\"substring\":true},{\"pattern\":\"legit-tool\",\"severity\":\"HIGH\",\"status\":\"withdrawn\"}]}", k);
+        SignatureDb db = SignatureLoader.load(dir, List.of(k.getPublic())).db();
+        assertEquals(1, db.ruleCount());
+        assertTrue(db.matchCheatName("legit-tool.exe").isEmpty());
+        assertTrue(db.matchCheatName("moon-test-artifact.exe").isPresent());
+    }
 }

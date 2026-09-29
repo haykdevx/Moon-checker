@@ -47,6 +47,13 @@ public record SignatureDb(
     }
 
     public SignatureDb {
+        cheatNames = active(cheatNames);
+        domains = active(domains);
+        hashes = active(hashes);
+        offsetStrings = active(offsetStrings);
+        vulnerableDrivers = active(vulnerableDrivers);
+        cleaners = active(cleaners);
+        macroTools = active(macroTools);
         version = version == null ? "unknown" : version;
         cheatNames = nullToEmpty(cheatNames);
         domains = nullToEmpty(domains);
@@ -74,6 +81,11 @@ public record SignatureDb(
             }
         }
         return List.copyOf(out);
+    }
+
+    /** Withdrawn rules stay in the file for the record and are never used. */
+    private static List<SignatureRule> active(List<SignatureRule> in) {
+        return in == null ? null : in.stream().filter(r -> r != null && !r.withdrawn()).toList();
     }
 
     private static List<SignatureRule> nullToEmpty(List<SignatureRule> in) {
@@ -125,8 +137,45 @@ public record SignatureDb(
 
     // ---- matching helpers -------------------------------------------------
 
+    /**
+     * A cheat-name rule matching {@code name} (a file, program or process name, lower-case). An
+     * ambiguous rule — its pattern is also an ordinary word or a legitimate product — matches only
+     * a program or archive name and is capped at MEDIUM: {@code midnight-jazz.md} is not a cheat,
+     * {@code midnight.exe} asks for a look, not a verdict.
+     */
     public Optional<SignatureRule> matchCheatName(String name) {
-        return firstMatch(cheatNames, name);
+        if (name == null) {
+            return Optional.empty();
+        }
+        String lower = name.toLowerCase(Locale.ROOT);
+        boolean program = programOrArchiveName(lower);
+        for (SignatureRule r : cheatNames) {
+            if (r.ambiguous() && !program) {
+                continue;
+            }
+            if (r.matches(lower)) {
+                return Optional.of(r.ambiguous() ? r.cappedAt(ru.moon.checker.core.Severity.MEDIUM) : r);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static final java.util.Set<String> PROGRAM_OR_ARCHIVE = java.util.Set.of(
+            "exe", "dll", "sys", "scr", "com", "bat", "cmd", "ps1", "vbs", "msi", "jar", "so", "elf", "bin",
+            "zip", "rar", "7z", "cab", "ahk", "pf");
+
+    /**
+     * A name that is a program or an archive: a program/archive extension, or no extension and no
+     * spaces or separators (a Linux program or a process name). "Midnight Commander - Wikipedia"
+     * and {@code midnight-jazz.md} are not.
+     */
+    static boolean programOrArchiveName(String lower) {
+        String base = lower.substring(Math.max(lower.lastIndexOf('/'), lower.lastIndexOf('\\')) + 1).trim();
+        int dot = base.lastIndexOf('.');
+        if (dot < 0) {
+            return !base.isEmpty() && !base.contains(" ");
+        }
+        return PROGRAM_OR_ARCHIVE.contains(base.substring(dot + 1));
     }
 
     public Optional<SignatureRule> matchDomain(String url) {

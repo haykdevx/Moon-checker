@@ -24,10 +24,22 @@ import java.util.Locale;
  * @param severity  severity to assign when this rule matches (defaults MEDIUM)
  * @param note      human explanation shown to the admin
  * @param substring match anywhere, skipping the word-boundary requirement
+ * @param ruleClass what the rule is about: cheat-product, cheat-generic, bypass-tool, injector,
+ *                  offset-tool, dual-use, cheat-site, offset-name, vulnerable-driver, cleaner,
+ *                  macro-tool, known-hash (JSON "class")
+ * @param ambiguous the name is also an ordinary word or a legitimate product ("predator",
+ *                  "gamesense", "midnight"): it matches only program or archive names and never
+ *                  counts above MEDIUM (see SignatureDb#matchCheatName)
+ * @param status    reviewed | provisional | withdrawn — withdrawn rules are kept in the file for
+ *                  the record and never loaded
+ * @param source    where the rule comes from (provenance), stated plainly
+ * @param since     rules version that added it
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SignatureRule(String pattern, String sha256, Severity severity, String note,
-                            boolean substring) {
+                            boolean substring,
+                            @com.fasterxml.jackson.annotation.JsonProperty("class") String ruleClass,
+                            boolean ambiguous, String status, String source, String since) {
 
     public SignatureRule {
         if (severity == null) {
@@ -44,6 +56,20 @@ public record SignatureRule(String pattern, String sha256, Severity severity, St
     /** Convenience for tests / programmatic rules (word-boundary matching). */
     public SignatureRule(String pattern, String sha256, Severity severity, String note) {
         this(pattern, sha256, severity, note, false);
+    }
+
+    public SignatureRule(String pattern, String sha256, Severity severity, String note, boolean substring) {
+        this(pattern, sha256, severity, note, substring, null, false, null, null, null);
+    }
+
+    public boolean withdrawn() {
+        return "withdrawn".equalsIgnoreCase(status);
+    }
+
+    /** The same rule with its severity lowered to at most {@code cap}. */
+    public SignatureRule cappedAt(Severity cap) {
+        return severity.rank() <= cap.rank() ? this
+                : new SignatureRule(pattern, sha256, cap, note, substring, ruleClass, ambiguous, status, source, since);
     }
 
     public boolean matches(String haystackLower) {

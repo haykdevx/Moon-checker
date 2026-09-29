@@ -1,0 +1,54 @@
+{
+  "filesInspected" : 6078,
+  "filesMovingOutcome" : {
+    "n" : 0,
+    "rate" : {
+      "n" : 6078,
+      "wilson95" : [ 0.0, 6.32E-4 ],
+      "k" : 0,
+      "p" : 0.0
+    }
+  },
+  "filesWithAnyFinding" : {
+    "n" : 16,
+    "rate" : {
+      "n" : 6078,
+      "wilson95" : [ 0.001621, 0.004272 ],
+      "k" : 16,
+      "p" : 0.002632
+    }
+  },
+  "folder" : "/usr/lib/x86_64-linux-gnu",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 4039,
+    "NOT_EXECUTABLE" : 2029,
+    "TOO_LARGE" : 9,
+    "EMPTY" : 1
+  },
+  "perRule" : {
+    "benign:process-injection-imports" : {
+      "movingRate" : {
+        "n" : 6078,
+        "wilson95" : [ 0.0, 6.32E-4 ],
+        "k" : 0,
+        "p" : 0.0
+      },
+      "filesReported" : 8,
+      "filesMovingOutcome" : 0
+    },
+    "linuxfiles:process-memory-access" : {
+      "movingRate" : {
+        "n" : 6078,
+        "wilson95" : [ 0.0, 6.32E-4 ],
+        "k" : 0,
+        "p" : 0.0
+      },
+      "filesReported" : 8,
+      "filesMovingOutcome" : 0
+    }
+  },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

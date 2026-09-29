@@ -1,0 +1,33 @@
+{
+  "filesInspected" : 255,
+  "filesMovingOutcome" : {
+    "n" : 0,
+    "rate" : {
+      "n" : 255,
+      "wilson95" : [ 0.0, 0.014841 ],
+      "k" : 0,
+      "p" : 0.0
+    }
+  },
+  "filesWithAnyFinding" : {
+    "n" : 0,
+    "rate" : {
+      "n" : 255,
+      "wilson95" : [ 0.0, 0.014841 ],
+      "k" : 0,
+      "p" : 0.0
+    }
+  },
+  "folder" : "/usr/libexec",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 221,
+    "NOT_EXECUTABLE" : 28,
+    "TOO_LARGE" : 1,
+    "UNREADABLE" : 5
+  },
+  "perRule" : { },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

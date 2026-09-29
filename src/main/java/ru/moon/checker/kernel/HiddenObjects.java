@@ -74,6 +74,44 @@ public final class HiddenObjects {
     }
 
     /**
+     * PIDs the kernel lists that are really hidden from the {@code /proc} listing, after ruling out
+     * the races between two snapshots taken at different moments:
+     * <ul>
+     *   <li>the process exited in between — {@code /proc/<pid>} no longer answers ({@code alive} false),
+     *       which is also what a PID from another PID namespace looks like: not reported;</li>
+     *   <li>the process started in between — it is in a second listing taken now: not reported;</li>
+     *   <li>the PID was reused by a new process — its name now differs from the kernel's: not reported.</li>
+     * </ul>
+     * What remains answers to its own {@code /proc/<pid>} while the directory listing leaves it out:
+     * the signature of a listing filter (an {@code LD_PRELOAD} or {@code ld.so.preload} rootkit hooking
+     * readdir). An empty result is not proof of a clean kernel: a kernel-mode rootkit hides from both views.
+     */
+    public static List<Integer> confirmedHidden(Set<Integer> kernelPids, Set<Integer> firstListing,
+                                                java.util.function.IntPredicate alive,
+                                                java.util.function.Supplier<Set<Integer>> listAgain,
+                                                java.util.function.IntFunction<String> nameNow,
+                                                java.util.Map<Integer, String> kernelNames) {
+        List<Integer> candidates = hiddenPids(kernelPids, firstListing);
+        List<Integer> out = new ArrayList<>();
+        if (candidates.isEmpty()) {
+            return out;
+        }
+        Set<Integer> second = listAgain.get();
+        for (Integer pid : candidates) {
+            if (!alive.test(pid) || (second != null && second.contains(pid))) {
+                continue;
+            }
+            String was = kernelNames.get(pid);
+            String now = nameNow.apply(pid);
+            if (was != null && now != null && !now.strip().equals(was)) {
+                continue;   // a new process got the same number
+            }
+            out.add(pid);
+        }
+        return out;
+    }
+
+    /**
      * Kernel modules that appear in one enumeration but not the other.
      * A module loaded but unlinked from {@code /proc/modules} (while still
      * present in {@code /sys/module}) is a classic LKM rootkit trick.

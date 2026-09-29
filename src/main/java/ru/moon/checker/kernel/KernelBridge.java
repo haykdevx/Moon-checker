@@ -38,9 +38,29 @@ public final class KernelBridge {
     private KernelBridge() {
     }
 
-    public record Report(boolean present, String source, List<String> lines) {
+    /** What happened when the checker asked the kernel component for its report. */
+    public enum State {
+        /** Not installed (no device / no /proc entry). */
+        ABSENT,
+        /** Installed, but this process may not open it (not elevated). */
+        INACCESSIBLE,
+        /** Installed and opened, but the request or read failed. */
+        FAILED,
+        /** A report was read (its framing is checked by KernelReport: incompatible or partial show there). */
+        COLLECTED
+    }
+
+    public record Report(State state, String source, List<String> lines, String detail) {
+        public boolean present() {
+            return state == State.COLLECTED;
+        }
+
         static Report absent() {
-            return new Report(false, "none", List.of());
+            return new Report(State.ABSENT, "none", List.of(), "");
+        }
+
+        static Report of(State state, String source, String detail) {
+            return new Report(state, source, List.of(), detail);
         }
     }
 
@@ -60,21 +80,27 @@ public final class KernelBridge {
             h = Kernel32.INSTANCE.CreateFile(WIN_DEVICE, GENERIC_READ, 0, null,
                     OPEN_EXISTING, 0, null);
             if (h == null || h.equals(WinBase.INVALID_HANDLE_VALUE)) {
-                return Report.absent();
+                int err = Kernel32.INSTANCE.GetLastError();
+                return switch (err) {
+                    case 2, 3 -> Report.absent();                                 // file / path not found
+                    case 5 -> Report.of(State.INACCESSIBLE, "MoonMon.sys", "access denied");
+                    default -> Report.of(State.FAILED, "MoonMon.sys", "CreateFile error " + err);
+                };
             }
             try (Memory out = new Memory(BUFFER)) {
                 IntByReference returned = new IntByReference();
                 boolean ok = Kernel32.INSTANCE.DeviceIoControl(h, IOCTL_MOON_GET_REPORT,
                         null, 0, out, (int) out.size(), returned, null);
                 if (!ok || returned.getValue() <= 0) {
-                    return Report.absent();
+                    return Report.of(State.FAILED, "MoonMon.sys", "DeviceIoControl error "
+                            + (ok ? "(empty answer)" : String.valueOf(Kernel32.INSTANCE.GetLastError())));
                 }
-                byte[] data = out.getByteArray(0, returned.getValue());
-                return new Report(true, "MoonMon.sys",
-                        List.of(new String(data, StandardCharsets.UTF_8).split("\\R")));
+                byte[] data = out.getByteArray(0, Math.min(returned.getValue(), BUFFER));
+                return new Report(State.COLLECTED, "MoonMon.sys",
+                        List.of(new String(data, StandardCharsets.US_ASCII).split("\\R")), "");
             }
         } catch (Throwable t) {
-            return Report.absent();
+            return Report.of(State.FAILED, "MoonMon.sys", t.getClass().getSimpleName());
         } finally {
             if (h != null && !h.equals(WinBase.INVALID_HANDLE_VALUE)) {
                 Kernel32.INSTANCE.CloseHandle(h);
@@ -85,13 +111,16 @@ public final class KernelBridge {
     private static Report readLinux() {
         for (String path : new String[]{"/proc/moonmon", "/dev/moonmon"}) {
             Path p = Path.of(path);
-            if (Files.isReadable(p)) {
-                try {
-                    List<String> lines = Files.readAllLines(p, StandardCharsets.UTF_8);
-                    return new Report(true, path, lines);
-                } catch (Exception ignored) {
-                    // try next
-                }
+            if (!Files.exists(p)) {
+                continue;
+            }
+            if (!Files.isReadable(p)) {
+                return Report.of(State.INACCESSIBLE, path, "not readable (root only)");
+            }
+            try {
+                return new Report(State.COLLECTED, path, Files.readAllLines(p, StandardCharsets.US_ASCII), "");
+            } catch (Exception e) {
+                return Report.of(State.FAILED, path, e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
         return Report.absent();

@@ -24,12 +24,19 @@ import java.util.List;
  * by a key in {@code rules-keys.txt}, and its version is not older than the bundled
  * one. Anything else is ignored and noted — otherwise a player could drop an empty
  * rule file next to the checker and every scan would find nothing.
+ *
+ * <p>Also refused, with the bundled rules kept: a rule format newer than this checker
+ * understands (an update for a later checker), and a signed file with no rules at all. An
+ * interrupted update (new file, old signature, or a cut-off file) fails the signature check and
+ * is ignored; the next complete pair is used. Key replacement: see docs/rules-pipeline.md.
  */
 public final class SignatureLoader {
 
     public static final String RESOURCE = "/signatures.json";
     public static final String OVERRIDE_FILE = "signatures.json";
     public static final String SIGNATURE_FILE = "signatures.json.sig";
+    /** The newest rule format this checker understands (2: rules carry class, status, source). */
+    public static final int FORMAT = 2;
     private static final String KEYS_RESOURCE = "/rules-keys.txt";
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -67,7 +74,13 @@ public final class SignatureLoader {
                 why = OVERRIDE_FILE + " next to the checker has an invalid signature and was ignored";
             } else {
                 SignatureDb db = MAPPER.readValue(bytes, SignatureDb.class);
-                if (compareVersions(db.version(), bundled.db().version()) < 0) {
+                int format = MAPPER.readTree(bytes).path("format").asInt(1);
+                if (format > FORMAT) {
+                    why = "signed " + OVERRIDE_FILE + " uses rule format " + format + ", newer than this checker ("
+                            + FORMAT + "); update the checker. It was ignored";
+                } else if (db.ruleCount() == 0) {
+                    why = "signed " + OVERRIDE_FILE + " v" + db.version() + " has no rules and was ignored";
+                } else if (compareVersions(db.version(), bundled.db().version()) < 0) {
                     why = "signed " + OVERRIDE_FILE + " v" + db.version() + " is older than the bundled v"
                             + bundled.db().version() + " and was ignored";
                 } else {

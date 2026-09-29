@@ -1,0 +1,33 @@
+{
+  "filesInspected" : 29171,
+  "filesMovingOutcome" : {
+    "rate" : {
+      "wilson95" : [ 0.0, 1.32E-4 ],
+      "k" : 0,
+      "p" : 0.0,
+      "n" : 29171
+    },
+    "n" : 0
+  },
+  "filesWithAnyFinding" : {
+    "rate" : {
+      "wilson95" : [ 0.0, 1.32E-4 ],
+      "k" : 0,
+      "p" : 0.0,
+      "n" : 29171
+    },
+    "n" : 0
+  },
+  "folder" : "C:\\Program Files",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 4288,
+    "NOT_EXECUTABLE" : 24861,
+    "TOO_LARGE" : 4,
+    "EMPTY" : 18
+  },
+  "perRule" : { },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

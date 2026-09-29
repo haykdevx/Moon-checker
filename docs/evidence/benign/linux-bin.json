@@ -1,0 +1,43 @@
+{
+  "filesInspected" : 1293,
+  "filesMovingOutcome" : {
+    "n" : 0,
+    "rate" : {
+      "p" : 0.0,
+      "n" : 1293,
+      "wilson95" : [ 0.0, 0.002962 ],
+      "k" : 0
+    }
+  },
+  "filesWithAnyFinding" : {
+    "n" : 5,
+    "rate" : {
+      "p" : 0.003867,
+      "n" : 1293,
+      "wilson95" : [ 0.001653, 0.00902 ],
+      "k" : 5
+    }
+  },
+  "folder" : "/usr/bin",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 983,
+    "NOT_EXECUTABLE" : 308,
+    "TOO_LARGE" : 2
+  },
+  "perRule" : {
+    "linuxfiles:process-memory-access" : {
+      "movingRate" : {
+        "p" : 0.0,
+        "n" : 1293,
+        "wilson95" : [ 0.0, 0.002962 ],
+        "k" : 0
+      },
+      "filesReported" : 5,
+      "filesMovingOutcome" : 0
+    }
+  },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

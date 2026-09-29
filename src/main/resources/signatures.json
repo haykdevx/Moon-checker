@@ -1,309 +1,558 @@
 {
-  "version": "2026.09.29-identity",
+  "format": 2,
+  "_comment_rules": "Each rule states its class, review status (reviewed | provisional | withdrawn; withdrawn rules are kept for the record and never loaded), where it comes from (source) and the rules version that added it. 'ambiguous' marks names that are also ordinary words or legitimate products: they match program or archive names only and never count above MEDIUM. Dual-use tools (debuggers, memory editors) are INFO context. hashes is empty on purpose: no hash is added without a sample a maintainer classified (docs/rules-pipeline.md).",
+  "version": "2026.09.29-classified",
   "cheatNames": [
     {
       "pattern": "neverlose",
       "severity": "CRITICAL",
       "note": "Neverlose (CS2 paid cheat)",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "xone",
       "severity": "CRITICAL",
-      "note": "Xone.fun cheat loader"
+      "note": "Xone.fun cheat loader",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "midnight",
       "severity": "CRITICAL",
-      "note": "Midnight.im cheat"
+      "note": "Midnight.im cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "interium",
       "severity": "CRITICAL",
       "note": "Interium cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "nixware",
       "severity": "CRITICAL",
       "note": "Nixware CS2 cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "vredux",
       "severity": "CRITICAL",
       "note": "Vredux cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "onetap",
       "severity": "CRITICAL",
       "note": "Onetap cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "fatality",
       "severity": "CRITICAL",
       "note": "Fatality.win cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "memesense",
       "severity": "CRITICAL",
       "note": "Memesense cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gamesense",
       "severity": "CRITICAL",
       "note": "Gamesense cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "primordial",
       "severity": "CRITICAL",
       "note": "Primordial cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "pandaware",
       "severity": "CRITICAL",
       "note": "Pandaware cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "aimware",
       "severity": "CRITICAL",
       "note": "Aimware cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "skeet",
       "severity": "CRITICAL",
-      "note": "Skeet.cc cheat"
+      "note": "Skeet.cc cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "legendware",
       "severity": "CRITICAL",
       "note": "Legendware cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "plaguecheat",
       "severity": "CRITICAL",
       "note": "Plaguecheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "sunone",
       "severity": "CRITICAL",
       "note": "Sunone Aimbot (AI aim)",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "aimstar",
       "severity": "CRITICAL",
       "note": "Aimstar cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "calypso",
       "severity": "HIGH",
-      "note": "Calypso cheat"
+      "note": "Calypso cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "monolith",
       "severity": "HIGH",
-      "note": "Monolith cheat"
+      "note": "Monolith cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "hyperion",
       "severity": "HIGH",
-      "note": "Hyperion cheat"
+      "note": "Hyperion cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "tenscape",
       "severity": "CRITICAL",
       "note": "Tenscape cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wallhax",
       "severity": "CRITICAL",
       "note": "Wallhax cheat",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "colossus",
       "severity": "HIGH",
       "note": "Colossus cheats",
-      "substring": true
+      "substring": true,
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "faceit-bypass",
       "severity": "CRITICAL",
-      "note": "FACEIT anti-cheat bypass"
+      "note": "FACEIT anti-cheat bypass",
+      "class": "bypass-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "faceitbypass",
       "severity": "CRITICAL",
-      "note": "FACEIT anti-cheat bypass"
+      "note": "FACEIT anti-cheat bypass",
+      "class": "bypass-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "ac-bypass",
       "severity": "CRITICAL",
-      "note": "anti-cheat bypass"
+      "note": "anti-cheat bypass",
+      "class": "bypass-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "spoofer",
       "severity": "HIGH",
-      "note": "HWID spoofer"
+      "note": "HWID spoofer",
+      "class": "bypass-tool",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "hwid",
       "severity": "LOW",
-      "note": "HWID tool (verify) — вне CS2-контекста, справочно"
+      "note": "HWID tool (verify) — вне CS2-контекста, справочно",
+      "class": "bypass-tool",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "osiris",
       "severity": "HIGH",
-      "note": "Osiris (open-source cheat)"
+      "note": "Osiris (open-source cheat)",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "weave",
       "severity": "HIGH",
-      "note": "Weave cheat"
+      "note": "Weave cheat",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "predator",
       "severity": "HIGH",
-      "note": "Predator cheat (also legit names — verify)"
+      "note": "Predator cheat (also legit names — verify)",
+      "class": "cheat-product",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cs2-dumper",
       "severity": "HIGH",
       "note": "cs2-dumper offsets tool",
-      "substring": true
+      "substring": true,
+      "class": "offset-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cs2-external",
       "severity": "HIGH",
-      "note": "Generic CS2 external"
+      "note": "Generic CS2 external",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cs2-internal",
       "severity": "HIGH",
-      "note": "Generic CS2 internal"
+      "note": "Generic CS2 internal",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cs2cheat",
       "severity": "HIGH",
-      "note": "Generic CS2 cheat"
+      "note": "Generic CS2 cheat",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "aimbot",
       "severity": "HIGH",
-      "note": "generic aimbot"
+      "note": "generic aimbot",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "triggerbot",
       "severity": "HIGH",
-      "note": "generic triggerbot"
+      "note": "generic triggerbot",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wallhack",
       "severity": "HIGH",
-      "note": "generic wallhack"
+      "note": "generic wallhack",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "spinbot",
       "severity": "HIGH",
-      "note": "generic spinbot"
+      "note": "generic spinbot",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "bhop",
       "severity": "MEDIUM",
-      "note": "bunny-hop script"
+      "note": "bunny-hop script",
+      "class": "cheat-generic",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "no-recoil",
       "severity": "MEDIUM",
-      "note": "no-recoil macro"
+      "note": "no-recoil macro",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "norecoil",
       "severity": "MEDIUM",
-      "note": "no-recoil macro"
+      "note": "no-recoil macro",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "skinchanger",
       "severity": "MEDIUM",
-      "note": "skin changer"
+      "note": "skin changer",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "glow_esp",
       "severity": "HIGH",
-      "note": "glow ESP"
+      "note": "glow ESP",
+      "class": "cheat-generic",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "extreme injector",
       "severity": "HIGH",
-      "note": "Extreme Injector"
+      "note": "Extreme Injector",
+      "class": "injector",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gh injector",
       "severity": "HIGH",
-      "note": "GuidedHacking Injector"
+      "note": "GuidedHacking Injector",
+      "class": "injector",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "xenos",
       "severity": "MEDIUM",
-      "note": "Xenos injector"
+      "note": "Xenos injector",
+      "class": "injector",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "injector",
       "severity": "MEDIUM",
-      "note": "DLL injector (verify target)"
+      "note": "DLL injector (verify target)",
+      "class": "injector",
+      "ambiguous": true,
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "manualmap",
       "severity": "HIGH",
-      "note": "manual mapper"
+      "note": "manual mapper",
+      "class": "injector",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "reclass",
-      "severity": "LOW",
-      "note": "ReClass.NET (RE tool) — вне CS2-контекста, справочно"
+      "severity": "INFO",
+      "note": "ReClass.NET (RE tool) — вне CS2-контекста, справочно",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cheat engine",
-      "severity": "LOW",
-      "note": "Cheat Engine — вне CS2-контекста, справочно"
+      "severity": "INFO",
+      "note": "Cheat Engine — вне CS2-контекста, справочно",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "cheatengine",
-      "severity": "LOW",
-      "note": "Cheat Engine — вне CS2-контекста, справочно"
+      "severity": "INFO",
+      "note": "Cheat Engine — вне CS2-контекста, справочно",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "x64dbg",
-      "severity": "LOW",
-      "note": "x64dbg debugger (dual-use)"
+      "severity": "INFO",
+      "note": "x64dbg debugger (dual-use)",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "processhacker",
-      "severity": "LOW",
-      "note": "Process Hacker (dual-use)"
+      "severity": "INFO",
+      "note": "Process Hacker (dual-use)",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "scylla",
-      "severity": "LOW",
-      "note": "Scylla dumper — вне CS2-контекста, справочно"
+      "severity": "INFO",
+      "note": "Scylla dumper — вне CS2-контекста, справочно",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "megadumper",
-      "severity": "LOW",
-      "note": "MegaDumper — вне CS2-контекста, справочно"
+      "severity": "INFO",
+      "note": "MegaDumper — вне CS2-контекста, справочно",
+      "class": "dual-use",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly advertised product and tool names; not verified against samples",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "domains": [
@@ -311,169 +560,281 @@
       "pattern": "neverlose.cc",
       "severity": "HIGH",
       "note": "Neverlose store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "xone.fun",
       "severity": "HIGH",
       "note": "Xone store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "midnight.im",
       "severity": "HIGH",
       "note": "Midnight store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "interium.",
       "severity": "HIGH",
       "note": "Interium store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "nixware.cc",
       "severity": "HIGH",
       "note": "Nixware store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "vredux.com",
       "severity": "HIGH",
       "note": "Vredux store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "onetap.com",
       "severity": "HIGH",
       "note": "Onetap store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "fatality.win",
       "severity": "HIGH",
       "note": "Fatality store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gamesense.pub",
       "severity": "HIGH",
       "note": "Gamesense store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "skeet.cc",
       "severity": "HIGH",
       "note": "Skeet store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "legendware.net",
       "severity": "HIGH",
       "note": "Legendware store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "plaguecheat.cc",
       "severity": "HIGH",
       "note": "Plaguecheat store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "pandaware",
       "severity": "HIGH",
       "note": "Pandaware store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "aimware.net",
       "severity": "HIGH",
       "note": "Aimware store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "primordial.",
       "severity": "HIGH",
       "note": "Primordial store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "memesense",
       "severity": "HIGH",
       "note": "Memesense store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "sunone",
       "severity": "HIGH",
       "note": "Sunone aimbot repo",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "tenscape",
       "severity": "HIGH",
       "note": "Tenscape store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wallhax",
       "severity": "HIGH",
       "note": "Wallhax store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "colossuscheats",
       "severity": "HIGH",
       "note": "Colossus store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gamerfun",
       "severity": "HIGH",
       "note": "Gamerfun cheat store",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "unknowncheats",
       "severity": "MEDIUM",
       "note": "UnknownCheats forum",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "guidedhacking",
       "severity": "MEDIUM",
       "note": "GuidedHacking forum",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "elitepvpers",
       "severity": "MEDIUM",
       "note": "elitepvpers forum",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "mpgh.net",
       "severity": "MEDIUM",
       "note": "MPGH forum",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "oplata.info",
       "severity": "MEDIUM",
       "note": "Payment gateway used by RU cheat stores",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "lolz.guru",
       "severity": "LOW",
       "note": "lolzteam marketplace",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "lolz.live",
       "severity": "LOW",
       "note": "lolzteam marketplace",
-      "substring": true
+      "substring": true,
+      "class": "cheat-site",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly listed cheat sites; not verified against traffic samples",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "hashes": [],
@@ -483,382 +844,674 @@
       "pattern": "dwEntityList",
       "severity": "HIGH",
       "note": "CS2 offset dwEntityList",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwLocalPlayerPawn",
       "severity": "HIGH",
       "note": "CS2 offset dwLocalPlayerPawn",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwLocalPlayerController",
       "severity": "HIGH",
       "note": "CS2 offset dwLocalPlayerController",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwViewMatrix",
       "severity": "HIGH",
       "note": "CS2 offset dwViewMatrix",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwViewAngles",
       "severity": "HIGH",
       "note": "CS2 offset dwViewAngles",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwGameEntitySystem",
       "severity": "HIGH",
       "note": "CS2 offset dwGameEntitySystem",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwGlobalVars",
       "severity": "HIGH",
       "note": "CS2 offset dwGlobalVars",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwPlantedC4",
       "severity": "HIGH",
       "note": "CS2 offset dwPlantedC4",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwForceJump",
       "severity": "HIGH",
       "note": "CS2 offset dwForceJump (bhop)",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dwForceAttack",
       "severity": "HIGH",
       "note": "CS2 offset dwForceAttack (trigger)",
-      "substring": true
+      "substring": true,
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_iHealth",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iHealth"
+      "note": "CS2 netvar m_iHealth",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_iTeamNum",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iTeamNum"
+      "note": "CS2 netvar m_iTeamNum",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_lifeState",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_lifeState"
+      "note": "CS2 netvar m_lifeState",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_vecOrigin",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_vecOrigin"
+      "note": "CS2 netvar m_vecOrigin",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_pClippingWeapon",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_pClippingWeapon"
+      "note": "CS2 netvar m_pClippingWeapon",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_ArmorValue",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_ArmorValue"
+      "note": "CS2 netvar m_ArmorValue",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_iIDEntIndex",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iIDEntIndex"
+      "note": "CS2 netvar m_iIDEntIndex",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_flFlashDuration",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_flFlashDuration"
+      "note": "CS2 netvar m_flFlashDuration",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_bSpottedByMask",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_bSpottedByMask"
+      "note": "CS2 netvar m_bSpottedByMask",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_aimPunchAngle",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_aimPunchAngle"
+      "note": "CS2 netvar m_aimPunchAngle",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_pGameSceneNode",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_pGameSceneNode"
+      "note": "CS2 netvar m_pGameSceneNode",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_hPlayerPawn",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_hPlayerPawn"
+      "note": "CS2 netvar m_hPlayerPawn",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_bDormant",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_bDormant"
+      "note": "CS2 netvar m_bDormant",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "m_iszPlayerName",
       "severity": "MEDIUM",
-      "note": "CS2 netvar m_iszPlayerName"
+      "note": "CS2 netvar m_iszPlayerName",
+      "class": "offset-name",
+      "status": "provisional",
+      "source": "public offset-dump field names and CS2 schema field names (docs/validation.md section 5)",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "vulnerableDrivers": [
     {
       "pattern": "iqvw64e.sys",
       "severity": "CRITICAL",
-      "note": "Intel iqvw64e.sys (kdmapper)"
+      "note": "Intel iqvw64e.sys (kdmapper)",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "kdmapper",
       "severity": "CRITICAL",
-      "note": "kdmapper manual mapper"
+      "note": "kdmapper manual mapper",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "rtcore64.sys",
       "severity": "CRITICAL",
-      "note": "RTCore64 (MSI Afterburner) BYOVD"
+      "note": "RTCore64 (MSI Afterburner) BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gdrv.sys",
       "severity": "CRITICAL",
-      "note": "Gigabyte gdrv.sys BYOVD"
+      "note": "Gigabyte gdrv.sys BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "gio.sys",
       "severity": "HIGH",
-      "note": "Gigabyte gio.sys"
+      "note": "Gigabyte gio.sys",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "capcom.sys",
       "severity": "CRITICAL",
-      "note": "Capcom.sys BYOVD"
+      "note": "Capcom.sys BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "winring0",
       "severity": "HIGH",
-      "note": "WinRing0 driver BYOVD"
+      "note": "WinRing0 driver BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dbutil_2_3.sys",
       "severity": "CRITICAL",
-      "note": "Dell dbutil BYOVD"
+      "note": "Dell dbutil BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "dbutildrv2.sys",
       "severity": "CRITICAL",
-      "note": "Dell dbutildrv2 BYOVD"
+      "note": "Dell dbutildrv2 BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "asio.sys",
       "severity": "HIGH",
-      "note": "ASUS AsIO BYOVD"
+      "note": "ASUS AsIO BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "asio64.sys",
       "severity": "HIGH",
-      "note": "ASUS AsIO64 BYOVD"
+      "note": "ASUS AsIO64 BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "phymemx64",
       "severity": "HIGH",
-      "note": "physical memory driver"
+      "note": "physical memory driver",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "physmem",
       "severity": "HIGH",
-      "note": "physical memory driver"
+      "note": "physical memory driver",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "echo_driver",
       "severity": "CRITICAL",
-      "note": "EchoDrv BYOVD"
+      "note": "EchoDrv BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "mhyprot",
       "severity": "CRITICAL",
-      "note": "mhyprot2 (Genshin) abused driver"
+      "note": "mhyprot2 (Genshin) abused driver",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "atillk64.sys",
       "severity": "HIGH",
-      "note": "ATI diagnostics BYOVD"
+      "note": "ATI diagnostics BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "eneio",
       "severity": "HIGH",
-      "note": "ENE IO BYOVD"
+      "note": "ENE IO BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "enetechio",
       "severity": "HIGH",
-      "note": "ENE Tech IO BYOVD"
+      "note": "ENE Tech IO BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "msio64.sys",
       "severity": "HIGH",
-      "note": "MSIO64 BYOVD"
+      "note": "MSIO64 BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "nvoclock.sys",
       "severity": "HIGH",
-      "note": "NVIDIA overclock BYOVD"
+      "note": "NVIDIA overclock BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "speedfan.sys",
       "severity": "HIGH",
-      "note": "SpeedFan BYOVD"
+      "note": "SpeedFan BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "elrawdsk.sys",
       "severity": "CRITICAL",
-      "note": "ElRawDisk BYOVD"
+      "note": "ElRawDisk BYOVD",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "procexp",
       "severity": "LOW",
-      "note": "Process Explorer driver (dual-use)"
+      "note": "Process Explorer driver (dual-use)",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "mapper",
       "severity": "MEDIUM",
-      "note": "generic mapper driver name"
+      "note": "generic mapper driver name",
+      "class": "vulnerable-driver",
+      "status": "provisional",
+      "source": "maintainer list (2026-09), by driver file name; original source not recorded — to be re-reviewed against Microsoft's recommended driver block rules",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "cleaners": [
     {
       "pattern": "ccleaner",
       "severity": "MEDIUM",
-      "note": "CCleaner"
+      "note": "CCleaner",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "ccenhancer",
       "severity": "MEDIUM",
-      "note": "CCEnhancer"
+      "note": "CCEnhancer",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "privazer",
       "severity": "MEDIUM",
-      "note": "PrivaZer"
+      "note": "PrivaZer",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "bleachbit",
       "severity": "MEDIUM",
-      "note": "BleachBit"
+      "note": "BleachBit",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wise disk",
       "severity": "MEDIUM",
-      "note": "Wise Disk Cleaner"
+      "note": "Wise Disk Cleaner",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wise care",
       "severity": "MEDIUM",
-      "note": "Wise Care 365"
+      "note": "Wise Care 365",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "privacy eraser",
       "severity": "MEDIUM",
-      "note": "Privacy Eraser"
+      "note": "Privacy Eraser",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "r-wipe",
       "severity": "HIGH",
-      "note": "R-Wipe & Clean"
+      "note": "R-Wipe & Clean",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "bcwipe",
       "severity": "HIGH",
-      "note": "BCWipe secure wipe"
+      "note": "BCWipe secure wipe",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "sdelete",
       "severity": "HIGH",
-      "note": "SysInternals SDelete"
+      "note": "SysInternals SDelete",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "eraser",
       "severity": "MEDIUM",
-      "note": "Eraser secure delete"
+      "note": "Eraser secure delete",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "wipefile",
       "severity": "HIGH",
-      "note": "WipeFile"
+      "note": "WipeFile",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "disk wipe",
       "severity": "HIGH",
-      "note": "Disk Wipe"
+      "note": "Disk Wipe",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "timestomp",
       "severity": "HIGH",
-      "note": "timestamp tampering tool"
+      "note": "timestamp tampering tool",
+      "class": "cleaner",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed trace-cleaning tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "macroTools": [
     {
       "pattern": "bloody",
       "severity": "MEDIUM",
-      "note": "Bloody mouse macro software"
+      "note": "Bloody mouse macro software",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "x7",
       "severity": "LOW",
-      "note": "A4Tech X7 Oscar macro"
+      "note": "A4Tech X7 Oscar macro",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "oscar editor",
       "severity": "MEDIUM",
-      "note": "A4Tech Oscar macro editor"
+      "note": "A4Tech Oscar macro editor",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "macro recorder",
       "severity": "MEDIUM",
-      "note": "Macro Recorder"
+      "note": "Macro Recorder",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "tinytask",
       "severity": "MEDIUM",
-      "note": "TinyTask auto-clicker"
+      "note": "TinyTask auto-clicker",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "autohotkey",
       "severity": "LOW",
-      "note": "AutoHotkey"
+      "note": "AutoHotkey",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "mouse recorder",
       "severity": "MEDIUM",
-      "note": "Mouse Recorder Pro"
+      "note": "Mouse Recorder Pro",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "auto clicker",
       "severity": "MEDIUM",
-      "note": "Auto clicker"
+      "note": "Auto clicker",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "pulsar",
       "severity": "LOW",
-      "note": "Pulsar macro"
+      "note": "Pulsar macro",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "kmbox",
       "severity": "HIGH",
-      "note": "KMBox hardware mouse-macro/DMA input"
+      "note": "KMBox hardware mouse-macro/DMA input",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     },
     {
       "pattern": "makcu",
       "severity": "HIGH",
-      "note": "MAKCU hardware input device"
+      "note": "MAKCU hardware input device",
+      "class": "macro-tool",
+      "status": "provisional",
+      "source": "maintainer list (2026-09): publicly distributed macro tools, by name",
+      "since": "2026.09.29-cs2 or earlier"
     }
   ],
   "_comment_allowlist": "Identity for heuristic findings only (offset strings, injection imports, entropy, disguised extension, unknown streams). A file counts as identified when Windows reports a valid signature, its chain ends in one of trustedRoots (pinned by SHA-1; each entry says where the thumbprint was taken from) and the signer's CN or O equals one of allowSigners exactly, or when its SHA-256 is in allowHashes. Locations are no longer an allowlist: see checks/Locations.java. Exact cheat-name and hash matches are always reported.",

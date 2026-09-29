@@ -1,0 +1,34 @@
+{
+  "filesInspected" : 16271,
+  "filesMovingOutcome" : {
+    "n" : 0,
+    "rate" : {
+      "n" : 16271,
+      "wilson95" : [ 0.0, 2.36E-4 ],
+      "k" : 0,
+      "p" : 0.0
+    }
+  },
+  "filesWithAnyFinding" : {
+    "n" : 0,
+    "rate" : {
+      "n" : 16271,
+      "wilson95" : [ 0.0, 2.36E-4 ],
+      "k" : 0,
+      "p" : 0.0
+    }
+  },
+  "folder" : "C:\\Windows\\System32",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 8590,
+    "NOT_EXECUTABLE" : 7636,
+    "TOO_LARGE" : 3,
+    "UNREADABLE" : 27,
+    "EMPTY" : 15
+  },
+  "perRule" : { },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

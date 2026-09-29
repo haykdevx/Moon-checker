@@ -1,0 +1,34 @@
+{
+  "filesInspected" : 457,
+  "filesMovingOutcome" : {
+    "rate" : {
+      "p" : 0.0,
+      "n" : 457,
+      "wilson95" : [ 0.0, 0.008336 ],
+      "k" : 0
+    },
+    "n" : 0
+  },
+  "filesWithAnyFinding" : {
+    "rate" : {
+      "p" : 0.0,
+      "n" : 457,
+      "wilson95" : [ 0.0, 0.008336 ],
+      "k" : 0
+    },
+    "n" : 0
+  },
+  "folder" : "C:\\ProgramData\\Microsoft\\Windows Defender",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 282,
+    "NOT_EXECUTABLE" : 166,
+    "TOO_LARGE" : 6,
+    "UNREADABLE" : 2,
+    "EMPTY" : 1
+  },
+  "perRule" : { },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}

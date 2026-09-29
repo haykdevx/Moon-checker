@@ -62,11 +62,31 @@ public final class Cli {
     public static boolean handles(String[] args) {
         for (String a : args) {
             if ("--cli".equals(a) || "--selftest".equals(a) || "--version".equals(a)
-                    || "--help".equals(a) || "--verify".equals(a)) {
+                    || "--help".equals(a) || "--verify".equals(a) || "--evaluate-benign".equals(a)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** {@code --evaluate-benign <folder> [--limit N] [--out file.json]}: false positives on legitimate files. */
+    static int evaluateBenign(String folder, String limit, String out, String appVersion) {
+        try {
+            boolean elevated = Platform.isWindows() ? WinInfo.isElevated() : ru.moon.checker.linux.LinuxInfo.isRoot();
+            EnvironmentInfo env = EnvironmentInfo.capture(elevated, appVersion, Hashing.selfHashShort());
+            SignatureDb db = SignatureLoader.load(ru.moon.checker.Main.exeDir()).db();
+            var result = ru.moon.checker.validation.BenignCorpus.evaluate(java.nio.file.Path.of(folder),
+                    limit == null ? 20_000 : Integer.parseInt(limit), db, env);
+            String json = ru.moon.checker.validation.BenignCorpus.json(result);
+            if (out != null) {
+                java.nio.file.Files.writeString(java.nio.file.Path.of(out), json);
+            }
+            System.out.println(json);
+            return 0;
+        } catch (Exception e) {
+            System.err.println("evaluation failed: " + e);
+            return EXIT_USAGE;
+        }
     }
 
     public static int run(String[] args, String appVersion) {
@@ -82,6 +102,10 @@ public final class Cli {
         if (has(args, "--version")) {
             System.out.println("Moon Checker " + appVersion + " (" + Platform.osName() + ")");
             return 0;
+        }
+        String benign = valueOf(args, "--evaluate-benign");
+        if (benign != null) {
+            return evaluateBenign(benign, valueOf(args, "--limit"), valueOf(args, "--out"), appVersion);
         }
 
         boolean elevated = Platform.isWindows()

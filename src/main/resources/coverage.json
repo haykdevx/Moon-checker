@@ -468,7 +468,7 @@
       "kind": "CONCEALMENT",
       "meaning": "A process the Linux kernel component lists is absent from /proc, re-checked after the diff.",
       "lookalikes": "PID namespaces (the checker running inside a container) and races the re-check did not catch.",
-      "limits": "Review required. A kernel-mode rootkit can hide from both views, so an empty diff proves nothing."
+      "limits": "Reported only for a PID that answers at /proc/<pid> with the same name while two listings of /proc leave it out (exited, newly started and reused PIDs are races, not hiding). Kernel-mode rootkits hide from both views."
     },
     {
       "id": "kernel:driver-outside-windows",
@@ -658,6 +658,20 @@
       "meaning": "An ELF program in a scanned folder refers to process_vm_readv / process_vm_writev — reading or writing another process's memory, what external Linux cheats do.",
       "lookalikes": "Debuggers, profilers and game-modding tools use the same calls.",
       "limits": "LOW alone; MEDIUM together with CS2 offset strings. Static reference only: a program can resolve the call at run time."
+    },
+    {
+      "id": "kernel:cross-view",
+      "kind": "CONTEXT",
+      "meaning": "The optional Moon kernel component's view was compared with the user-mode view (records compared, discrepancies left after re-checking races).",
+      "lookalikes": "—",
+      "limits": "An empty discrepancy list is not proof of a clean kernel: kernel-mode rootkits, manually mapped drivers, hypervisors and DMA devices are invisible to both views."
+    },
+    {
+      "id": "kernel:component-inaccessible",
+      "kind": "CONTEXT",
+      "meaning": "The Moon kernel component is installed but this run could not open it (not elevated).",
+      "lookalikes": "—",
+      "limits": "Nothing was compared; the user-mode checks ran."
     }
   ]
 }

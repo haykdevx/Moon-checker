@@ -1,0 +1,32 @@
+{
+  "filesInspected" : 4648,
+  "filesMovingOutcome" : {
+    "rate" : {
+      "n" : 4648,
+      "p" : 0.0,
+      "k" : 0,
+      "wilson95" : [ 0.0, 8.26E-4 ]
+    },
+    "n" : 0
+  },
+  "filesWithAnyFinding" : {
+    "rate" : {
+      "n" : 4648,
+      "p" : 0.0,
+      "k" : 0,
+      "wilson95" : [ 0.0, 8.26E-4 ]
+    },
+    "n" : 0
+  },
+  "folder" : "C:\\Windows\\SysWOW64",
+  "movingExamples" : [ ],
+  "outcomes" : {
+    "INSPECTED" : 3649,
+    "NOT_EXECUTABLE" : 993,
+    "MALFORMED" : 6
+  },
+  "perRule" : { },
+  "rules" : "2026.09.29-classified",
+  "walkComplete" : true,
+  "walkShortfall" : ""
+}
