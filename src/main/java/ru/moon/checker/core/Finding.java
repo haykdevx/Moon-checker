@@ -48,6 +48,15 @@ public record Finding(
     }
 
     /**
+     * Whether this finding can change the outcome on its own: a detection, or an indicator
+     * or concealment of MEDIUM or above. Context and configuration never do (see VerdictEngine).
+     */
+    public boolean movesOutcome() {
+        return kind == EvidenceKind.DETECTION || ((kind == EvidenceKind.INDICATOR || kind == EvidenceKind.CONCEALMENT)
+                && severity.rank() >= Severity.MEDIUM.rank());
+    }
+
+    /**
      * The kind a finding gets when its module does not say: concealment for the
      * anti-forensic category, context for INFO, otherwise an indicator. A
      * {@link EvidenceKind#DETECTION} is never assumed — a module must claim it.

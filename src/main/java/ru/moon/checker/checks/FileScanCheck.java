@@ -87,6 +87,8 @@ public final class FileScanCheck implements CheckModule {
         Instant hardStop = stopAt(started, ctx.deadline());
         boolean indexed = false;
         List<String> candidates = new ArrayList<>();
+        // a file in Downloads is met again in the whole-drive pass: read it once, report it once
+        java.util.Set<String> inspected = new java.util.HashSet<>();
         // 1. every fixed drive by name through the MFT; keep the binaries outside trusted folders
         //    for the content pass and drop the index before the next drive (memory)
         if (Ntfs.isSupported() && ctx.isElevated()) {
@@ -116,7 +118,7 @@ public final class FileScanCheck implements CheckModule {
             }
             ctx.log(I18n.t("log.scanning", root.toString()));
             FileInspection.walk(root, 8000, 8,
-                    f -> FileInspection.inspect(f, ctx, ID, Category.FILES), ctx);
+                    f -> inspectOnce(f, ctx, inspected), ctx);
         }
 
         phase("user folders", started, -1);
@@ -134,7 +136,7 @@ public final class FileScanCheck implements CheckModule {
                 Path driveRoot = Path.of(drive + ":\\");
                 ctx.log(I18n.t("log.scanning", driveRoot.toString()));
                 FileInspection.walk(driveRoot, 4000, 2,
-                        f -> FileInspection.inspect(f, ctx, ID, Category.FILES), ctx);
+                        f -> inspectOnce(f, ctx, inspected), ctx);
             }
         }
 
@@ -142,7 +144,7 @@ public final class FileScanCheck implements CheckModule {
 
         // 4. content of every other binary on the drives, with the time that is left
         if (!candidates.isEmpty()) {
-            deepScanWholeDrive(ctx, candidates, hardStop);
+            deepScanWholeDrive(ctx, candidates, hardStop, inspected);
         }
         phase("whole-drive content", started, -1);
 
@@ -207,7 +209,7 @@ public final class FileScanCheck implements CheckModule {
      * the user's folders. Bounded by the collector's remaining time and a file
      * count, and it reports when it had to stop early rather than silently truncating.
      */
-    private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline) {
+    private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline, java.util.Set<String> seen) {
         int inspected = 0;
         boolean truncated = false;
 
@@ -221,8 +223,8 @@ public final class FileScanCheck implements CheckModule {
             }
             try {
                 Path file = Path.of(path);
-                if (Files.isRegularFile(file)) {
-                    FileInspection.inspect(file, ctx, ID, Category.FILES);
+                if (!seen.contains(key(file)) && Files.isRegularFile(file)) {
+                    inspectOnce(file, ctx, seen);
                     inspected++;
                 }
             } catch (Exception ignored) {
@@ -314,6 +316,17 @@ public final class FileScanCheck implements CheckModule {
         }
         m.appendTail(sb);
         return sb.toString();
+    }
+
+    private static void inspectOnce(Path file, ScanContext ctx, java.util.Set<String> seen) {
+        if (seen.add(key(file))) {
+            FileInspection.inspect(file, ctx, ID, Category.FILES);
+        }
+    }
+
+    /** One spelling per file: Windows paths are case-insensitive and may arrive with either slash. */
+    static String key(Path file) {
+        return file.toAbsolutePath().normalize().toString().replace('/', '\\').toLowerCase(Locale.ROOT);
     }
 
     private static String parentOf(String winPath) {

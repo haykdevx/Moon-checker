@@ -124,4 +124,24 @@ class AnalysisTest {
         assertEquals("Some finding", Analysis.subjectOf(noDetail));
     }
 
+
+    @Test
+    void reasonsFollowTheScreenLanguage() {
+        I18n.setLocale(I18n.RUSSIAN);
+        var review = new Assessment.Reason("review.indicator",
+                "Indicator needs review: Скрытый поток данных (ADS) / Hidden alternate data stream (seen by 2 collectors"
+                        + " — one subject, counted once)", java.util.List.of(4, 7));
+        assertEquals("Нужно посмотреть: Скрытый поток данных (ADS) / Hidden alternate data stream "
+                + "(замечено разными модулями: 2; считается один раз)", Analysis.say(review));
+        var hidden = new Assessment.Reason("review.concealment",
+                "Signs of removed or hidden evidence: Recent Windows reinstall", java.util.List.of(6));
+        assertEquals("Признаки удалённых или скрытых следов: Recent Windows reinstall", Analysis.say(hidden));
+        var odd = new Assessment.Reason("something.new", "As written", java.util.List.of());
+        assertEquals("As written", Analysis.say(odd));
+        assertEquals("Без прав администратора: модули видели только часть системы.",
+                Analysis.say(new Assurance.Note("privileges.missing", "Not elevated: collectors saw a partial view.")));
+        I18n.setLocale(I18n.ENGLISH);
+        assertEquals(review.text(), Analysis.say(review), "English on screen is the engine's own text");
+        I18n.setLocale(I18n.RUSSIAN);
+    }
 }

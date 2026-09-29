@@ -30,4 +30,10 @@ class WindowFitTest {
         WindowFit.Fit f = WindowFit.fit(WindowFit.PREFERRED, WindowFit.MINIMUM, null);
         assertEquals(WindowFit.PREFERRED, f.size());
     }
+
+    @Test
+    void theExplanationLeavesRoomForTheFindings() {
+        assertEquals(70, ResultsPanel.detailHeight(250), "1280x720 logical (150 %): the rows keep most of the space");
+        assertEquals(116, ResultsPanel.detailHeight(600), "a big screen gets the full explanation");
+    }
 }

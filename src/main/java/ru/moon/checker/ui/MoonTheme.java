@@ -58,6 +58,7 @@ public final class MoonTheme {
     public static final Color INFO = new Color(0xb6, 0xb6, 0xc6);
 
     private static Font displayBase;
+    private static final javax.swing.text.StyleContext FONTS = javax.swing.text.StyleContext.getDefaultStyleContext();
 
     private MoonTheme() {
     }
@@ -118,15 +119,19 @@ public final class MoonTheme {
         }
     }
 
-    /** Body font — use for anything that can contain Cyrillic. */
+    /**
+     * Body font — use for anything that can contain Cyrillic. Taken through StyleContext so
+     * characters Segoe UI lacks (✓ ✗ ⚠) fall back to another Windows font instead of a box.
+     */
     public static Font font(int style, int size) {
-        return new Font("Segoe UI", style, size);
+        return FONTS.getFont("Segoe UI", style, size);
     }
 
     /** Monospace, for paths, hashes and timestamps. */
     public static Font mono(int style, int size) {
-        return new Font("Consolas", style, size);
+        return FONTS.getFont("Consolas", style, size);
     }
+
 
     /** Brand / numeral font. Latin and digits ONLY — Orbitron lacks Cyrillic. */
     public static Font display(int style, int size) {

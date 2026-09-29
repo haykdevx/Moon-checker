@@ -15,6 +15,8 @@ import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
+import javax.swing.text.View;
+import javax.swing.plaf.basic.BasicHTML;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -248,11 +250,12 @@ public final class StartPanel extends JPanel {
     }
 
     private JComponent ctaRow() {
-        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 16, 0));
+        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(600, 54));
-        row.add(start);
+        row.add(start);  // flush with the text above: FlowLayout's gap would indent it
+        row.add(Box.createHorizontalStrut(16));
         row.add(hint);
         return row;
     }
@@ -331,13 +334,13 @@ public final class StartPanel extends JPanel {
     public void refreshTexts() {
         eyebrow.setText(I18n.t("start.eyebrow"));
         title.setText(I18n.t("start.title"));
-        intro.setText(html(I18n.t("start.intro"), 520));
-        privacy.setText(html(I18n.t(online ? "start.privacy.online" : "start.privacy"), 490));
+        wrap(intro, I18n.t("start.intro"), 600);
+        wrap(privacy, I18n.t(online ? "start.privacy.online" : "start.privacy"), 515);
         codeLabel.setText(I18n.t("start.code.label"));
         codeField.setToolTipText(I18n.t("start.code.hint"));
         start.setText(I18n.t("start.button"));
         relaunch.setText(I18n.t("start.relaunch"));
-        hint.setText(html(I18n.t("start.hint"), 200));
+        wrap(hint, I18n.t("start.hint"), 230);
 
         checklist.removeAll();
         String[] items = {
@@ -362,24 +365,38 @@ public final class StartPanel extends JPanel {
         connect.setText(I18n.t(state == LinkState.CONNECTING ? "start.connecting" : "start.connect"));
         start.setEnabled(state == LinkState.CONNECTED || state == LinkState.OFFLINE);
         switch (state) {
-            case OFFLINE -> status(I18n.t("start.offline"), MoonTheme.SUSPICIOUS);
-            case IDLE -> status(html(I18n.t("start.code.hint"), 520), MoonTheme.FAINT);
-            case CONNECTING -> status(I18n.t("start.connecting"), MoonTheme.MUTED);
-            case CONNECTED -> status(I18n.t("start.connected", link.adminAlias(),
-                    link.playerName().isBlank() ? "—" : link.playerName()), MoonTheme.CLEAN);
-            case FAILED -> status(html("✗ " + escape(failure), 520), MoonTheme.CHEAT);
+            case OFFLINE -> status(escape(I18n.t("start.offline")), MoonTheme.SUSPICIOUS);
+            case IDLE -> status(I18n.t("start.code.hint"), MoonTheme.FAINT);
+            case CONNECTING -> status(escape(I18n.t("start.connecting")), MoonTheme.MUTED);
+            case CONNECTED -> status(escape(I18n.t("start.connected", link.adminAlias(),
+                    link.playerName().isBlank() ? "—" : link.playerName())), MoonTheme.CLEAN);
+            case FAILED -> status("✗ " + escape(failure), MoonTheme.CHEAT);
         }
         revalidate();
         repaint();
     }
 
-    private void status(String text, Color color) {
-        linkStatus.setText(text);
+    private void status(String html, Color color) {
+        wrap(linkStatus, html, 600);
         linkStatus.setForeground(color);
     }
 
-    private static String html(String text, int width) {
-        return "<html><div style='width:" + width + "px'>" + text + "</div></html>";
+    /**
+     * Sets HTML text that wraps at {@code width} real pixels. A CSS width does not do this:
+     * Swing counts a CSS "px" as 1.3 screen pixels, so a 520px div overflowed the 620-pixel
+     * column and Windows cut the Russian lines off at the right edge.
+     */
+    static void wrap(JLabel label, String html, int width) {
+        label.setText("<html>" + html + "</html>");
+        View view = (View) label.getClientProperty(BasicHTML.propertyKey);
+        if (view == null) {
+            return;
+        }
+        int w = (int) Math.ceil(Math.min(view.getPreferredSpan(View.X_AXIS), width)); // unwrapped, if shorter
+        view.setSize(w, 0);
+        Dimension size = new Dimension(w, (int) Math.ceil(view.getPreferredSpan(View.Y_AXIS)));
+        label.setPreferredSize(size);
+        label.setMaximumSize(size);
     }
 
     private static String escape(String s) {

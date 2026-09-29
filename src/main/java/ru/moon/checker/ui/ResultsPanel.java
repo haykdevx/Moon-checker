@@ -169,7 +169,8 @@ public final class ResultsPanel extends JPanel {
         String text = I18n.t("coverage.summary", cov.completed(), cov.required().size(),
                 cov.elevated() ? I18n.t("header.admin.yes") : I18n.t("header.admin.no"))
                 + "   ·   " + I18n.t("assurance.summary",
-                I18n.t("assurance." + result.assessment().assurance().level().name()));
+                I18n.t("assurance." + result.assessment().assurance().level().name()))
+                + "   ·   " + I18n.t("verify.label") + " " + JsonReport.verificationCode(result);
         JLabel l = new JLabel(text);
         l.setFont(MoonTheme.font(Font.PLAIN, 12));
         l.setForeground(cov.complete() ? MoonTheme.MUTED : MoonTheme.SUSPICIOUS);
@@ -291,15 +292,42 @@ public final class ResultsPanel extends JPanel {
         detailCard.add(detailScroll, BorderLayout.CENTER);
         detailCard.setPreferredSize(new Dimension(0, 116));
 
+        // the rows and the explanation share the height through a divider the admin can drag;
+        // a fixed 116-pixel explanation left two rows visible on a laptop at 150 % scaling
+        javax.swing.JSplitPane split = new javax.swing.JSplitPane(javax.swing.JSplitPane.VERTICAL_SPLIT, tabs, detailCard);
+        split.setResizeWeight(1.0);  // a taller window gives the rows the room
+        split.setContinuousLayout(true);
+        split.setDividerSize(10);
+        split.setBorder(BorderFactory.createEmptyBorder());
+        split.setOpaque(false);
+        tabs.setMinimumSize(new Dimension(0, 120));
+        detailCard.setMinimumSize(new Dimension(0, 56));
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            private boolean placed;
+
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                if (!placed && split.getHeight() > 0) {
+                    placed = true;
+                    split.setDividerLocation(split.getHeight() - split.getDividerSize()
+                            - detailHeight(split.getHeight()));
+                }
+            }
+        });
+
         JPanel stack = new JPanel(new BorderLayout(0, 10));
         stack.setOpaque(false);
         stack.add(filterBar(), BorderLayout.NORTH);
-        stack.add(tabs, BorderLayout.CENTER);
-        stack.add(detailCard, BorderLayout.SOUTH);
+        stack.add(split, BorderLayout.CENTER);
         return stack;
     }
 
-    /** Rounded translucent container used for panes and cards. */
+    /** The explanation's starting height: about a quarter of the space, three to seven lines. */
+    static int detailHeight(int available) {
+        return Math.max(70, Math.min(116, available / 4));
+    }
+
+        /** Rounded translucent container used for panes and cards. */
     private static class CardPanel extends JPanel {
         CardPanel() {
             setOpaque(false);
@@ -558,11 +586,8 @@ public final class ResultsPanel extends JPanel {
         bar.setOpaque(false);
         bar.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
 
-        JLabel code = new JLabel("●  " + JsonReport.verificationCode(result)
-                + "   " + I18n.t("verify.label"));
-        code.setFont(MoonTheme.mono(Font.PLAIN, 11));
-        code.setForeground(MoonTheme.ACCENT2);
-        bar.add(code, BorderLayout.WEST);
+        // the report signature sits in the summary line under the verdict: down here it was
+        // painted over by the buttons on a 1280-pixel screen
 
         // delivery to the admin's panel gets its own row: the text can be long
         upload.setFont(MoonTheme.font(Font.BOLD, 12));
@@ -586,6 +611,7 @@ public final class ResultsPanel extends JPanel {
             link.setEditable(false);
             link.setFont(MoonTheme.mono(Font.PLAIN, 11));
             link.setToolTipText(I18n.t("results.statusLink.hint"));
+            link.setCaretPosition(0);  // show where the link goes (the host), not the end of the token
             delivery.add(label);
             delivery.add(link);
         }

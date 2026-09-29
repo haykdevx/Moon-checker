@@ -42,6 +42,8 @@ public final class ScanPanel extends JPanel implements ScanListener {
 
     private final Map<String, ModuleRow> rows = new HashMap<>();
     private final Map<String, Long> moduleStart = new ConcurrentHashMap<>();
+    /** Per collector: [0] findings that can change the outcome, [1] context and settings notes. */
+    private final Map<String, java.util.concurrent.atomic.AtomicIntegerArray> counts = new ConcurrentHashMap<>();
     private final JTextPane log = new JTextPane();
     private final JLabel elapsed = new JLabel();
     private final JLabel current = new JLabel();
@@ -318,14 +320,20 @@ public final class ScanPanel extends JPanel implements ScanListener {
         SwingUtilities.invokeLater(() -> {
             ModuleRow row = rows.get(module.id());
             if (row != null) {
+                // red only for what can change the outcome; context notes ("CS2 is not running")
+                // are counted separately in grey so the admin watching the screen is not misled
+                var c = counts.getOrDefault(module.id(), new java.util.concurrent.atomic.AtomicIntegerArray(2));
+                int evidence = c.get(0), notes = Math.max(c.get(1), findingCount - evidence);
                 StringBuilder meta = new StringBuilder();
-                if (findingCount > 0) {
-                    meta.append(findingCount).append(" ").append(I18n.t("scan.hits")).append("   ");
+                if (evidence > 0) {
+                    meta.append(I18n.plural("scan.evidence", evidence)).append("   ");
+                } else if (notes > 0) {
+                    meta.append(I18n.plural("scan.notes", notes)).append("   ");
                 }
                 if (tookMs >= 0) {
                     meta.append(tookMs >= 1000 ? String.format("%.1fs", tookMs / 1000.0) : tookMs + "ms");
                 }
-                row.set(status, meta.toString(), findingCount > 0);
+                row.set(status, meta.toString(), evidence > 0);
             }
             int d = done.incrementAndGet();
             ring.setValue(d, total, "/ " + total);
@@ -349,7 +357,11 @@ public final class ScanPanel extends JPanel implements ScanListener {
 
     @Override
     public void onFinding(Finding finding) {
-        // module counters and the results screen carry the detail
+        // per-collector counters; the results screen carries the detail
+        if (finding.module() != null) {
+            counts.computeIfAbsent(finding.module(), k -> new java.util.concurrent.atomic.AtomicIntegerArray(2))
+                    .incrementAndGet(finding.movesOutcome() ? 0 : 1);
+        }
     }
 
     @Override

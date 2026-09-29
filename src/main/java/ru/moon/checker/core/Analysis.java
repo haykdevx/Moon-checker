@@ -154,7 +154,7 @@ public final class Analysis {
         StringBuilder sb = new StringBuilder();
         sb.append(I18n.t(a.outcome().key())).append(" — ").append(I18n.t(a.outcome().key() + ".help"));
         for (Assessment.Reason reason : a.reasons()) {
-            sb.append("\n  • ").append(reason.text());
+            sb.append("\n  • ").append(say(reason));
             if (!reason.evidence().isEmpty()) {
                 sb.append("  [").append(String.join(", ",
                         reason.evidence().stream().map(i -> "E" + i).toList())).append(']');
@@ -165,8 +165,74 @@ public final class Analysis {
                 c.elevated() ? I18n.t("header.admin.yes") : I18n.t("header.admin.no")));
         sb.append("\n").append(I18n.t("assurance.summary", I18n.t("assurance." + a.assurance().level().name())));
         for (Assurance.Note n : a.assurance().reasons()) {
-            sb.append("\n  – ").append(n.text());
+            sb.append("\n  – ").append(say(n));
         }
         return sb.toString();
+    }
+
+    private static final java.util.regex.Pattern REVIEW = java.util.regex.Pattern.compile(
+            "^(?:Indicator needs review|Signs of removed or hidden evidence): (.*?)"
+                    + "(?: \\(seen by (\\d+) collectors — one subject, counted once\\))?$", java.util.regex.Pattern.DOTALL);
+
+    /**
+     * A verdict reason in the chosen language. The engine writes them in English into the
+     * evidence file (the record stays one language); the screen follows RU/EN. Unknown
+     * shapes are shown as written.
+     */
+    static String say(Assessment.Reason r) {
+        String t = r.text();
+        switch (r.code()) {
+            case "review.indicator", "review.concealment" -> {
+                java.util.regex.Matcher m = REVIEW.matcher(t);
+                if (m.matches()) {
+                    String s = I18n.t("reason." + r.code(), m.group(1));
+                    return m.group(2) == null ? s : s + " " + I18n.t("reason.seenBy", m.group(2));
+                }
+            }
+            case "detection.exact" -> {
+                return after(t, ": ", "reason.detection.exact");
+            }
+            case "coverage.complete" -> {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(t);
+                if (m.find()) {
+                    return I18n.t("reason.coverage.complete", m.group(1));
+                }
+            }
+            case "coverage.privileges" -> {
+                return I18n.t("reason.coverage.privileges");
+            }
+            case "coverage.rules" -> {
+                int a = t.indexOf('('), b = t.indexOf(')');
+                if (a >= 0 && b > a) {
+                    return I18n.t("reason.coverage.rules", t.substring(a + 1, b));
+                }
+            }
+            case "coverage.missing" -> {
+                return after(t, ": ", "reason.coverage.missing");
+            }
+            default -> {
+                return t;
+            }
+        }
+        return t;
+    }
+
+    /** An assurance note in the chosen language (same idea as {@link #say(Assessment.Reason)}). */
+    static String say(Assurance.Note n) {
+        String t = n.text();
+        return switch (n.code()) {
+            case "privileges.missing" -> I18n.t("note.privileges.missing");
+            case "build.unidentified" -> I18n.t("note.build.unidentified");
+            case "rules.untrusted" -> {
+                int a = t.lastIndexOf('('), b = t.lastIndexOf(')');
+                yield a >= 0 && b > a ? I18n.t("note.rules.untrusted", t.substring(a + 1, b)) : t;
+            }
+            default -> t;
+        };
+    }
+
+    private static String after(String text, String separator, String key) {
+        int i = text.indexOf(separator);
+        return i < 0 ? text : I18n.t(key, text.substring(i + separator.length()));
     }
 }

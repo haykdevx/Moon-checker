@@ -112,7 +112,7 @@ public final class HeaderBar extends JPanel {
         id.setFont(MoonTheme.font(Font.BOLD, 15));
         id.setForeground(MoonTheme.ACCENT);
         line1.add(id);
-        clock.setFont(new Font("Consolas", Font.PLAIN, 15));
+        clock.setFont(MoonTheme.mono(Font.PLAIN, 15));
         clock.setForeground(MoonTheme.TEXT);
         line1.add(clock);
 

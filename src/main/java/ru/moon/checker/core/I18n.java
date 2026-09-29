@@ -42,6 +42,26 @@ public final class I18n {
         }
     }
 
+    /**
+     * "{n} word" with the word in the right form: Russian has three (1 улика, 2 улики, 5 улик,
+     * 21 улика, 12 улик), English two. Keys: key.one, key.few, key.many.
+     */
+    public static String plural(String key, long n) {
+        return n + " " + t(key + "." + pluralForm(locale, n));
+    }
+
+    static String pluralForm(Locale l, long n) {
+        long abs = Math.abs(n);
+        if (!"ru".equals(l.getLanguage())) {
+            return abs == 1 ? "one" : "many";
+        }
+        long d = abs % 10, dd = abs % 100;
+        if (d == 1 && dd != 11) {
+            return "one";
+        }
+        return d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? "few" : "many";
+    }
+
     public static String t(String key, Object... args) {
         String pattern = t(key);
         try {

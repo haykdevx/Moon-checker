@@ -599,7 +599,7 @@ msgstr "Программы, которые запускаются вместе �
 
 #: checks/templatetags/moon.py
 msgid "Running game"
-msgstr "Игра на лету"
+msgstr "Запущенная CS2"
 
 #: checks/templatetags/moon.py
 msgid "Running processes and what is loaded into the game on Linux."

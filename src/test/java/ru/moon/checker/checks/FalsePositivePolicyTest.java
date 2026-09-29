@@ -132,4 +132,11 @@ class FalsePositivePolicyTest {
         assertEquals(Severity.MEDIUM, AntiForensicCheck.cleanerSeverity(sdelete, AntiForensicCheck.CleanerEvidence.RAN_BEFORE));
         assertEquals(Severity.HIGH, AntiForensicCheck.cleanerSeverity(sdelete, AntiForensicCheck.CleanerEvidence.RAN_RECENTLY));
     }
+
+    @Test
+    void aFileMetInTwoPhasesIsOneFile() {
+        assertEquals(FileScanCheck.key(java.nio.file.Path.of("/tmp/Moon/Loader.EXE")),
+                FileScanCheck.key(java.nio.file.Path.of("/tmp/moon/./loader.exe")),
+                "Downloads walk and the whole-drive pass must not report the same file twice");
+    }
 }
