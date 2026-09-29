@@ -180,7 +180,8 @@ public final class MainWindow extends JFrame {
             }
         };
 
-        ScanEngine engine = new ScanEngine(modules, listener).rules(rules);
+        ScanEngine engine = new ScanEngine(modules, listener).rules(rules)
+                .binding(link == null ? null : link.binding());
         engineRef.set(engine);
         if (reporter != null) {
             reporter.start(modules.size());

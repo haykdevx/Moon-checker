@@ -134,7 +134,8 @@ public final class Cli {
         ScanEngine engine = selftest
                 ? new ScanEngine(modules, listener, Duration.ofSeconds(90), Duration.ofMinutes(5))
                 : new ScanEngine(modules, listener);
-        engine.rules(sig.provenance()).fullSuite(ModuleRegistry.forCurrentOs());
+        engine.rules(sig.provenance()).fullSuite(ModuleRegistry.forCurrentOs())
+                .binding(link == null ? null : link.binding());
         if (sig.error() != null) {
             System.out.println("Rules: " + sig.error());
         }

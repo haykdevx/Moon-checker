@@ -65,4 +65,4 @@ def missing_required(coverage, os_name):
     family = platform_family(os_name)
     if family is None:
         return set()
-    return EXPECTED_REQUIRED[family] - set(coverage.get("required", []))
+    return EXPECTED_REQUIRED[family] - set(coverage.get("clientRequired", coverage.get("required", [])))

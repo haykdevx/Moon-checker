@@ -522,8 +522,8 @@ msgid "Drivers and kernel"
 msgstr "Драйверы и ядро"
 
 #: checks/templatetags/moon.py
-msgid "Every required check ran and found nothing to look at. That is not proof the PC is clean."
-msgstr "Все обязательные проверки прошли и ничего не нашли. Это не доказательство, что ПК чистый."
+msgid "Every required part reports that it ran and found nothing to look at. That is not proof the PC is clean: what the checker collected is not independently verified."
+msgstr "Все обязательные части сообщают, что отработали и не нашли ничего подозрительного. Это не доказательство, что ПК чист: собранное чекером независимо не проверено."
 
 #: checks/templatetags/moon.py
 msgid "Files on disk"
@@ -582,8 +582,8 @@ msgid "Needs a look"
 msgstr "Нужно посмотреть"
 
 #: checks/templatetags/moon.py
-msgid "Nothing found"
-msgstr "Ничего не найдено"
+msgid "No evidence reported"
+msgstr "Улик в отчёте нет"
 
 #: checks/templatetags/moon.py
 msgid "Program inventory"
@@ -706,12 +706,8 @@ msgid "A rule file was placed next to the checker: %(note)s."
 msgstr "Рядом с чекером подложили файл правил: %(note)s."
 
 #: checks/trust.py
-msgid "All %(n)s required collectors completed."
-msgstr "Все обязательные разделы (%(n)s) выполнены."
-
-#: checks/trust.py
-msgid "All modules finished."
-msgstr "Все разделы выполнены."
+msgid "All %(n)s required collectors report that they completed (their own statement)."
+msgstr "Все обязательные части (%(n)s) сообщают, что завершились (это их собственное утверждение)."
 
 #: checks/trust.py
 msgid "Checked on %(os)s; Windows-only modules were skipped."
@@ -726,48 +722,44 @@ msgid "Checker claims a %(claimed)ss scan but the server saw only %(measured)ss.
 msgstr "Чекер заявляет проверку на %(claimed)s с, а сервер видел только %(measured)s с."
 
 #: checks/trust.py
-msgid "Checker ran with administrator rights."
-msgstr "Чекер работал с правами администратора."
+msgid "Delivered with this check's session token and bound to it by a single-use upload value, now consumed. This shows the report was made (or edited) for this check after the code was entered."
+msgstr "Доставлен с ключом сессии этой проверки и привязан к ней одноразовым значением загрузки (теперь использовано). Это показывает, что отчёт сделан (или изменён) для этой проверки после ввода кода."
 
 #: checks/trust.py
-msgid "Checker was NOT running as administrator — deep checks were skipped."
-msgstr "Чекер работал БЕЗ прав администратора — глубокие проверки пропущены."
+msgid "Delivered with this check's session token, but this checker is too old to bind its report to the check: an unmodified report from another check could have been resubmitted."
+msgstr "Доставлен с ключом сессии этой проверки, но чекер слишком старый, чтобы привязать отчёт к проверке: неизменённый отчёт из другой проверки мог быть отправлен повторно."
 
 #: checks/trust.py
 msgid "Detection rules did not come from the build or a signed update (origin '%(origin)s', %(count)s rules)."
 msgstr "Правила поиска взяты не из сборки и не из подписанного обновления (источник «%(origin)s», правил: %(count)s)."
 
 #: checks/trust.py
-msgid "Legacy report format (checker older than 1.1): no coverage, assurance or consent sections; the verdict is the old weighted score."
-msgstr "Старый формат отчёта (чекер до 1.1): нет разделов охвата, доверия и согласия; итог — старая оценка по баллам."
+msgid "Legacy report format (checker older than 1.1): no coverage, assurance or consent sections; the verdict is the old weighted score and could not be recomputed."
+msgstr "Старый формат отчёта (чекер до 1.1): нет разделов о покрытии, доверии и согласии; итог — старая взвешенная оценка, пересчитать его нельзя."
 
 #: checks/trust.py
 msgid "Modules that did not finish: %(list)s."
 msgstr "Разделы, которые не завершились: %(list)s."
 
 #: checks/trust.py
+msgid "No evidence was reported. That is the report's content, not proof that the PC was inspected."
+msgstr "Улик в отчёте нет. Это содержимое отчёта, а не доказательство того, что ПК действительно проверен."
+
+#: checks/trust.py
+msgid "No official builds are registered, so the checker's claimed file hash was not compared with anything."
+msgstr "Официальные сборки не зарегистрированы, поэтому заявленный хеш файла чекера не с чем сравнить."
+
+#: checks/trust.py
 msgid "No player consent was recorded in the report."
 msgstr "В отчёте не записано согласие игрока."
 
 #: checks/trust.py
-msgid "No trusted builds are configured, so the checker file was not verified."
-msgstr "Доверенные сборки не настроены, поэтому файл чекера не проверен."
-
-#: checks/trust.py
-msgid "Official checker build: %(label)s."
-msgstr "Официальная сборка чекера: %(label)s."
+msgid "Not independently verified: nothing the panel receives proves that an unmodified official checker ran or that it saw the whole PC. Findings, coverage and device facts are what the player's PC reported."
+msgstr "Независимо не проверено: ничто из полученного панелью не доказывает, что работал неизменённый официальный чекер и что он видел весь ПК. Находки, покрытие и сведения об устройстве — это то, что сообщил ПК игрока."
 
 #: checks/trust.py
 msgid "PC clock differs from the server by %(min)s min."
 msgstr "Часы ПК расходятся с сервером на %(min)s мин."
-
-#: checks/trust.py
-msgid "PC/user changed between connect (%(before)s) and upload (%(after)s)."
-msgstr "ПК или пользователь сменились между подключением (%(before)s) и отправкой (%(after)s)."
-
-#: checks/trust.py
-msgid "Report id %(id)s was already submitted in another check."
-msgstr "Отчёт %(id)s уже отправляли в другой проверке."
 
 #: checks/trust.py
 msgid "Report uploaded from %(upload)s, but the code was entered from %(claim)s."
@@ -782,24 +774,40 @@ msgid "Scan finished %(s)ss after it started (server clock) — unusually fast."
 msgstr "Проверка закончилась через %(s)s с после начала (по часам сервера) — подозрительно быстро."
 
 #: checks/trust.py
-msgid "The checker left required collectors out of its coverage list: %(list)s."
-msgstr "Чекер выкинул обязательные разделы из своего списка: %(list)s."
+msgid "The checker left required collectors out of its coverage list: %(list)s. The panel counts them as required."
+msgstr "Чекер убрал обязательные части из своего списка покрытия: %(list)s. Панель всё равно считает их обязательными."
 
 #: checks/trust.py
-msgid "The checker reported %(got)s but its own evidence and coverage imply %(expected)s — produced or edited outside the official policy."
-msgstr "Чекер сообщил %(got)s, но по его же находкам и охвату должно быть %(expected)s — отчёт сделан или изменён в обход правил."
+msgid "The checker reports it ran WITHOUT administrator rights — deep checks were skipped."
+msgstr "Чекер сообщает, что работал БЕЗ прав администратора — глубокие проверки пропущены."
+
+#: checks/trust.py
+msgid "The checker reports it ran with administrator rights."
+msgstr "Чекер сообщает, что работал с правами администратора."
+
+#: checks/trust.py
+msgid "The checker says it is the official build %(label)s. This file hash is sent by the player's PC; the panel cannot verify which program actually ran."
+msgstr "Чекер заявляет, что он официальная сборка %(label)s. Этот хеш файла присылает ПК игрока; панель не может проверить, какая программа на самом деле работала."
+
+#: checks/trust.py
+msgid "The checker stated %(got)s, but its own evidence and coverage imply %(expected)s — produced or edited outside the official policy. The panel shows %(expected)s."
+msgstr "Чекер заявил %(got)s, но его же улики и покрытие дают %(expected)s — отчёт сделан или изменён в обход официальных правил. Панель показывает %(expected)s."
 
 #: checks/trust.py
 msgid "The checker stopped reporting %(n)s time(s) during the scan."
 msgstr "Во время проверки чекер пропадал со связи %(n)s раз."
 
 #: checks/trust.py
-msgid "The report was produced by a different program file than the one that connected. It may be forged: ask the player to run the check again while you watch."
-msgstr "Отчёт отправила не та программа, что подключилась по коду. Возможна подделка — попросите игрока пройти проверку заново при вас."
+msgid "The checker's claimed file hash (%(hash)s…) is not a registered official build: an outdated or modified copy."
+msgstr "Заявленный хеш файла чекера (%(hash)s…) не совпадает ни с одной официальной сборкой: устаревшая или изменённая копия."
 
 #: checks/trust.py
-msgid "Unknown checker build (sha256 %(hash)s…). The player may be running a modified or outdated checker."
-msgstr "Неизвестная сборка чекера (sha256 %(hash)s…). Возможно, игрок запустил изменённый или старый чекер."
+msgid "The panel recomputed the outcome from the evidence and coverage; it matches the checker's."
+msgstr "Панель сама пересчитала итог по уликам и покрытию; он совпадает с итогом чекера."
+
+#: checks/views.py
+msgid "About the PC — reported by the checker"
+msgstr "О ПК — со слов чекера"
 
 #: checks/views.py
 msgid "An appeal must be resolved by a different admin than the one who decided."
@@ -826,6 +834,10 @@ msgid "Check deleted."
 msgstr "Проверка удалена."
 
 #: checks/views.py
+msgid "Checker build — claimed by the player's PC"
+msgstr "Сборка чекера — заявлена ПК игрока"
+
+#: checks/views.py
 msgid "Choose an outcome and explain it (at least 10 characters)."
 msgstr "Выберите итог и объясните его (не меньше 10 символов)."
 
@@ -850,6 +862,14 @@ msgid "Decision saved."
 msgstr "Решение сохранено."
 
 #: checks/views.py
+msgid "Delivered for this check"
+msgstr "Доставлен для этой проверки"
+
+#: checks/views.py
+msgid "Did the official checker really run?"
+msgstr "Действительно ли работал официальный чекер?"
+
+#: checks/views.py
 msgid "Note for admins"
 msgstr "Заметка для админов"
 
@@ -864,6 +884,10 @@ msgstr "Ник игрока"
 #: checks/views.py
 msgid "Reason (required when refusing)"
 msgstr "Причина (обязательна при отказе)"
+
+#: checks/views.py
+msgid "Report consistency — checked by the panel"
+msgstr "Согласованность отчёта — проверяет панель"
 
 #: checks/views.py
 msgid "Request handled."
@@ -913,6 +937,10 @@ msgid "Statistics"
 msgstr "Статистика"
 
 #: core/views.py
+msgid "A checker that reports a file hash not in the list below cannot connect. The hash is sent by the player's PC: this stops outdated or casually modified copies, not a determined forger."
+msgstr "Чекер, который сообщает хеш файла не из списка ниже, не сможет подключиться. Хеш присылает ПК игрока: это остановит устаревшие или неумело изменённые копии, но не настойчивого подделывателя."
+
+#: core/views.py
 msgid "A finished check faster than this (by the server's clock) is flagged."
 msgstr "Проверка быстрее этого (по часам сервера) помечается как подозрительная."
 
@@ -921,16 +949,16 @@ msgid "A running check that stops reporting for this long is marked lost."
 msgstr "Если чекер молчит столько времени, проверка считается пропавшей."
 
 #: core/views.py
+msgid "Accept checkers older than 1.3 (transition only)"
+msgstr "Принимать чекеры старше 1.3 (только на время перехода)"
+
+#: core/views.py
 msgid "Build added to the trusted list."
 msgstr "Сборка добавлена в доверенные."
 
 #: core/views.py
 msgid "Build removed."
 msgstr "Сборка удалена."
-
-#: core/views.py
-msgid "Checkers whose file hash is not in the list below cannot connect."
-msgstr "Чекеры, чьего хеша нет в списке ниже, не смогут подключиться."
 
 #: core/views.py
 msgid "Code lifetime, minutes"
@@ -961,6 +989,10 @@ msgid "Not found"
 msgstr "Не найдено"
 
 #: core/views.py
+msgid "Old checkers cannot bind their report to the check, so an old report could be resubmitted. Such checks are marked. Turn this off once players have the new version."
+msgstr "Старые чекеры не умеют привязывать отчёт к проверке, поэтому старый отчёт можно отправить повторно. Такие проверки помечаются. Выключите, когда у игроков будет новая версия."
+
+#: core/views.py
 msgid "Older checkers are refused when they connect."
 msgstr "Более старые чекеры не смогут подключиться."
 
@@ -973,8 +1005,8 @@ msgid "Oldest allowed checker version"
 msgstr "Самая старая допустимая версия чекера"
 
 #: core/views.py
-msgid "Refuse checkers that are not on the trusted list"
-msgstr "Не пускать чекеры не из списка доверенных"
+msgid "Refuse checkers that do not claim an official build hash"
+msgstr "Не пускать чекеры, не заявляющие хеш официальной сборки"
 
 #: core/views.py
 msgid "Reload the page and try again."
@@ -1382,7 +1414,6 @@ msgstr "обычно 2–5 минут"
 
 #: templates/checks/_session_rows.html
 #: templates/checks/dashboard.html
-#: templates/checks/detail.html
 msgid "Checker result"
 msgstr "Итог чекера"
 
@@ -1412,8 +1443,8 @@ msgid "Test check — not a real player"
 msgstr "Тестовая проверка — не настоящий игрок"
 
 #: templates/checks/_session_rows.html
-msgid "The report has trust problems — see the check"
-msgstr "С отчётом есть проблемы — откройте проверку"
+msgid "The panel found contradictions in the report — see the check"
+msgstr "Панель нашла противоречия в отчёте — откройте проверку"
 
 #: templates/checks/_session_rows.html
 #: templates/checks/dashboard.html
@@ -1581,6 +1612,10 @@ msgid "%(sev)s and above"
 msgstr "%(sev)s и выше"
 
 #: templates/checks/detail.html
+msgid "About this report"
+msgstr "Об этом отчёте"
+
+#: templates/checks/detail.html
 msgid "Administrator rights"
 msgstr "Права администратора"
 
@@ -1595,10 +1630,6 @@ msgid "All findings"
 msgstr "Все находки"
 
 #: templates/checks/detail.html
-msgid "All server checks of the report"
-msgstr "Все проверки отчёта сервером"
-
-#: templates/checks/detail.html
 msgid "Any kind"
 msgstr "Любой вид"
 
@@ -1609,6 +1640,10 @@ msgstr "Любой раздел"
 #: templates/checks/detail.html
 msgid "Any severity"
 msgstr "Любая важность"
+
+#: templates/checks/detail.html
+msgid "Assurance the checker assigned itself"
+msgstr "Доверие, которое чекер присвоил сам себе"
 
 #: templates/checks/detail.html
 msgid "Build hash"
@@ -1734,6 +1769,10 @@ msgid "Finding"
 msgstr "Находка"
 
 #: templates/checks/detail.html
+msgid "Five separate questions. Only the first two are checked by the panel; the rest is what the player's PC says."
+msgstr "Пять отдельных вопросов. Панель сама проверяет только первые два; остальное — то, что сообщает ПК игрока."
+
+#: templates/checks/detail.html
 msgid "Full history of this player"
 msgstr "Вся история игрока"
 
@@ -1845,6 +1884,10 @@ msgid "Report id"
 msgstr "ID отчёта"
 
 #: templates/checks/detail.html
+msgid "Result — recomputed by the panel from the reported evidence"
+msgstr "Итог — пересчитан панелью по присланным уликам"
+
+#: templates/checks/detail.html
 #: templates/checks/rules.html
 msgid "Rule"
 msgstr "Правило"
@@ -1874,8 +1917,8 @@ msgid "The checker reported nothing."
 msgstr "Чекер ничего не сообщил."
 
 #: templates/checks/detail.html
-msgid "The code on the player's screen must match this one — then the report is the one on their screen:"
-msgstr "Код на экране игрока должен совпасть с этим — тогда отчёт тот же, что у него на экране:"
+msgid "The code in the checker window on the player's screen must match this one — then the panel has the same report as that window:"
+msgstr "Код в окне чекера на экране игрока должен совпасть с этим — тогда у панели тот же отчёт, что в этом окне:"
 
 #: templates/checks/detail.html
 msgid "The code was not used in time. Create a new check if you still need one."
@@ -1884,6 +1927,10 @@ msgstr "Кодом не воспользовались вовремя. Созд�
 #: templates/checks/detail.html
 msgid "The full list is under “Details for experienced admins”."
 msgstr "Полный список — в «Подробностях для опытных»."
+
+#: templates/checks/detail.html
+msgid "The panel's checks found no contradictions in the report. That does not show that the official checker really ran — see “About this report”."
+msgstr "Проверки панели не нашли противоречий в отчёте. Это не показывает, что действительно работал официальный чекер — см. «Об этом отчёте»."
 
 #: templates/checks/detail.html
 msgid "The player sees the decision on their page and can appeal. A different admin reviews the appeal."
@@ -1899,10 +1946,6 @@ msgstr[2] "Остальное — %(n)s пунктов, на итог не вл�
 #: templates/checks/detail.html
 msgid "The same trace was also seen as"
 msgstr "Тот же след виден и как"
-
-#: templates/checks/detail.html
-msgid "The server found no problems with the report itself."
-msgstr "Сервер не нашёл проблем с самим отчётом."
 
 #: templates/checks/detail.html
 msgid "This check was cancelled; the code no longer works."
@@ -1923,10 +1966,6 @@ msgstr "Хронология"
 #: templates/checks/detail.html
 msgid "Timestamped evidence, newest first. Times come from files on the player's PC and can be altered there."
 msgstr "Находки со временем, новые сверху. Время берётся из файлов на ПК игрока и может быть подделано."
-
-#: templates/checks/detail.html
-msgid "Trust in the report"
-msgstr "Доверие к отчёту"
 
 #: templates/checks/detail.html
 msgid "Upload IP"
@@ -2137,8 +2176,8 @@ msgid "A required part failed, ran out of time, was skipped, or the checker had 
 msgstr "Обязательный раздел упал, не успел, был пропущен, или у чекера не было прав администратора."
 
 #: templates/checks/rules.html
-msgid "Every required part ran and nothing needs a look."
-msgstr "Все обязательные разделы прошли, смотреть нечего."
+msgid "Every required part reports that it ran and nothing needs a look. Not proof that the PC is clean."
+msgstr "Все обязательные части сообщают, что отработали, и смотреть нечего. Это не доказательство, что ПК чист."
 
 #: templates/checks/rules.html
 msgid "How the checker checks"

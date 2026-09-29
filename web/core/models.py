@@ -24,6 +24,10 @@ class SiteSettings(models.Model):
     block_untrusted_builds = models.BooleanField(
         default=False,
         help_text="Refuse to connect checkers whose file hash is not in the trusted build list.")
+    accept_unbound_reports = models.BooleanField(
+        default=False,
+        help_text="Transition only: accept reports from checkers older than 1.3, which cannot bind their "
+                  "report to the check. Such reports are marked and have weaker replay protection.")
     fast_scan_seconds = models.PositiveIntegerField(
         default=20, validators=[MaxValueValidator(3600)],
         help_text="A completed scan faster than this (measured by the server) is flagged.")

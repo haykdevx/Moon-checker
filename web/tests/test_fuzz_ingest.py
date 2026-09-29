@@ -23,9 +23,12 @@ from dataclasses import dataclass, field
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 
+from checks import ingest
+from core.models import SiteSettings
 from checks.models import CheckSession, FindingRow, Report
 
-from .helpers import canonical, client_info, evidence_item, make_session, make_user, report_payload, report_v2
+from .helpers import (HASH, bind, canonical, claim_body, client_info, evidence_item, make_session, make_user,
+                      report_payload, report_v2)
 
 SEED = 20260928
 N = 300
@@ -122,7 +125,25 @@ def encode(payload):
         return json.dumps(payload).encode()
 
 
+# what the checker said about the PC when it entered the code; a report that says otherwise is refused
+IDENTITY = (("environment", "hostname", 100), ("environment", "user", 100), ("environment", "os", 100),
+            ("collector", "appVersion", 20))
+
+
+def identity_changed(payload):
+    base = baseline()
+    for section, key, limit in IDENTITY:
+        got = payload.get(section).get(key) if isinstance(payload.get(section), dict) else None
+        if ingest.clip(got, limit) != base[section][key]:
+            return True
+    collector = payload.get("collector") if isinstance(payload.get("collector"), dict) else {}
+    short = ingest.clip(collector.get("selfHash"), 16).lower()
+    return bool(short) and not HASH.startswith(short)
+
+
 def json_case(kind, what, expect, payload=None, raw=None, encoding="gzip", headers=None):
+    if payload is not None and identity_changed(payload):
+        expect = REJECT  # inconsistent with the claim, whatever else it contains
     raw = encode(payload) if raw is None else raw
     body = gzip.compress(raw, mtime=0) if encoding == "gzip" else raw
     if len(raw) > REPORT_LIMIT or len(body) > UPLOAD_LIMIT:
@@ -353,6 +374,11 @@ class IngestFuzzTests(TestCase):
     def setUp(self):
         self.admin = make_user("fuzz")
         self.client.raise_request_exception = False  # a crash must show up as a 5xx, not abort the run
+        # the parser is the subject here, not the session binding (tests/test_api.py covers that): the cases are
+        # prepared bytes, so they are delivered as a pre-1.3 checker would, with the owner's transition switch on
+        site = SiteSettings.load()
+        site.accept_unbound_reports = True
+        site.save()
 
     def claim(self):
         cache.clear()  # 300 claims from one address would trip the per-IP limits
@@ -375,7 +401,9 @@ class IngestFuzzTests(TestCase):
         server_errors, stored_invalid, lost_valid, wrong_answer = [], [], [], []
         expected, outcome = Counter(), Counter()
         for i in range(N):
-            case = MUTATIONS[i % len(MUTATIONS)](rnd, copy.deepcopy(base))
+            fresh = copy.deepcopy(base)
+            fresh["session"]["checkId"] = f"MOON-260928-{i:05d}"  # a report id may be delivered only once
+            case = MUTATIONS[i % len(MUTATIONS)](rnd, fresh)
             expected[case.expect] += 1
             sid, token = self.claim()
             r = self.upload(sid, token, case)
@@ -400,7 +428,8 @@ class IngestFuzzTests(TestCase):
         self.assertEqual(wrong_answer, [], report)
         self.assertEqual(sum(expected.values()), N)
         # fixed by the seed (docs/validation.md); how the "either" cases end depends on the parser's stack
-        self.assertEqual(dict(expected), {ACCEPT: 122, REJECT: 172, EITHER: 6}, report)
+        # 5 cases moved from accept to reject in protocol 3: they change the PC identity sent at connect time
+        self.assertEqual(dict(expected), {ACCEPT: 117, REJECT: 177, EITHER: 6}, report)
 
     def test_legacy_v1_with_unhashable_values_is_rejected_not_a_crash(self):
         cases = ((lambda p: p.update(verdict={"outcome": "CHEAT"}), 422),
@@ -421,14 +450,18 @@ class ReplayTests(TestCase):
     def setUp(self):
         cache.clear()
         self.admin = make_user("replay")
+        self.claims = {}
 
     def claim(self):
         session = make_session(self.admin)
-        d = self.client.post("/api/v1/claim", data=json.dumps({"code": session.code, "client": client_info()}),
+        d = self.client.post("/api/v1/claim", data=json.dumps(claim_body(session.code)),
                              content_type="application/json").json()
+        self.claims[d["sessionId"]] = d
         return d["sessionId"], d["token"]
 
     def upload(self, sid, token, payload):
+        if sid in self.claims:  # bound to the session it is sent to, as the checker does
+            payload = bind(copy.deepcopy(payload), self.claims[sid])
         return self.client.post(f"/api/v1/sessions/{sid}/report", data=gzip.compress(canonical(payload)),
                                 content_type="application/json", HTTP_CONTENT_ENCODING="gzip",
                                 HTTP_AUTHORIZATION=f"Bearer {token}")

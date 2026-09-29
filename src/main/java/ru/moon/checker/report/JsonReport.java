@@ -60,6 +60,14 @@ public final class JsonReport {
         session.put("startedAt", r.checkId().startedAt().toString());
         session.put("finishedAt", r.finishedAt().toString());
         session.put("durationSeconds", r.duration().toSeconds());
+        if (r.binding() != null) {
+            // covered by the hash and the verification code like the rest; see SessionBinding for what it proves
+            Map<String, Object> binding = new TreeMap<>();
+            binding.put("panelSessionId", r.binding().panelSessionId());
+            binding.put("uploadNonce", r.binding().uploadNonce());
+            binding.put("protocol", r.binding().protocol());
+            session.put("binding", binding);
+        }
         m.put("session", session);
 
         Map<String, Object> collector = new TreeMap<>();

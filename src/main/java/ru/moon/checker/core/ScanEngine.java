@@ -44,6 +44,7 @@ public final class ScanEngine {
     private final Map<String, String> errors = new ConcurrentHashMap<>();
     private Platform.Support platformSupport = Platform.support();
     private RulesProvenance rules;
+    private SessionBinding binding;
     private List<CheckModule> fullSuite = List.of();
     private int concurrency = 0;
 
@@ -87,6 +88,12 @@ public final class ScanEngine {
     }
 
     /** Where the rules passed to {@link #run} came from (see SignatureLoader). */
+    /** The panel check this scan's report is for (null offline); written into the evidence. */
+    public ScanEngine binding(SessionBinding b) {
+        this.binding = b;
+        return this;
+    }
+
     public ScanEngine rules(RulesProvenance provenance) {
         this.rules = provenance;
         return this;
@@ -185,7 +192,7 @@ public final class ScanEngine {
                 checkId, env, assessment, List.copyOf(sorted),
                 new LinkedHashMap<>(status),
                 signatures.version(), used, consent,
-                Instant.now(), Duration.between(start, Instant.now()));
+                Instant.now(), Duration.between(start, Instant.now()), binding);
         listener.onComplete(result);
         return result;
     }

@@ -30,7 +30,8 @@ public record ScanResult(
         RulesProvenance rules,
         Consent consent,
         Instant finishedAt,
-        Duration duration
+        Duration duration,
+        SessionBinding binding       // null for an offline check
 ) {
     /** Short provenance label for displays ("bundled", "signed-override", "none"). */
     public String signatureOrigin() {

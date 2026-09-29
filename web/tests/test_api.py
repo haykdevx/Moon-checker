@@ -11,7 +11,8 @@ from checks import housekeeping, ingest
 from checks.models import CheckSession, FindingRow, TrustedBuild
 from core.models import SiteSettings
 
-from .helpers import (HASH, canonical, client_info, evidence_item, gz, make_session, make_user, report_payload,
+from .helpers import (HASH, PROTOCOL, bind, canonical, claim_body, client_info, evidence_item, gz, make_session,
+                      make_user, report_payload,
                       report_v2)
 
 
@@ -21,9 +22,10 @@ class ApiFlowTests(TestCase):
         self.admin = make_user("shadow")
         self.session = make_session(self.admin)
 
-    def claim(self, code=None, **client):
-        return self.client.post("/api/v1/claim", data=json.dumps(
-            {"code": code or self.session.code, "client": client_info(**client)}), content_type="application/json")
+    def claim(self, code=None, protocol=PROTOCOL, **client):
+        return self.client.post("/api/v1/claim", data=json.dumps(claim_body(code or self.session.code, protocol,
+                                                                            **client)),
+                                content_type="application/json")
 
     def progress(self, sid, token, **body):
         body = {"done": 1, "total": 10, "module": "files", "counts": {"high": 2}, **body}
@@ -45,28 +47,34 @@ class ApiFlowTests(TestCase):
         d = r.json()
         self.assertEqual(d["admin"]["alias"], "shadow")
         self.assertEqual(d["player"]["name"], "PlayerOne")
+        self.assertEqual(d["upload"]["protocol"], PROTOCOL)
         sid, token = d["sessionId"], d["token"]
         s = CheckSession.objects.get(pk=sid)
         self.assertEqual(s.status, CheckSession.CONNECTED)
-        self.assertNotIn(token, s.token_hash)  # only the hash is stored
+        self.assertNotIn(token, s.token_hash)  # only the hashes are stored
+        self.assertNotIn(d["upload"]["nonce"], s.upload_nonce_hash)
+        self.assertEqual(len(s.upload_nonce_hash), 64)
 
         self.assertEqual(self.progress(sid, token).status_code, 200)
         s.refresh_from_db()
         self.assertEqual((s.status, s.progress_done, s.progress_total), (CheckSession.SCANNING, 1, 10))
         self.assertEqual(s.live_counts["high"], 2)
 
-        raw = canonical(report_payload())
+        raw = canonical(bind(report_v2("VALIDATED_DETECTION", [evidence_item(1, "DETECTION", "CRITICAL")]), d))
         r = self.upload(sid, token, raw, HTTP_X_MOON_SHA256=hashlib.sha256(raw).hexdigest())
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json()["verificationCode"], ingest.verification_code(raw))
         s.refresh_from_db()
         self.assertEqual(s.status, CheckSession.COMPLETED)
-        self.assertEqual((s.verdict, s.score, s.counts["critical"]), ("CHEAT", 100, 1))
+        self.assertEqual((s.verdict, s.client_outcome, s.counts["critical"]), ("VALIDATED_DETECTION",) * 2 + (1,))
+        self.assertEqual(s.upload_nonce_hash, "", "the upload value is consumed")
         self.assertEqual(FindingRow.objects.filter(session=s).count(), 1)
         self.assertEqual(gzip.decompress(bytes(s.report.raw_gzip)), raw)
+        self.assertTrue(s.report.meta["bound"])
         keys = {f["key"] for f in s.flags}
         self.assertIn("fast", keys)        # finished instantly
         self.assertIn("build", keys)       # no trusted builds configured -> warn
+        self.assertIn("bound", keys)
 
         # a second upload is refused but tells the client its code
         r = self.upload(sid, token, raw)
@@ -102,39 +110,139 @@ class ApiFlowTests(TestCase):
         TrustedBuild.objects.create(sha256=HASH, label="1.1.0")
         self.assertEqual(self.claim().status_code, 200)
 
-    def test_trust_flags(self):
-        TrustedBuild.objects.create(sha256=HASH, label="official 1.1.0")
-        d = self.claim().json()
-        raw = canonical(report_payload(hostname="OTHER-PC", elevated=False, selfHash="ffffffffffff"))
-        self.upload(d["sessionId"], d["token"], raw)
-        s = CheckSession.objects.get(pk=d["sessionId"])
-        levels = {f["key"]: f["level"] for f in s.flags}
-        self.assertEqual(levels["build"], "ok")
-        self.assertEqual(levels["identity"], "bad")
-        self.assertEqual(levels["elevated"], "bad")
-        self.assertEqual(levels["binary"], "bad")
-        self.assertEqual(s.trust, "bad")
+    def test_a_checker_that_cannot_bind_its_report_is_refused(self):
+        r = self.claim(protocol=None)
+        self.assertEqual((r.status_code, r.json()["error"]), (426, "checker_outdated"))
+        self.assertEqual(CheckSession.objects.get(pk=self.session.pk).status, CheckSession.WAITING)
 
-    def test_replayed_report_is_flagged(self):
-        d1 = self.claim().json()
-        raw = canonical(report_payload())
-        self.upload(d1["sessionId"], d1["token"], raw)
-        s2 = make_session(self.admin)
-        d2 = self.claim(code=s2.code).json()
-        self.upload(d2["sessionId"], d2["token"], raw)
-        s2.refresh_from_db()
-        self.assertIn("replay", {f["key"] for f in s2.flags if f["level"] == "bad"})
+    # --- what a report can and cannot earn ---------------------------------------------------
+
+    def deliver_bound(self, payload_fn, **claim):
+        d = self.claim(code=make_session(self.admin).code, **claim).json()
+        payload = payload_fn(d)
+        r = self.upload(d["sessionId"], d["token"], canonical(payload))
+        return r, CheckSession.objects.get(pk=d["sessionId"])
+
+    def test_a_fabricated_report_claiming_an_official_hash_gets_no_verified_label(self):
+        """Review finding R1: a made-up report over a valid session, naming a registered build hash,
+        was shown as "Official checker build" with overall trust "ok"."""
+        TrustedBuild.objects.create(sha256=HASH, label="official 1.2.0")
+        # written by hand: no checker ran; it claims the registered hash and a clean, complete scan
+        r, s = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d))
+        self.assertEqual(r.status_code, 200, r.content)
+        flags = {f["key"]: f for f in s.flags}
+        self.assertEqual(flags["build"]["dim"], "artifact")
+        self.assertEqual(flags["build"]["level"], "info", "a claimed hash is a claim, never 'ok'")
+        self.assertIn("says", flags["build"]["text"])
+        self.assertNotIn("Official checker build", " ".join(f["text"] for f in s.flags))
+        self.assertEqual(flags["execution"]["dim"], "collector")
+        self.assertIn("Not independently verified", flags["execution"]["text"])
+        self.assertIn("no-evidence", flags)
+        for f in s.flags:
+            if f["dim"] in ("artifact", "collector", "device"):
+                self.assertNotEqual(f["level"], "ok", f)
+
+    def test_an_honest_zero_finding_scan_is_accepted(self):
+        r, s = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((s.verdict, s.status), ("NO_EVIDENCE", CheckSession.COMPLETED))
+        self.assertNotEqual(s.trust, "bad")
+
+    def test_connect_and_upload_must_describe_the_same_pc(self):
+        for over in ({"hostname": "OTHER-PC"}, {"user": "someone"}, {"os": "Windows 10"}):
+            r, s = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE", **over), d))
+            self.assertEqual((r.status_code, r.json()["error"]), (422, "inconsistent_report"), over)
+            self.assertEqual(s.status, CheckSession.CONNECTED)
+            self.assertFalse(FindingRow.objects.filter(session=s).exists())
+
+    def test_a_report_from_a_different_program_file_is_refused(self):
+        def forged(d):
+            p = bind(report_v2("NO_EVIDENCE"), d)
+            p["collector"]["selfHash"] = "ffffffffffff"
+            return p
+        r, s = self.deliver_bound(forged)
+        self.assertEqual((r.status_code, r.json()["error"]), (422, "inconsistent_report"))
+
+    def test_a_report_made_for_another_check_is_refused(self):
+        a = self.claim(code=make_session(self.admin).code).json()
+        b = self.claim(code=make_session(self.admin).code).json()
+        r = self.upload(b["sessionId"], b["token"], canonical(bind(report_v2("NO_EVIDENCE"), a)))
+        self.assertEqual((r.status_code, r.json()["error"]), (409, "wrong_session"))
+        r = self.upload(b["sessionId"], b["token"],
+                        canonical(bind(report_v2("NO_EVIDENCE"), b, uploadNonce=a["upload"]["nonce"])))
+        self.assertEqual((r.status_code, r.json()["error"]), (409, "stale_upload"))
+        self.assertEqual(CheckSession.objects.get(pk=b["sessionId"]).status, CheckSession.CONNECTED)
+        # and b's own, correctly bound report still goes through
+        r = self.upload(b["sessionId"], b["token"], canonical(bind(report_v2("NO_EVIDENCE"), b)))
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_unbound_and_wrong_protocol_reports_are_refused(self):
+        r, _ = self.deliver_bound(lambda d: report_v2("NO_EVIDENCE"))
+        self.assertEqual((r.status_code, r.json()["error"]), (422, "unbound_report"))
+        r, _ = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d, protocol=2))
+        self.assertEqual((r.status_code, r.json()["error"]), (422, "protocol_mismatch"))
+        r, _ = self.deliver_bound(lambda d: report_payload())  # the old schema cannot carry a binding
+        self.assertEqual((r.status_code, r.json()["error"]), (422, "unbound_report"))
+        r, _ = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d, uploadNonce="short"))
+        self.assertEqual((r.status_code, r.json()["error"]), (422, "invalid_report"))
+
+    def test_a_late_upload_is_refused(self):
+        d = self.claim().json()
+        CheckSession.objects.filter(pk=d["sessionId"]).update(upload_deadline=timezone.now() - timedelta(seconds=1))
+        r = self.upload(d["sessionId"], d["token"], canonical(bind(report_v2("NO_EVIDENCE"), d)))
+        self.assertEqual((r.status_code, r.json()["error"]), (410, "upload_expired"))
+        self.assertEqual(CheckSession.objects.get(pk=d["sessionId"]).status, CheckSession.CONNECTED)
+
+    def test_a_report_id_seen_in_another_check_is_refused(self):
+        r, _ = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d))
+        self.assertEqual(r.status_code, 200)
+        r, s2 = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE"), d))  # same checkId, freshly bound
+        self.assertEqual((r.status_code, r.json()["error"]), (409, "replayed_report"))
+        self.assertEqual(s2.status, CheckSession.CONNECTED)
+
+    def test_an_edited_outcome_is_replaced_by_the_servers(self):
+        r, s = self.deliver_bound(lambda d: bind(report_v2("NO_EVIDENCE", [evidence_item(1, "DETECTION", "CRITICAL")]), d))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual((s.verdict, s.client_outcome), ("VALIDATED_DETECTION", "NO_EVIDENCE"))
+        self.assertEqual({f["key"]: f["level"] for f in s.flags}["verdict"], "bad")
+
+    def test_a_stale_view_of_the_session_cannot_complete_it_twice(self):
+        """Two uploads racing: the second saw the session before the first completed it."""
+        from unittest import mock
+        from checks import api
+        d = self.claim().json()
+        stale = CheckSession.objects.get(pk=d["sessionId"])       # read before either upload lands
+        first = self.upload(d["sessionId"], d["token"], canonical(bind(report_v2("NO_EVIDENCE"), d)))
+        self.assertEqual(first.status_code, 200)
+        other = report_v2("VALIDATED_DETECTION", [evidence_item(1, "DETECTION", "CRITICAL")], check_id="MOON-260928-WXYZ")
+        with mock.patch.object(api, "_authenticate", return_value=(stale, None)):
+            second = self.upload(d["sessionId"], d["token"], canonical(bind(other, d)))
+        self.assertEqual((second.status_code, second.json()["error"]), (409, "already_completed"))
+        s = CheckSession.objects.get(pk=d["sessionId"])
+        self.assertEqual((s.verdict, s.client_check_id), ("NO_EVIDENCE", "MOON-260928-ABCD"))
+        self.assertEqual(FindingRow.objects.filter(session=s).count(), 0)
+
+    def test_legacy_checkers_only_when_the_owner_allows_it_and_marked(self):
+        site = SiteSettings.load()
+        site.accept_unbound_reports = True
+        site.save()
+        r, s = self.deliver_bound(lambda d: report_payload(), protocol=None)
+        self.assertEqual(r.status_code, 200, r.content)
+        flags = {f["key"]: f for f in s.flags}
+        self.assertEqual((flags["unbound"]["dim"], flags["unbound"]["level"]), ("session", "warn"))
+        self.assertEqual(s.protocol, 0)
+        self.assertFalse(s.report.meta["bound"])
 
     def test_malformed_reports_rejected(self):
         d = self.claim().json()
         sid, token = d["sessionId"], d["token"]
         self.assertEqual(self.upload(sid, token, b"not json").status_code, 400)
-        bad = report_payload()
-        bad["verdict"] = "TOTALLY_CLEAN"
+        bad = bind(report_v2(), d)
+        bad["verdict"]["outcome"] = "TOTALLY_CLEAN"
         self.assertEqual(self.upload(sid, token, canonical(bad)).status_code, 422)
         self.assertEqual(self.upload(sid, token, b"\x1f\x8b garbage", gzip_it=False,
                                      HTTP_CONTENT_ENCODING="gzip").status_code, 400)
-        raw = canonical(report_payload())
+        raw = canonical(bind(report_v2(), d))
         self.assertEqual(self.upload(sid, token, raw, HTTP_X_MOON_SHA256="0" * 64).status_code, 400)
         self.assertEqual(CheckSession.objects.get(pk=sid).status, CheckSession.CONNECTED)
 
@@ -149,7 +257,7 @@ class ApiFlowTests(TestCase):
         CheckSession.objects.filter(pk=d["sessionId"]).update(status=CheckSession.CANCELLED)
         r = self.progress(d["sessionId"], d["token"])
         self.assertEqual((r.status_code, r.json()["error"]), (410, "cancelled"))
-        r = self.upload(d["sessionId"], d["token"], canonical(report_payload()))
+        r = self.upload(d["sessionId"], d["token"], canonical(bind(report_v2(), d)))
         self.assertEqual(r.status_code, 410)
 
     def test_housekeeping_abandons_and_revives(self):
@@ -184,8 +292,8 @@ class EvidenceV2Tests(ApiFlowTests):
     """moon-evidence/2: sections stored, outcome re-derived server-side."""
 
     def deliver(self, payload):
-        d = self.claim().json()
-        r = self.upload(d["sessionId"], d["token"], canonical(payload))
+        d = self.claim(code=make_session(self.admin).code).json()
+        r = self.upload(d["sessionId"], d["token"], canonical(bind(payload, d)))
         return r, CheckSession.objects.get(pk=d["sessionId"])
 
     def test_v2_is_stored_with_kinds_rules_and_sections(self):
@@ -208,6 +316,7 @@ class EvidenceV2Tests(ApiFlowTests):
         bad = {f["key"]: f["text"] for f in s.flags if f["level"] == "bad"}
         self.assertIn("verdict", bad)
         self.assertIn("VALIDATED_DETECTION", bad["verdict"])
+        self.assertEqual(s.verdict, "VALIDATED_DETECTION", "the panel shows its own outcome")
 
     def test_claiming_no_evidence_with_a_failed_collector_is_flagged(self):
         modules = {m: "OK" for m in report_v2()["coverage"]["required"]}
@@ -255,7 +364,7 @@ class EvidenceV2Tests(ApiFlowTests):
         self.assertIn("rules", bad)
         self.assertIn("verdict", bad, "NO_EVIDENCE is inconsistent with untrusted rules")
         self.assertFalse(s.report.meta["coverage"]["complete"])
-        _, s2 = self.deliver_new(report_v2("NO_EVIDENCE", rules_count=0))
+        _, s2 = self.deliver_new(report_v2("NO_EVIDENCE", rules_count=0, check_id="MOON-260928-EFGH"))
         self.assertIn("rules", {f["key"] for f in s2.flags if f["level"] == "bad"})
 
     def test_ignored_override_is_a_warning(self):
@@ -264,12 +373,15 @@ class EvidenceV2Tests(ApiFlowTests):
         self.assertNotIn("rules", {f["key"] for f in s.flags if f["level"] == "bad"})
 
     def deliver_new(self, payload):
-        d = self.claim(code=make_session(self.admin).code).json()
-        r = self.upload(d["sessionId"], d["token"], canonical(payload))
-        return r, CheckSession.objects.get(pk=d["sessionId"])
+        return self.deliver(payload)
 
-    def test_legacy_v1_still_accepted_and_labelled(self):
-        _, s = self.deliver(report_payload())
+    def test_legacy_v1_still_accepted_and_labelled_when_allowed(self):
+        site = SiteSettings.load()
+        site.accept_unbound_reports = True
+        site.save()
+        d = self.claim(code=make_session(self.admin).code, protocol=None).json()
+        self.upload(d["sessionId"], d["token"], canonical(report_payload()))
+        s = CheckSession.objects.get(pk=d["sessionId"])
         self.assertEqual(s.verdict, "CHEAT")
         self.assertIn("schema", {f["key"] for f in s.flags if f["level"] == "info"})
 
@@ -280,3 +392,55 @@ class VerificationCodeParity(TestCase):
         import hmac
         mac = hmac.new(b"moon-cs2-2026::integrity::v1", b"abc", hashlib.sha256).hexdigest().upper()
         self.assertEqual(ingest.verification_code(b"abc"), f"{mac[:4]}-{mac[4:8]}-{mac[8:10]}")
+
+
+class ReportPageTests(TestCase):
+    """The check page keeps the five questions apart and never shows a claim as verified."""
+
+    def setUp(self):
+        cache.clear()
+        site = SiteSettings.load()
+        site.require_2fa = False
+        site.save()
+        self.admin = make_user("pager")
+        self.client.force_login(self.admin)
+
+    def completed(self, payload_fn):
+        s = make_session(self.admin)
+        d = self.client.post("/api/v1/claim", data=json.dumps(claim_body(s.code)),
+                             content_type="application/json").json()
+        r = self.client.post(f"/api/v1/sessions/{d['sessionId']}/report", data=gz(canonical(payload_fn(d))),
+                             content_type="application/json", HTTP_CONTENT_ENCODING="gzip",
+                             HTTP_AUTHORIZATION=f"Bearer {d['token']}")
+        self.assertEqual(r.status_code, 200, r.content)
+        return CheckSession.objects.get(pk=s.pk)
+
+    def page(self, s, lang="en"):
+        self.client.cookies["moon_lang"] = lang
+        return self.client.get(f"/checks/{s.pk}/").content.decode()
+
+    def test_a_fabricated_clean_report_is_not_shown_as_verified(self):
+        TrustedBuild.objects.create(sha256=HASH, label="official 1.2.0")
+        s = self.completed(lambda d: bind(report_v2("NO_EVIDENCE"), d))
+        html = self.page(s)
+        self.assertNotIn("Official checker build", html)
+        self.assertIn("Not independently verified", html)
+        self.assertIn("The checker says it is the official build official 1.2.0", html)
+        self.assertIn("No evidence reported", html)
+        self.assertNotIn("tone-ok", html.split('class="card verdict-card', 1)[1][:40], "no green verdict")
+        self.assertIn("About this report", html)
+        ru = self.page(s, "ru")
+        self.assertIn("Независимо не проверено", ru)
+
+    def test_signals_stored_before_13_are_shown_with_todays_wording(self):
+        s = self.completed(lambda d: bind(report_v2("NO_EVIDENCE"), d))
+        s.flags = [{"level": "ok", "key": "build", "msg": "Official checker build: %(label)s.",
+                    "params": {"label": "1.1.0"}, "text": "Official checker build: 1.1.0."},
+                   {"level": "ok", "key": "elevated", "msg": "Checker ran with administrator rights.", "params": {},
+                    "text": "Checker ran with administrator rights."}]
+        s.save()
+        html = self.page(s)
+        self.assertNotIn("Official checker build", html)
+        self.assertIn("The checker says it is the official build 1.1.0", html)
+        self.assertIn("Not independently verified", html)
+        self.assertIn("too old to bind its report", html)

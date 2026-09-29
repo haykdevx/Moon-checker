@@ -32,7 +32,7 @@ public final class TestResults {
     public static ScanResult of(List<Finding> findings, Coverage coverage, EnvironmentInfo env) {
         Assessment a = VerdictEngine.assess(findings, coverage, env);
         return new ScanResult(CheckId.generate(), env, a, List.copyOf(findings), coverage.modules(),
-                "test-rules", coverage.rules(), Consent.cli(), Instant.now(), Duration.ofSeconds(42));
+                "test-rules", coverage.rules(), Consent.cli(), Instant.now(), Duration.ofSeconds(42), null);
     }
 
     public static Finding finding(EvidenceKind kind, Severity severity, String module, String subject) {

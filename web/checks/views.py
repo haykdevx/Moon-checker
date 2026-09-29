@@ -20,7 +20,7 @@ from accounts.views import perm_required
 from core.audit import record
 from core.models import SiteSettings
 
-from . import codes, policy
+from . import codes, policy, trust
 from .models import Appeal, CheckSession, DataRequest, FindingRow
 from .templatetags.moon import OUTCOMES as OUTCOME_LABELS, collector_name
 
@@ -219,6 +219,7 @@ def detail(request, pk):
     coverage = meta.get("coverage") or {}
     coverage_done = sum(1 for m in coverage.get("required", []) if coverage.get("modules", {}).get(m) == "OK")
     important, other = split_findings(findings)
+    groups = trust.by_dimension(session.flags)
     parts = [{"id": m, "status": coverage.get("modules", {}).get(m, "?"),
               "ok": coverage.get("modules", {}).get(m) == "OK",
               "error": (coverage.get("errors") or {}).get(m, "")} for m in coverage.get("required", [])]
@@ -226,8 +227,10 @@ def detail(request, pk):
         "parts": parts,
         "s": session, "findings": findings, "truncated": truncated, "modules": sorted(modules.items()),
         "important": important, "other": other,
-        "warnings": [fl for fl in session.flags if fl.get("level") in ("bad", "warn")],
-        "signals_ok": [fl for fl in session.flags if fl.get("level") not in ("bad", "warn")],
+        "warnings": [fl for dim in trust.DIMENSIONS for fl in groups[dim] if fl.get("level") in ("bad", "warn")],
+        "assurance_rows": [{"dim": dim, "title": ASSURANCE_TITLES[dim], "flags": groups[dim],
+                            "level": "none" if dim == trust.COLLECTOR else trust.worst(groups[dim])}
+                           for dim in trust.DIMENSIONS],
         "env": env, "meta": meta, "related": related, "coverage_done": coverage_done,
         "kinds": sorted({f.kind for f in findings if f.kind}),
         "timeline": timeline, "audit_trail": audit_trail,
@@ -439,3 +442,13 @@ def player_link(request, pk):
     request.session[f"player_link_{s.pk}"] = request.build_absolute_uri(reverse("player:status", args=[token]))
     record(request, "check.player_link_reissued", str(s.pk))
     return redirect("checks:detail", pk=s.pk)
+
+
+# the five questions about a delivered report, kept apart on the check page (checks/trust.py)
+ASSURANCE_TITLES = {
+    "session": _("Delivered for this check"),
+    "consistency": _("Report consistency — checked by the panel"),
+    "artifact": _("Checker build — claimed by the player's PC"),
+    "collector": _("Did the official checker really run?"),
+    "device": _("About the PC — reported by the checker"),
+}

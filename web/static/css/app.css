@@ -243,6 +243,7 @@ footer.foot { text-align: center; color: var(--muted); font-size: 12px; padding:
 .tone-incomplete { color: var(--accent2); border-color: #6f78ef88; }
 .tone-muted { color: var(--info); }
 .tone-ok { color: var(--clean); border-color: #37d67a55; }
+.tone-none { color: #b4c3d6; border-color: #b4c3d655; }
 .verdict-banner.tone-bad { border-left-color: var(--cheat); }
 .verdict-banner.tone-review { border-left-color: var(--suspicious); }
 .verdict-banner.tone-incomplete { border-left-color: var(--accent2); }
@@ -352,6 +353,8 @@ details.extra[open] > summary { margin-bottom: 12px; }
 .verdict-card.tone-bad .verdict-label, .verdict-card.tone-bad .verdict { color: var(--cheat); }
 .verdict-card.tone-ok { border-color: #1f4a30; background: #101a14; }
 .verdict-card.tone-ok .verdict-label, .verdict-card.tone-ok .verdict { color: var(--clean); }
+.verdict-card.tone-none { border-color: #2f3a48; background: #141920; }
+.verdict-card.tone-none .verdict-label, .verdict-card.tone-none .verdict { color: #c9d6e6; }
 .verdict-card.tone-incomplete { border-color: #33376a; background: #14152a; }
 .verdict-card.tone-incomplete .verdict-label, .verdict-card.tone-incomplete .verdict { color: var(--accent2); }
 .verdict-card.tone-muted .verdict-label { color: var(--muted); }
@@ -364,6 +367,24 @@ details.extra[open] > summary { margin-bottom: 12px; }
 .alert-warn { background: #1d1a10; border-color: #5a4722; }
 .alert-warn .alert-icon { background: var(--suspicious); color: #1a1406; }
 .alert-ok .alert-icon { background: var(--clean); color: #06140b; }
+.alert-info .alert-icon { background: #8fa3bb; color: #0b1016; }
+/* "About this report": five questions, each with its own level; the collector question is never green */
+.assurance { display: grid; gap: 10px; margin: 0; }
+.assurance-row { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 10px 14px; background: var(--panel2); }
+.assurance-row dt { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.assurance-row dd { margin: 6px 0 0 30px; }
+.assurance-row ul { margin: 0; padding-left: 18px; }
+.assurance-row li { margin: 2px 0; color: var(--text2, #d6d6d6); }
+.assurance-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 13px; background: #2a2f3a; color: #cfd8e3; flex: none; }
+.assurance-row.lvl-ok { border-left-color: var(--clean); }
+.assurance-row.lvl-ok .assurance-mark { background: var(--clean); color: #06140b; }
+.assurance-row.lvl-warn { border-left-color: var(--suspicious); }
+.assurance-row.lvl-warn .assurance-mark { background: var(--suspicious); color: #1a1405; }
+.assurance-row.lvl-bad { border-left-color: var(--cheat); }
+.assurance-row.lvl-bad .assurance-mark { background: var(--cheat); color: #1d0a0a; }
+.assurance-row.lvl-none { border-left-color: #8fa3bb; }
+.assurance-row.lvl-none .assurance-mark { background: #8fa3bb; color: #0b1016; }
+@media (max-width: 640px) { .assurance-row dd { margin-left: 0; } }
 .finding { display: flex; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line); scroll-margin-top: 80px; }
 .finding:first-of-type { border-top: 0; }
 .finding-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -430,6 +451,7 @@ details.collector[open] > summary { margin-bottom: 12px; }
 .bar-incomplete { fill: var(--accent); background: var(--accent); }
 .bar-muted { fill: #6b6b6b; background: #6b6b6b; }
 .bar-ok { fill: var(--clean); background: var(--clean); }
+.bar-none { fill: #8fa3bb; background: #8fa3bb; }
 .bar-decision-BANNED { background: var(--cheat); }
 .bar-decision-CLEARED { background: var(--clean); }
 .bar-decision-RECHECK, .bar-decision-REVIEW { background: var(--suspicious); }

@@ -241,11 +241,18 @@ Each mutation states what the report contract in `checks/ingest.py` requires:
 Every upload must end in exactly one of two states: accepted (200, report stored, session
 `COMPLETED`), or rejected (4xx, nothing stored, session still `CONNECTED`).
 
+Since upload protocol 3 (see `docs/report-assurance.md`) a report whose host name, user, OS,
+version or program-file hash differs from what the checker sent when the code was entered is
+refused, so the 5 mutations that change those fields moved from "accept" to "reject"
+(previously 122/172). Each case now carries its own report id, because an id may be delivered
+only once. The fuzz run delivers the prepared bytes as a pre-1.3 checker would (the owner's
+transition switch on); binding itself is covered by `tests/test_api.py`.
+
 | | Result |
 |---|---|
 | Mutations | 300 |
-| Contract says accept → accepted and stored | 122/122 |
-| Contract says reject → 4xx, nothing stored | 172/172 |
+| Contract says accept → accepted and stored | 117/117 |
+| Contract says reject → 4xx, nothing stored | 177/177 |
 | Either | 6 (3 accepted, 3 rejected on Python 3.14.4; depends on the parser's stack, not pinned) |
 | Server errors (5xx) | 0 |
 | Invalid reports stored | 0 |
@@ -372,5 +379,5 @@ words, as `#10` did above.
     the known cases (NUL, unpaired surrogates) before anything is stored.
 - **Reproducibility.** Python's `random` guarantees the same `random()` sequence across
   versions, and `choice`/`shuffle`/`sample` have been stable in practice. A future
-  interpreter could still change the fuzz corpus; the pinned class counts (122/172/6) would
+  interpreter could still change the fuzz corpus; the pinned class counts (117/177/6) would
   then fail and point at it.

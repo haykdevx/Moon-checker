@@ -68,6 +68,11 @@ class CheckSession(models.Model):
     claimed_ip = models.GenericIPAddressField(null=True, blank=True)
     client = models.JSONField(default=dict, blank=True)
     token_hash = models.CharField(max_length=64, blank=True)
+    # upload binding (protocol 3): the report must carry this session's id and a single-use value
+    # issued at claim time; only its SHA-256 is kept and it is cleared when a report is accepted
+    protocol = models.PositiveSmallIntegerField(default=0)
+    upload_nonce_hash = models.CharField(max_length=64, blank=True)
+    upload_deadline = models.DateTimeField(null=True, blank=True)
 
     # live progress
     scan_started_at = models.DateTimeField(null=True, blank=True)
@@ -81,13 +86,16 @@ class CheckSession(models.Model):
     # result
     completed_at = models.DateTimeField(null=True, blank=True)
     report_ip = models.GenericIPAddressField(null=True, blank=True)
-    verdict = models.CharField(max_length=32, blank=True, db_index=True)  # v2 outcome or legacy v1 verdict
+    verdict = models.CharField(max_length=32, blank=True, db_index=True)  # server-computed outcome (v2) or legacy v1 verdict
+    client_outcome = models.CharField(max_length=32, blank=True)  # what the checker itself stated
     score = models.PositiveSmallIntegerField(null=True, blank=True)
     counts = models.JSONField(default=dict, blank=True)
     verification_code = models.CharField(max_length=12, blank=True)
     client_check_id = models.CharField(max_length=40, blank=True, db_index=True)
     flags = models.JSONField(default=list, blank=True)
-    trust = models.CharField(max_length=4, blank=True)  # ok / warn / bad
+    # worst level of the server's consistency checks: ok / warn / bad. It says whether the report is
+    # internally consistent and matches the session, NOT that the official checker really ran.
+    trust = models.CharField(max_length=4, blank=True)
 
     decision = models.CharField(max_length=8, choices=DECISION_CHOICES, blank=True, db_index=True)
     decision_note = models.CharField(max_length=1000, blank=True)

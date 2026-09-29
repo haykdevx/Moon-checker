@@ -13,7 +13,7 @@
     <dt><span class="badge tone-review">{{ "REVIEW_REQUIRED"|outcome_label }}</span></dt><dd>{% translate "Traces or signs of hiding of medium importance or higher. Traces of one file seen by several parts count once." %}</dd>
     <dt><span class="badge tone-incomplete">{{ "INCOMPLETE_SCAN"|outcome_label }}</span></dt><dd>{% translate "A required part failed, ran out of time, was skipped, or the checker had no administrator rights." %}</dd>
     <dt><span class="badge tone-muted">{{ "UNSUPPORTED_CONFIGURATION"|outcome_label }}</span></dt><dd>{% translate "The system is not one the checker is built for (supported: Windows 10/11 64-bit, Linux x86-64)." %}</dd>
-    <dt><span class="badge tone-ok">{{ "NO_EVIDENCE"|outcome_label }}</span></dt><dd>{% translate "Every required part ran and nothing needs a look." %}</dd>
+    <dt><span class="badge tone-none">{{ "NO_EVIDENCE"|outcome_label }}</span></dt><dd>{% translate "Every required part reports that it ran and nothing needs a look. Not proof that the PC is clean." %}</dd>
   </dl>
   <p class="muted small">{% translate "System settings (test signing, weakened boot protection, virtual machines) never change the result — they only lower trust in the report. There is no score." %}</p>
 </div>

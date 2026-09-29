@@ -10,12 +10,13 @@ OUTCOMES = {
     "REVIEW_REQUIRED": (_("Needs a look"), "review"),
     "UNSUPPORTED_CONFIGURATION": (_("System not supported"), "muted"),
     "INCOMPLETE_SCAN": (_("Check incomplete"), "incomplete"),
-    "NO_EVIDENCE": (_("Nothing found"), "ok"),
+    # neutral, never green: "nothing reported" is not "clean" (the collection is not independently verified)
+    "NO_EVIDENCE": (_("No evidence reported"), "none"),
     # checker < 1.1 (weighted score) — shown for what they are
     "CHEAT": (_("Cheat (old score)"), "bad"),
     "SUSPICIOUS": (_("Suspicious (old score)"), "review"),
     "INCONCLUSIVE": (_("Inconclusive (old)"), "incomplete"),
-    "CLEAN": (_("Clean (old score)"), "ok"),
+    "CLEAN": (_("Clean (old score)"), "none"),
 }
 
 OUTCOME_HELP = {
@@ -26,7 +27,8 @@ OUTCOME_HELP = {
                                    "is incomplete."),
     "INCOMPLETE_SCAN": _("Some required checks did not run (no administrator rights, an error or the time "
                          "limit). “Nothing found” cannot be concluded — ask the player to run it again."),
-    "NO_EVIDENCE": _("Every required check ran and found nothing to look at. That is not proof the PC is clean."),
+    "NO_EVIDENCE": _("Every required part reports that it ran and found nothing to look at. That is not proof "
+                     "the PC is clean: what the checker collected is not independently verified."),
 }
 
 KINDS = {

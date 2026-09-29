@@ -58,7 +58,8 @@ public final class MoonApi {
         client.put("elevated", env.elevated());
         client.put("utcOffsetMinutes", ZoneId.systemDefault().getRules()
                 .getOffset(java.time.Instant.now()).getTotalSeconds() / 60);
-        Map<String, Object> body = Map.of("code", code, "client", client);
+        Map<String, Object> body = Map.of("code", code, "client", client,
+                "protocol", ru.moon.checker.core.SessionBinding.PROTOCOL);
 
         JsonNode r = send(post("/api/v1/claim", toJson(body), CALL_TIMEOUT, null).build());
         String id = r.path("sessionId").asText("");
@@ -71,7 +72,9 @@ public final class MoonApi {
                 r.path("admin").path("name").asText(""),
                 r.path("player").path("name").asText(""),
                 Math.max(2, Math.min(60, r.path("heartbeatSeconds").asInt(5))),
-                safeUrl(r.path("statusUrl").asText("")));
+                safeUrl(r.path("statusUrl").asText("")),
+                r.path("upload").path("protocol").asInt(0),
+                r.path("upload").path("nonce").asText(""));
     }
 
     /** Only an https (or loopback http) link on the panel's own host is shown to the player. */

@@ -2,7 +2,7 @@
 <tr class="clickable" data-href="{% url 'checks:detail' s.pk %}">
   <td class="c-player"><a href="{% url 'checks:detail' s.pk %}"><b>{{ s.player_name }}</b></a>{% if s.is_test %} <span class="badge test" title="{% translate 'Test check — not a real player' %}">{% translate "TEST" %}</span>{% endif %}<div class="muted small"><span class="mono">{{ s.code }}</span>{% if s.client.hostname %} · {{ s.client.hostname }}{% endif %}</div></td>
   <td data-label="{% translate 'Status' %}"><span class="badge st-{{ s.status }}">{{ s.status|status_label }}</span></td>
-  <td data-label="{% translate 'Checker result' %}">{% if s.verdict %}<span class="badge tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</span>{% if s.trust == "bad" %} <span class="t-bad" title="{% translate 'The report has trust problems — see the check' %}">⚠</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td data-label="{% translate 'Checker result' %}">{% if s.verdict %}<span class="badge tone-{{ s.verdict|outcome_tone }}">{{ s.verdict|outcome_label }}</span>{% if s.trust == "bad" %} <span class="t-bad" title="{% translate 'The panel found contradictions in the report — see the check' %}">⚠</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
   <td data-label="{% translate 'Decision' %}">{% if s.decision %}<span class="d-{{ s.decision }}">{{ s.decision|decision_label }}</span>{% elif s.status == 'COMPLETED' %}<span class="muted">{% translate "not yet" %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
   {% if show_admin %}<td data-label="{% translate 'Admin' %}">{{ s.admin.username }}</td>{% endif %}
   <td data-label="{% translate 'When' %}" class="nowrap">{{ s.created_at|date:"j E, H:i" }}</td>

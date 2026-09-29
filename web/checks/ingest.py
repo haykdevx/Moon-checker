@@ -23,6 +23,8 @@ MODULE_STATES = {"PENDING", "RUNNING", "OK", "SKIPPED", "ERROR", "TIMEOUT"}
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _CHECK_ID = re.compile(r"MOON-[0-9]{6}-[A-Z0-9]{4,8}")  # fullmatch: no trailing newline, ASCII digits only
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}$")
+_NONCE = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
 class IngestError(Exception):
@@ -121,6 +123,12 @@ def sanitize_client(value):
     }
 
 
+def claimed_protocol(body):
+    """The upload protocol a checker says it speaks when it claims a code (0 = before protocol 3)."""
+    value = body.get("protocol")
+    return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 100 else 0
+
+
 def _int(value, lo, hi, default=0):
     if isinstance(value, bool) or not isinstance(value, int):
         return default
@@ -195,7 +203,9 @@ def _validate_v1(obj):
     return {
         "schema": SCHEMA,
         "checkId": check_id,
-        "verdict": obj["verdict"],
+        "binding": None,
+        "verdict": obj["verdict"],       # legacy score verdict: evidence kinds do not exist to recompute it
+        "clientOutcome": obj["verdict"],
         "score": score,
         "coverage": None, "assurance": None, "reasons": [], "consent": None, "rules": None,
         "startedAt": clip(obj.get("startedAt"), 40),
@@ -242,6 +252,7 @@ def _validate_v2(obj):
     if not isinstance(check_id, str) or not _CHECK_ID.fullmatch(check_id):
         bad("Bad checkId.")
     duration = session.get("durationSeconds")
+    binding = _binding(session.get("binding"))
 
     if not isinstance(evidence, list):
         bad("Missing evidence list.")
@@ -272,9 +283,14 @@ def _validate_v2(obj):
     errors = coverage.get("errors") if isinstance(coverage.get("errors"), dict) else {}
     if len(errors) > 200:
         bad("Too many collection errors.")
+    client_required = _str_list(coverage.get("required", []), 200, 40, "coverage.required")
+    # the server decides what is required: a client that leaves a collector out of its own list
+    # cannot turn that collector's failure into "no evidence"
+    expected = policy.EXPECTED_REQUIRED.get(policy.platform_family(clip(env.get("os"), 100)), set())
     cov = {
         "modules": {clip(k, 40): (v if _one_of(v, MODULE_STATES) else "ERROR") for k, v in modules.items()},
-        "required": _str_list(coverage.get("required", []), 200, 40, "coverage.required"),
+        "required": sorted(set(client_required) | expected),
+        "clientRequired": client_required,
         "errors": {clip(k, 40): clip(v, 300) for k, v in errors.items()},
         "elevated": coverage.get("elevated") is True,
         "platformSupported": coverage.get("platformSupported") is True,
@@ -320,7 +336,11 @@ def _validate_v2(obj):
     return {
         "schema": SCHEMA_V2,
         "checkId": check_id,
-        "verdict": outcome,
+        "binding": binding,
+        # the outcome shown to admins is recomputed here from the evidence and the server's own
+        # coverage decision; the checker's statement is kept only for comparison
+        "verdict": policy.expected_outcome(items, cov),
+        "clientOutcome": outcome,
         "score": None,
         "startedAt": clip(session.get("startedAt"), 40),
         "finishedAt": clip(session.get("finishedAt"), 40),
@@ -348,6 +368,19 @@ def _validate_v2(obj):
             "channel": channel if _one_of(channel, ("gui", "cli", "none")) else "none",
         },
     }
+
+
+def _binding(value):
+    """session.binding of a protocol-3 report: which check it was made for and the single-use value."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        _bad("Bad session binding.")
+    sid, nonce, protocol = value.get("panelSessionId"), value.get("uploadNonce"), value.get("protocol")
+    if (not isinstance(sid, str) or not _UUID.fullmatch(sid) or not isinstance(nonce, str)
+            or not _NONCE.fullmatch(nonce) or isinstance(protocol, bool) or not isinstance(protocol, int)):
+        _bad("Bad session binding.")
+    return {"panelSessionId": sid, "uploadNonce": nonce, "protocol": protocol}
 
 
 def gzip_bytes(raw):

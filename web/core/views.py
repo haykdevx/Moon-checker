@@ -19,7 +19,7 @@ class SettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
         fields = ["code_ttl_minutes", "heartbeat_timeout_minutes", "fast_scan_seconds", "retention_days",
-                  "min_checker_version", "require_2fa", "block_untrusted_builds"]
+                  "min_checker_version", "require_2fa", "block_untrusted_builds", "accept_unbound_reports"]
         labels = {
             "code_ttl_minutes": _("Code lifetime, minutes"),
             "heartbeat_timeout_minutes": _("Silence before a check counts as lost, minutes"),
@@ -27,7 +27,8 @@ class SettingsForm(forms.ModelForm):
             "retention_days": _("Keep finished checks, days"),
             "min_checker_version": _("Oldest allowed checker version"),
             "require_2fa": _("Two-factor authentication required for everyone"),
-            "block_untrusted_builds": _("Refuse checkers that are not on the trusted list"),
+            "block_untrusted_builds": _("Refuse checkers that do not claim an official build hash"),
+            "accept_unbound_reports": _("Accept checkers older than 1.3 (transition only)"),
         }
         help_texts = {
             "code_ttl_minutes": _("How long a code stays valid before the player enters it."),
@@ -36,7 +37,12 @@ class SettingsForm(forms.ModelForm):
             "retention_days": _("Older finished checks are deleted automatically (0 = keep forever)."),
             "min_checker_version": _("Older checkers are refused when they connect."),
             "require_2fa": "",
-            "block_untrusted_builds": _("Checkers whose file hash is not in the list below cannot connect."),
+            "block_untrusted_builds": _("A checker that reports a file hash not in the list below cannot connect. The "
+                                        "hash is sent by the player's PC: this stops outdated or casually modified "
+                                        "copies, not a determined forger."),
+            "accept_unbound_reports": _("Old checkers cannot bind their report to the check, so an old report could "
+                                        "be resubmitted. Such checks are marked. Turn this off once players have "
+                                        "the new version."),
         }
 
 

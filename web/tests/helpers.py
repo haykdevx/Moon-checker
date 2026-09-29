@@ -43,6 +43,25 @@ def report_payload(check_id="MOON-260925-ABCD", verdict="CHEAT", score=100, find
             "environment": env, "modules": {"files": "OK", "execution": "OK"}, "findings": findings}
 
 
+PROTOCOL = 3
+
+
+def claim_body(code, protocol=PROTOCOL, **client):
+    body = {"code": code, "client": client_info(**client)}
+    if protocol is not None:
+        body["protocol"] = protocol
+    return body
+
+
+def bind(payload, claim, **over):
+    """Puts the claim's session id and single-use upload value into a moon-evidence/2 payload."""
+    binding = {"panelSessionId": claim["sessionId"], "uploadNonce": claim["upload"]["nonce"],
+               "protocol": claim["upload"]["protocol"]}
+    binding.update(over)
+    payload["session"]["binding"] = binding
+    return payload
+
+
 def canonical(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 

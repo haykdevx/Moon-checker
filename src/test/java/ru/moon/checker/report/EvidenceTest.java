@@ -69,4 +69,34 @@ class EvidenceTest {
         String code = Integrity.shortCode(data);
         assertTrue(code.matches("[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{2}"), "code was " + code);
     }
+
+    @Test
+    void aBoundReportCarriesItsCheckAndTheCodeCoversIt() {
+        ScanResult offline = sample(true, "cheat");
+        ScanResult bound = withBinding(offline, new ru.moon.checker.core.SessionBinding(
+                "3f1e2d4c-5b6a-4789-9abc-def012345678", "n".repeat(43), 3));
+        String json = new String(JsonReport.canonicalBytes(bound), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(json.contains("\"binding\":{\"panelSessionId\":\"3f1e2d4c-5b6a-4789-9abc-def012345678\","
+                + "\"protocol\":3,\"uploadNonce\":\"" + "n".repeat(43) + "\"}"), json);
+        assertFalse(new String(JsonReport.canonicalBytes(offline), java.nio.charset.StandardCharsets.UTF_8)
+                .contains("binding"), "an offline check has no binding");
+        ScanResult otherNonce = withBinding(offline, new ru.moon.checker.core.SessionBinding(
+                "3f1e2d4c-5b6a-4789-9abc-def012345678", "m".repeat(43), 3));
+        assertNotEquals(JsonReport.verificationCode(bound), JsonReport.verificationCode(otherNonce),
+                "the on-screen code covers the binding, so it still matches the panel's");
+    }
+
+    private static ScanResult withBinding(ScanResult r, ru.moon.checker.core.SessionBinding b) {
+        return new ScanResult(r.checkId(), r.env(), r.assessment(), r.findings(), r.moduleStatus(),
+                r.signatureVersion(), r.rules(), r.consent(), r.finishedAt(), r.duration(), b);
+    }
+
+    @Test
+    void theUploadValueNeverAppearsInTheSessionsToString() {
+        var link = new ru.moon.checker.net.SessionLink("id", "secret-token", "adm", "", "p", 5, "", 3, "secret-nonce");
+        assertFalse(link.toString().contains("secret"), link.toString());
+        assertEquals("secret-nonce", link.binding().uploadNonce());
+        assertNull(new ru.moon.checker.net.SessionLink("id", "t", "a", "", "p", 5, "", 0, "").binding(),
+                "a panel that issued no value gets no binding");
+    }
 }

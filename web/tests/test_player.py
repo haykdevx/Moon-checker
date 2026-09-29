@@ -6,7 +6,7 @@ from django.test import TestCase
 from checks.models import Appeal, CheckSession, DataRequest
 from core.models import AuditEvent, SiteSettings
 
-from .helpers import canonical, client_info, evidence_item, gz, make_session, make_user, report_v2
+from .helpers import bind, canonical, claim_body, evidence_item, gz, make_session, make_user, report_v2
 
 
 def no_2fa():
@@ -27,10 +27,10 @@ class PlayerFlowTests(TestCase):
     def complete_check(self, session=None):
         s = session or self.session
         anon = self.client_class()
-        d = anon.post("/api/v1/claim", data=json.dumps({"code": s.code, "client": client_info()}),
-                      content_type="application/json").json()
-        payload = report_v2("REVIEW_REQUIRED", [evidence_item(1, "INDICATOR", "HIGH")],
-                            reasons=[{"code": "review.indicator", "text": "x", "evidence": ["E1"]}])
+        d = anon.post("/api/v1/claim", data=json.dumps(claim_body(s.code)), content_type="application/json").json()
+        payload = bind(report_v2("REVIEW_REQUIRED", [evidence_item(1, "INDICATOR", "HIGH")],
+                                 reasons=[{"code": "review.indicator", "text": "x", "evidence": ["E1"]}],
+                                 check_id="MOON-260928-" + s.code.replace("-", "")), d)
         r = anon.post(f"/api/v1/sessions/{d['sessionId']}/report", data=gz(canonical(payload)),
                       content_type="application/json", HTTP_CONTENT_ENCODING="gzip",
                       HTTP_AUTHORIZATION=f"Bearer {d['token']}")

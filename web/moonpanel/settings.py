@@ -187,6 +187,10 @@ LOGGING = {
 MOON_VERIFICATION_KEY = env("MOON_VERIFICATION_KEY", "moon-cs2-2026::integrity::v1")
 MOON_MAX_UPLOAD_BYTES = env_int("MOON_MAX_UPLOAD_BYTES", 16 * 1024 * 1024)      # on the wire (gzip)
 MOON_MAX_REPORT_BYTES = env_int("MOON_MAX_REPORT_BYTES", 48 * 1024 * 1024)      # after gunzip
+# a claimed check must deliver its report within this window; later uploads are refused
+MOON_UPLOAD_WINDOW_MINUTES = env_int("MOON_UPLOAD_WINDOW_MINUTES", 180)
+# the upload protocol this panel speaks: 3 = report bound to the session by a single-use value
+MOON_UPLOAD_PROTOCOL = 3
 MOON_MAX_FINDINGS = env_int("MOON_MAX_FINDINGS", 25000)
 MOON_DOWNLOAD_DIR = Path(env("MOON_DOWNLOAD_DIR", str(BASE_DIR / "downloads")))
 MOON_DOWNLOAD_URL = env("MOON_DOWNLOAD_URL", "/download/")
