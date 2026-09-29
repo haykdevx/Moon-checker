@@ -8,11 +8,11 @@
   // the few strings the script writes itself, in the page's language
   const RU = (document.documentElement.lang || "ru").startsWith("ru");
   const T = RU ? {
-    copied: "Скопировано ✓", expired: "истёк", codeExpired: "код истёк — создайте новую проверку",
+    copied: "Скопировано ✓", expired: "истёк", finished: "Проверка завершена", codeExpired: "код истёк — создайте новую проверку",
     secAgo: s => s + " с назад", minAgo: m => m + " мин назад",
     progress: (d, t) => d + " из " + t + " разделов проверено", starting: "запуск…",
   } : {
-    copied: "Copied ✓", expired: "expired", codeExpired: "code expired — create a new check",
+    copied: "Copied ✓", expired: "expired", finished: "Check finished", codeExpired: "code expired — create a new check",
     secAgo: s => s + "s ago", minAgo: m => m + "m ago",
     progress: (d, t) => d + " of " + t + " parts checked", starting: "starting…",
   };
@@ -93,7 +93,7 @@
           if (bar) bar.style.width = d.percent + "%";
           const set = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
           set("[data-progress-text]", d.total ? T.progress(d.done, d.total) : T.starting);
-          set("[data-progress-module]", d.module || "—");
+          set("[data-progress-module]", d.moduleLabel || d.module || "—");
           Object.entries(d.counts).forEach(([k, v]) => set(`[data-count="${k}"]`, v));
           const ago = $("[data-last-seen]");
           if (ago && d.lastSeen) ago.dataset.ago = d.lastSeen;
@@ -103,6 +103,26 @@
     }
     setTimeout(poll, 2000);
   }
+
+  // a finished check while the list is open: a notice and a count in the tab title
+  const baseTitle = document.title;
+  let unseen = 0;
+  function announce(rows) {
+    rows.forEach(row => {
+      const note = document.createElement("a");
+      note.className = "toast";
+      note.href = row.querySelector("a.player") ? row.querySelector("a.player").href : "#";
+      note.setAttribute("role", "status");
+      note.textContent = T.finished + ": " + row.dataset.player + " — " + row.dataset.result;
+      document.body.appendChild(note);
+      setTimeout(() => note.remove(), 12000);
+    });
+    unseen += rows.length;
+    document.title = "(" + unseen + ") " + baseTitle;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) { unseen = 0; document.title = baseTitle; }
+  });
 
   // dashboard: refresh the work queues while a check is waiting or running
   function liveQueues() {
@@ -119,7 +139,10 @@
           tmp.innerHTML = await r.text();   // server-rendered, auto-escaped HTML
           const marker = tmp.querySelector("[data-any-open]");
           block.dataset.active = marker ? marker.dataset.anyOpen : "0";
+          const known = new Set($$("[data-finished]", block).map(r => r.dataset.finished));
+          const fresh = $$("[data-finished]", tmp).filter(r => !known.has(r.dataset.finished));
           block.replaceChildren(...tmp.childNodes);
+          if (fresh.length) announce(fresh);
           paint(block);
           tickCountdowns();
         }

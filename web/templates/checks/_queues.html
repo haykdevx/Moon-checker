@@ -3,7 +3,7 @@
 <section class="queue queue-decide" aria-labelledby="q-decide">
   <div class="queue-head"><span class="dot"></span><h2 id="q-decide">{% translate "Waiting for your decision" %}</h2><span class="muted">{{ queues.decide|length }}</span></div>
   {% for s in queues.decide %}
-  <div class="queue-row">
+  <div class="queue-row" data-finished="{{ s.pk }}" data-player="{{ s.player_name }}" data-result="{{ s.verdict|outcome_label }}">
     <div class="queue-main">
       <a class="player" href="{% url 'checks:detail' s.pk %}">{{ s.player_name }}</a>{% if s.is_test %} <span class="badge test">{% translate "TEST" %}</span>{% endif %}
       <div class="muted small">{% blocktranslate with ago=s.completed_at|timesince %}{{ ago }} ago{% endblocktranslate %}{% if s.client.hostname %} · {% translate "PC" %} {{ s.client.hostname }}{% endif %}{% if show_admin and s.admin_id != user.pk %} · {% translate "admin" %} {{ s.admin.username }}{% endif %}{% if s.trust == "bad" %} · <span class="t-bad">{% translate "report needs checking" %}</span>{% endif %}</div>

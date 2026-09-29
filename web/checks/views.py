@@ -22,7 +22,7 @@ from core.models import SiteSettings
 
 from . import codes, policy
 from .models import Appeal, CheckSession, DataRequest, FindingRow
-from .templatetags.moon import OUTCOMES as OUTCOME_LABELS
+from .templatetags.moon import OUTCOMES as OUTCOME_LABELS, collector_name
 
 FINDINGS_RENDER_LIMIT = 5000
 CATALOG_PATH = __import__("pathlib").Path(__file__).resolve().parent / "data" / "coverage.json"
@@ -255,6 +255,7 @@ def live(request, pk):
         "total": s.progress_total,
         "percent": s.progress_percent,
         "module": s.progress_module,
+        "moduleLabel": str(collector_name(s.progress_module)) if s.progress_module else "",
         "counts": dict(s.severity_counts),
         "lastSeen": s.last_seen_at.isoformat() if s.last_seen_at else None,
         "client": {k: s.client.get(k) for k in ("hostname", "user", "os", "appVersion", "elevated")},

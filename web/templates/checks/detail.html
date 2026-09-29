@@ -63,7 +63,7 @@
   </div>
   {% if s.status == 'ABANDONED' %}<p class="t-bad">{% translate "No signal for several minutes: the checker was closed, crashed or lost its connection before sending the results. If it reconnects, the check continues by itself." %}</p>{% endif %}
   <div class="progress"><div data-progress-bar data-width="{{ s.progress_percent }}"></div></div>
-  <p class="small"><span data-progress-text>{% if s.progress_total %}{% blocktranslate with done=s.progress_done total=s.progress_total %}{{ done }} of {{ total }} parts checked{% endblocktranslate %}{% else %}{% translate "starting…" %}{% endif %}</span> · {% translate "now" %}: <b data-progress-module>{{ s.progress_module|default:"—" }}</b></p>
+  <p class="small"><span data-progress-text>{% if s.progress_total %}{% blocktranslate with done=s.progress_done total=s.progress_total %}{{ done }} of {{ total }} parts checked{% endblocktranslate %}{% else %}{% translate "starting…" %}{% endif %}</span> · {% translate "now" %}: <b data-progress-module>{% if s.progress_module %}{{ s.progress_module|collector_name }}{% else %}—{% endif %}</b></p>
   <p class="muted small">{% translate "Usually 2–5 minutes. The result will open here by itself." %}</p>
 </div>
 {% endif %}
