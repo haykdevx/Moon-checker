@@ -421,7 +421,8 @@ details.collector[open] > summary { margin-bottom: 12px; }
 .kpi-bad .kpi-n { color: var(--cheat); }
 .kpi-ok .kpi-n { color: var(--clean); }
 .kpi-warn .kpi-n { color: var(--suspicious); }
-.chart { width: 100%; height: auto; display: block; }
+.chart-wrap { overflow-x: auto; }
+.chart { width: 100%; min-width: 600px; height: auto; display: block; }
 .chart .axis { stroke: var(--line); stroke-width: 1; }
 .chart .tick { fill: var(--muted); font-size: 11px; }
 .bar-bad { fill: var(--cheat); background: var(--cheat); }

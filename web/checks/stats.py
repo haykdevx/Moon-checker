@@ -28,7 +28,7 @@ def daily_bars(days, counts_by_day, width=720, height=180, pad=24):
     if n == 0:
         return {"bars": [], "width": width, "height": height, "max": 0}
     peak = max([sum(counts_by_day.get(d, {}).values()) for d in days] + [1])
-    slot = (width - pad) / n
+    slot = (width - 2 * pad) / n
     bar_w = max(2.0, slot * 0.7)
     bars = []
     for i, d in enumerate(days):
@@ -43,7 +43,8 @@ def daily_bars(days, counts_by_day, width=720, height=180, pad=24):
             y -= h
             parts.append({"y": round(y, 1), "h": round(h, 1), "tone": OUTCOMES.get(outcome, ("", "muted"))[1],
                           "outcome": outcome, "n": c})
-        bars.append({"x": round(pad + i * slot + (slot - bar_w) / 2, 1), "w": round(bar_w, 1), "parts": parts,
+        x = pad + i * slot + (slot - bar_w) / 2
+        bars.append({"x": round(x, 1), "w": round(bar_w, 1), "cx": round(x + bar_w / 2, 1), "parts": parts,
                      "day": d, "total": sum(by_outcome.values()),
                      "label": d.strftime("%d.%m") if (i % max(1, n // 8) == 0 or i == n - 1) else ""})
     return {"bars": bars, "width": width, "height": height, "max": peak, "baseline": height - pad}

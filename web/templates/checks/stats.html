@@ -22,17 +22,19 @@
 <section class="card">
   <h2>{% translate "Finished checks per day" %}</h2>
   {% if chart.max %}
+  <div class="chart-wrap">
   <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{% translate 'Finished checks per day, coloured by the checker result' %}">
     <line x1="24" y1="{{ chart.baseline }}" x2="{{ chart.width }}" y2="{{ chart.baseline }}" class="axis"/>
     {% for b in chart.bars %}
       <g>
         <title>{{ b.day|date:"j E" }}: {{ b.total }}</title>
         {% for p in b.parts %}<rect x="{{ b.x|stringformat:'s' }}" y="{{ p.y|stringformat:'s' }}" width="{{ b.w|stringformat:'s' }}" height="{{ p.h|stringformat:'s' }}" rx="2" class="bar-{{ p.tone }}"><title>{{ b.day|date:"j E" }} — {{ p.outcome|outcome_label }}: {{ p.n }}</title></rect>{% endfor %}
-        {% if b.label %}<text x="{{ b.x|stringformat:'s' }}" y="{{ chart.height|add:'-6' }}" class="tick">{{ b.label }}</text>{% endif %}
+        {% if b.label %}<text x="{{ b.cx|stringformat:'s' }}" y="{{ chart.height|add:'-6' }}" class="tick" text-anchor="middle">{{ b.label }}</text>{% endif %}
       </g>
     {% endfor %}
     <text x="0" y="16" class="tick">{{ chart.max }}</text>
   </svg>
+  </div>
   <ul class="legend">{% for key in legend %}<li><span class="swatch bar-{{ key|outcome_tone }}"></span>{{ key|outcome_label }}</li>{% endfor %}</ul>
   {% else %}<p class="muted">{% translate "No finished checks in this period." %}</p>{% endif %}
 </section>
