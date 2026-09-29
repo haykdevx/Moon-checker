@@ -131,6 +131,7 @@ COLLECTORS = {
                                                           "cheat hardware.")),
     "antiforensic": (_("Signs of cleaning"), _("Traces that logs or history were wiped shortly before the check.")),
     "cs2": (_("CS2 itself"), _("Whether the game's files were modified and what is loaded into the game.")),
+    "cs2live": (_("Running game"), _("What is loaded into the running CS2 and what is drawn over it (needs the game open).")),
     "browser": (_("Browser history"), _("Visits to cheat sites. Only the matches leave the PC.")),
     "steam": (_("Steam accounts"), _("Accounts signed in on this PC and their VAC bans.")),
     "peripherals": (_("Macros and devices"), _("Macro software and USB devices used for scripts.")),

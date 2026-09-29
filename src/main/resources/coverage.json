@@ -232,6 +232,29 @@
       ]
     },
     {
+      "id": "cs2live",
+      "name": "Running game",
+      "platforms": [
+        "windows"
+      ],
+      "required": false,
+      "privileges": "Administrator, to read the module list of cs2.exe. Needs CS2 running.",
+      "sources": [
+        "Modules loaded into cs2.exe (ToolHelp snapshot)",
+        "Visible top-level windows: style, position, owning process"
+      ],
+      "kinds": [
+        "INDICATOR: DLL from a user or unusual folder loaded into CS2, cheat-named module, transparent always-on-top window over the game owned by an unknown program",
+        "CONTEXT: overlays and program modules in the game, CS2 not running"
+      ],
+      "window": "While the check runs; only if CS2 is running.",
+      "lookalikes": "Steam, Discord, NVIDIA, AMD, RivaTuner (MSI Afterburner), OBS, Overwolf and Medal inject overlays and draw over the game; they are listed as context. A portable tool run from Downloads can load a DLL too.",
+      "blindSpots": "Manually mapped DLLs are absent from the module list; an ESP drawn through a DirectX hook has no window; nothing when CS2 is closed.",
+      "tests": [
+        "LiveGamePolicyTest"
+      ]
+    },
+    {
       "id": "browser",
       "name": "Browser history matches",
       "platforms": [
@@ -565,6 +588,48 @@
       "meaning": "A CS2 config contains a movement or fire script pattern (bunny-hop, jumpthrow, auto-fire alias).",
       "lookalikes": "Practice configs and scroll-jump binds are common and allowed on many servers.",
       "limits": "LOW: shown to the reviewer; the server's own rules decide."
+    },
+    {
+      "id": "cs2:module-cheat-name",
+      "kind": "INDICATOR",
+      "meaning": "A module loaded into cs2.exe is named like a cheat.",
+      "lookalikes": "None expected.",
+      "limits": "CRITICAL; a renamed cheat is caught by the folder rules instead."
+    },
+    {
+      "id": "cs2:module-user-folder",
+      "kind": "INDICATOR",
+      "meaning": "A DLL loaded into cs2.exe comes from Temp, Downloads, the Desktop, AppData or another user folder — how most internal cheats get in.",
+      "lookalikes": "Overlays that live in AppData are recognised by their DLL name (Discord, Overwolf, Medal).",
+      "limits": "HIGH; manually mapped cheats do not appear in the module list."
+    },
+    {
+      "id": "cs2:module-unusual-folder",
+      "kind": "INDICATOR",
+      "meaning": "A DLL loaded into cs2.exe comes from a folder that is not the game's, Windows' or a program folder.",
+      "lookalikes": "A tool installed to its own folder on another drive.",
+      "limits": "MEDIUM: asks for a look."
+    },
+    {
+      "id": "cs2:modules-context",
+      "kind": "CONTEXT",
+      "meaning": "Overlays and program libraries loaded into the game, listed for the reviewer.",
+      "lookalikes": "This is the lookalike list.",
+      "limits": "Context only."
+    },
+    {
+      "id": "cs2:overlay-window",
+      "kind": "INDICATOR",
+      "meaning": "A transparent, always-on-top window covers the game and belongs to a program that is not a known overlay — the shape of an external ESP.",
+      "lookalikes": "Rare overlays not on the list (a stream widget, a crosshair app); the owning program is named in the finding.",
+      "limits": "MEDIUM (HIGH from a user folder); ESPs drawn through a DirectX hook have no window."
+    },
+    {
+      "id": "cs2:not-running",
+      "kind": "CONTEXT",
+      "meaning": "CS2 was not running, so the live checks did not run.",
+      "lookalikes": "—",
+      "limits": "Ask the player to start CS2 and run the check again to see what is loaded into the game."
     }
   ]
 }

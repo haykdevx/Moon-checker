@@ -598,6 +598,10 @@ msgid "Programs that start with the system on Linux."
 msgstr "Программы, которые запускаются вместе с системой на Linux."
 
 #: checks/templatetags/moon.py
+msgid "Running game"
+msgstr "Игра на лету"
+
+#: checks/templatetags/moon.py
 msgid "Running processes and what is loaded into the game on Linux."
 msgstr "Запущенные процессы и то, что загружено в игру, на Linux."
 
@@ -648,6 +652,10 @@ msgstr "Следы того, что журналы или историю очи�
 #: checks/templatetags/moon.py
 msgid "Visits to cheat sites. Only the matches leave the PC."
 msgstr "Посещения сайтов с читами. С ПК уходят только совпадения."
+
+#: checks/templatetags/moon.py
+msgid "What is loaded into the running CS2 and what is drawn over it (needs the game open)."
+msgstr "Что загружено в запущенную CS2 и что рисуется поверх неё (нужна открытая игра)."
 
 #: checks/templatetags/moon.py
 msgid "What the antivirus found and removed, and its exclusions."

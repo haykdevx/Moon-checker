@@ -16,6 +16,7 @@ public final class ModuleRegistry {
     public static List<CheckModule> windowsModules() {
         return List.of(
                 new Cs2IntegrityCheck(),
+                new LiveGameCheck(),
                 new FileScanCheck(),
                 new DeletedEvidenceCheck(),
                 new ExecutionTraceCheck(),
