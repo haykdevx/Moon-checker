@@ -238,10 +238,33 @@ public final class Locations {
         return best != null ? best.kind() : Kind.OTHER;
     }
 
-    /** Classifies a path as written (no file-system access). */
+    /**
+     * Classifies a path as written (no file-system access), with the roots its shape calls for:
+     * a Windows path ({@code C:\…}, {@code \\server\…}) is judged by Windows roots even when the
+     * checker runs elsewhere (tests, reports), a {@code /…} path by Unix roots.
+     */
     public static Kind classify(String rawPath) {
-        Roots r = roots();
+        Roots r = rootsFor(rawPath);
         return classify(normalize(rawPath, r.windows()), r);
+    }
+
+    private static volatile Roots windowsElsewhere;
+
+    static Roots rootsFor(String rawPath) {
+        boolean windowsShape = rawPath != null && (rawPath.matches("(?s)^[A-Za-z]:[\\\\/].*")
+                || rawPath.startsWith("\\\\") || rawPath.startsWith("\\??\\"));
+        Roots here = roots();
+        if (windowsShape == here.windows()) {
+            return here;
+        }
+        if (!windowsShape) {
+            return Roots.unix();
+        }
+        Roots w = windowsElsewhere;
+        if (w == null) {
+            w = windowsElsewhere = Roots.windows(Map.of());
+        }
+        return w;
     }
 
     /**

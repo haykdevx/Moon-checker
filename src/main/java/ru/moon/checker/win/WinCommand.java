@@ -57,9 +57,20 @@ public final class WinCommand {
 
     /** A PowerShell script whose output is UTF-8 whatever the console code page. */
     public static Result powershell(long timeoutSeconds, String script) {
-        List<String> cmd = new ArrayList<>(List.of("powershell", "-NoProfile", "-NonInteractive",
-                "-ExecutionPolicy", "Bypass", "-Command", utf8Prelude() + script));
-        return exec(cmd, StandardCharsets.UTF_8, timeoutSeconds);
+        return exec(powershellCommand(script), StandardCharsets.UTF_8, timeoutSeconds);
+    }
+
+    /**
+     * The command line for a script: passed as {@code -EncodedCommand} (Base64 of UTF-16LE), never
+     * as {@code -Command} text. Java does not escape double quotes inside a Windows argument, so a
+     * script containing {@code "} reached PowerShell cut apart (found on the test VM: every
+     * signature lookup came back empty).
+     */
+    static List<String> powershellCommand(String script) {
+        String encoded = java.util.Base64.getEncoder()
+                .encodeToString((utf8Prelude() + script).getBytes(StandardCharsets.UTF_16LE));
+        return new ArrayList<>(List.of("powershell", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded));
     }
 
     /** Prepended to every script: UTF-8 output, errors do not become interactive prompts. */

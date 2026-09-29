@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class Authenticode {
 
-    private static final int MAX_LOOKUPS = 400;
-    private static final int BATCH = 60;
+    private static final int MAX_LOOKUPS = 1500;
+    private static final int BATCH = 40;   // keeps the encoded command line far below Windows' 32 767 characters
     private static final Map<String, Result> CACHE = new ConcurrentHashMap<>();
     private static final AtomicInteger LOOKUPS = new AtomicInteger();
 

@@ -77,14 +77,13 @@ public final class FileInspection {
         return false;
     }
 
-    public static boolean isSuspiciousLocation(String pathLower) {
-        return pathLower.contains("\\temp\\")
-                || pathLower.contains("\\downloads\\")
-                || pathLower.contains("\\appdata\\local\\temp")
-                || pathLower.contains("\\users\\public\\")
-                || pathLower.contains("\\$recycle.bin\\")
-                || pathLower.contains("\\programdata\\")
-                || pathLower.matches(".*\\\\[a-z]:\\\\[^\\\\]+\\.(exe|dll)$"); // loose "in drive root"
+    /** A folder an ordinary user can write to, or a program loose in a drive root (whole roots, not substrings). */
+    public static boolean isSuspiciousLocation(String path) {
+        if (Locations.classify(path) == Locations.Kind.USER_WRITABLE) {
+            return true;
+        }
+        String n = Locations.normalize(path, true);
+        return n != null && n.matches("^[a-z]:\\\\[^\\\\]+\\.(exe|dll|sys|scr)$");
     }
 
     /** What {@link #inspect} did with a file (collectors count these to state their limits). */
@@ -150,8 +149,16 @@ public final class FileInspection {
         return Format.NONE;
     }
 
-    /** One heuristic observation, before the identity gate decides how it is reported. */
-    private record Hit(Severity severity, String title, String rule, String detail, String evidence, String source) {
+    /**
+     * One heuristic observation, before the identity gate decides how it is reported.
+     *
+     * @param aboutTheCode true for what the program's own code suggests (offset strings, injection
+     *                     imports, entropy, process-memory calls): a verified publisher answers those.
+     *                     False for concealment (a program renamed to a picture, a program-sized
+     *                     hidden stream): hiding is the signal, whoever signed the hidden bytes.
+     */
+    private record Hit(Severity severity, String title, String rule, String detail, String evidence, String source,
+                       boolean aboutTheCode) {
     }
 
     /**
@@ -159,12 +166,22 @@ public final class FileInspection {
      * content, of any name — embedded CS2 offset strings, injection imports and entropy.
      *
      * <p>Exact matches (cheat name, cheat-named stream, known hash) are reported as they are.
-     * Heuristic observations pass an identity check instead of a location allowlist: a file whose
-     * signature this rule set vouches for (or whose hash is approved) is not reported; a file in a
-     * system or program folder that could not be identified is reported as low-weight context; a
-     * signed file whose signature no longer matches is reported at least as MEDIUM.
+     * Concealment (a program under a picture's name, a program-sized hidden stream) is reported as
+     * observed, whoever signed the hidden bytes. What the code itself suggests (offset strings,
+     * injection imports, entropy, process-memory calls) passes an identity check instead of a
+     * location allowlist: a file whose publisher this rule set vouches for (or whose hash is
+     * approved) is not reported; unidentified in a system or program folder is low-weight context;
+     * a signed file whose signature no longer matches is reported at least as MEDIUM.
      */
     public static Outcome inspect(Path file, ScanContext ctx, String module, Category category) {
+        return inspect(file, ctx, module, category, null);
+    }
+
+    /**
+     * As above; with a {@link Gatekeeper} the heuristic observations wait until it verifies the
+     * publishers of many files at once (one PowerShell start per batch instead of per file).
+     */
+    public static Outcome inspect(Path file, ScanContext ctx, String module, Category category, Gatekeeper gate) {
         String name = file.getFileName().toString();
         String nameLower = name.toLowerCase(Locale.ROOT);
         String pathStr = file.toString();
@@ -210,13 +227,13 @@ public final class FileInspection {
             // a stream big enough to hold a program is high; a small unknown stream is context
             hits.add(new Hit(st.size() >= ru.moon.checker.win.AlternateStreams.PAYLOAD_BYTES ? Severity.HIGH : Severity.LOW,
                     "Скрытый поток данных (ADS) / Hidden alternate data stream", "files:alternate-data-stream",
-                    detail, pathStr + ":" + st.name(), "NTFS ADS"));
+                    detail, pathStr + ":" + st.name(), "NTFS ADS", false));
         }
 
         // 3. what the content is, whatever the name says
         Format format = format(file);
         if (format == Format.UNREADABLE) {
-            emitGated(hits, file, null, ctx, module, category);
+            deliver(gate, hits, file, null, ctx, module, category);
             return Outcome.UNREADABLE;
         }
         boolean executable = format == Format.PE || format == Format.ELF;
@@ -224,7 +241,7 @@ public final class FileInspection {
         if (looksExecutable && isNonExecutableName(nameLower)) {
             hits.add(new Hit(Severity.HIGH, "Исполняемый файл под чужим расширением / Executable disguised by extension",
                     null, (format == Format.ELF || format == Format.ELF_MALFORMED ? "ELF" : "PE (MZ)")
-                    + " content with a non-executable extension", pathStr, "content vs extension · heuristic"));
+                    + " content with a non-executable extension", pathStr, "content vs extension · heuristic", false));
         }
 
         // 4. exact hash match (streamed) — for any executable by content, or every file when the
@@ -251,21 +268,21 @@ public final class FileInspection {
         }
 
         if (!looksExecutable) {
-            emitGated(hits, file, fileHash, ctx, module, category);
+            deliver(gate, hits, file, fileHash, ctx, module, category);
             return Outcome.NOT_EXECUTABLE;
         }
         // a broken header still gets the string and entropy checks (they parse nothing); only the
         // PE import parse needs a valid header
         // 5. content heuristics, bounded: an executable above the cap keeps its name, stream and hash checks
         if (size > STRING_SCAN_MAX) {
-            emitGated(hits, file, fileHash, ctx, module, category);
+            deliver(gate, hits, file, fileHash, ctx, module, category);
             return Outcome.TOO_LARGE;
         }
         byte[] data;
         try {
             data = Files.readAllBytes(file);
         } catch (IOException | OutOfMemoryError e) {
-            emitGated(hits, file, fileHash, ctx, module, category);
+            deliver(gate, hits, file, fileHash, ctx, module, category);
             return Outcome.UNREADABLE;
         }
 
@@ -293,7 +310,8 @@ public final class FileInspection {
             // tools, server plugins, SDK code): it is shown as LOW and does not ask for a review.
             hits.add(new Hit(offsetSeverity(offsetHits, dumpName),
                     "Строки оффсетов CS2 в бинарнике / CS2 offset strings in binary", null,
-                    offsetHits + " match(es): " + trimTail(matched.toString()), pathStr, "binary strings · heuristic"));
+                    offsetHits + " match(es): " + trimTail(matched.toString()), pathStr, "binary strings · heuristic",
+                    true));
         }
 
         if (format == Format.PE) {
@@ -304,14 +322,14 @@ public final class FileInspection {
                         "Импорт функций инъекции в процесс / Process-injection imports", null,
                         "Imports remote-injection APIs" + (pe.signed() ? "" : ", unsigned")
                                 + (isSuspiciousLocation(pathLower) ? ", suspicious location" : ""),
-                        pathStr, "PE imports · heuristic"));
+                        pathStr, "PE imports · heuristic", true));
             }
         } else if (processMemory) {
             // the Linux counterpart of injection imports; debuggers use it too, so it only asks with offsets
             hits.add(new Hit(offsetHits > 0 ? Severity.MEDIUM : Severity.LOW,
                     "Доступ к памяти другого процесса / Reads or writes another process's memory",
                     "linuxfiles:process-memory-access", "ELF refers to process_vm_readv / process_vm_writev",
-                    pathStr, "ELF symbols · heuristic"));
+                    pathStr, "ELF symbols · heuristic", true));
         }
 
         // 6. packed / encrypted binary sitting in a user-writable location
@@ -320,11 +338,63 @@ public final class FileInspection {
             if (entropy >= PACKED_ENTROPY) {
                 hits.add(new Hit(Severity.LOW, "Упакованный/зашифрованный бинарник / Packed or encrypted binary", null,
                         String.format(Locale.ROOT, "entropy %.2f/8.0 in a user-writable location", entropy),
-                        pathStr, "entropy · heuristic"));
+                        pathStr, "entropy · heuristic", true));
             }
         }
-        emitGated(hits, file, fileHash, ctx, module, category);
+        deliver(gate, hits, file, fileHash, ctx, module, category);
         return executable ? Outcome.INSPECTED : Outcome.MALFORMED;
+    }
+
+    private static void deliver(Gatekeeper gate, List<Hit> hits, Path file, String hash, ScanContext ctx, String module,
+                                Category category) {
+        if (hits.isEmpty()) {
+            return;
+        }
+        if (gate == null) {
+            emitGated(hits, file, hash, ctx, module, category);
+        } else {
+            gate.add(file, hash, hits);
+        }
+    }
+
+    /**
+     * Holds heuristic observations of many files and checks their publishers in batches. Call
+     * {@link #flush()} before the collector returns (a try/finally): pending observations are
+     * reported then, verified or not.
+     */
+    public static final class Gatekeeper {
+        private static final int BATCH = 40;
+        private final ScanContext ctx;
+        private final String module;
+        private final Category category;
+        private final List<Object[]> pending = new java.util.ArrayList<>();   // {Path, hash, List<Hit>}
+
+        public Gatekeeper(ScanContext ctx, String module, Category category) {
+            this.ctx = ctx;
+            this.module = module;
+            this.category = category;
+        }
+
+        void add(Path file, String hash, List<Hit> hits) {
+            pending.add(new Object[]{file, hash, hits});
+            if (pending.size() >= BATCH) {
+                flush();
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        public void flush() {
+            if (pending.isEmpty()) {
+                return;
+            }
+            if (ru.moon.checker.core.Platform.isWindows()) {
+                ru.moon.checker.win.Authenticode.verifyAll(pending.stream().map(p -> (Path) p[0]).toList());
+            }
+            for (Object[] p : pending) {
+                emitGated((List<Hit>) p[2], (Path) p[0], (String) p[1], ctx, module, category);
+            }
+            pending.clear();
+        }
     }
 
     /** Identity of a file for the heuristic gate. */
@@ -340,13 +410,15 @@ public final class FileInspection {
         if (hits.isEmpty()) {
             return;
         }
-        Identity id = identity(file, fileHash, ctx);
-        if (id == Identity.VERIFIED) {
-            return;
-        }
+        boolean anyAboutCode = hits.stream().anyMatch(Hit::aboutTheCode);
+        Identity id = anyAboutCode ? identity(file, fileHash, ctx) : Identity.UNVERIFIED;
         Locations.Kind where = Locations.ofFile(file);
         for (Hit h : hits) {
-            Gate g = gate(id, where, h.severity());
+            Gate g = h.aboutTheCode() ? gate(id, where, h.severity())
+                    : new Gate(h.severity(), null, "");   // concealment: reported as observed
+            if (g == null) {
+                continue;   // a verified publisher answers what its code suggests
+            }
             Finding.Builder b = Finding.builder(category, g.severity(), h.title()).module(module)
                     .detail(h.detail() + g.note()).evidence(h.evidence()).source(h.source()).openPath(parent(file));
             if (h.rule() != null) {

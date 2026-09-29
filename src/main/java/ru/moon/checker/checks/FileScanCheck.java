@@ -86,6 +86,15 @@ public final class FileScanCheck implements CheckModule {
 
     @Override
     public void run(ScanContext ctx) {
+        FileInspection.Gatekeeper gate = new FileInspection.Gatekeeper(ctx, ID, Category.FILES);
+        try {
+            run(ctx, gate);
+        } finally {
+            gate.flush();   // pending heuristic observations are reported, verified in batches
+        }
+    }
+
+    private void run(ScanContext ctx, FileInspection.Gatekeeper gate) {
         Instant started = Instant.now();
         Instant hardStop = stopAt(started, ctx.deadline());
         Scope scope = new Scope();
@@ -128,7 +137,7 @@ public final class FileScanCheck implements CheckModule {
             }
             ctx.log(I18n.t("log.scanning", root.toString()));
             FileInspection.Walk walk = FileInspection.scan(root, USER_FOLDER_FILES, 8, hardStop,
-                    f -> scope.count(inspectOnce(f, ctx, inspected)), ctx);
+                    f -> scope.count(inspectOnce(f, ctx, inspected, gate)), ctx);
             scope.userFiles += walk.files();
             if (!walk.rootMissing() && !walk.complete()) {
                 ctx.partial(walk.shortfall());
@@ -144,14 +153,14 @@ public final class FileScanCheck implements CheckModule {
                 }
                 Path driveRoot = Path.of(drive + ":\\");
                 ctx.log(I18n.t("log.scanning", driveRoot.toString()));
-                FileInspection.scan(driveRoot, 4000, 2, hardStop, f -> scope.count(inspectOnce(f, ctx, inspected)), ctx);
+                FileInspection.scan(driveRoot, 4000, 2, hardStop, f -> scope.count(inspectOnce(f, ctx, inspected, gate)), ctx);
             }
         }
         phase("drive roots", started, -1);
 
         // 4. extra: content of every other binary on the drives, most exposed locations first, with the time left
         if (!candidates.isEmpty()) {
-            deepScanWholeDrive(ctx, candidates, hardStop, inspected, scope);
+            deepScanWholeDrive(ctx, candidates, hardStop, inspected, scope, gate);
         }
         phase("whole-drive content", started, -1);
         emitScope(ctx, scope);
@@ -267,7 +276,7 @@ public final class FileScanCheck implements CheckModule {
      * count, and it reports when it had to stop early rather than silently truncating.
      */
     private void deepScanWholeDrive(ScanContext ctx, List<String> candidates, Instant deadline, java.util.Set<String> seen,
-                                    Scope scope) {
+                                    Scope scope, FileInspection.Gatekeeper gate) {
         int inspected = 0;
         boolean truncated = false;
         candidates.sort(java.util.Comparator.comparingInt(FileScanCheck::priority));
@@ -284,7 +293,7 @@ public final class FileScanCheck implements CheckModule {
             try {
                 Path file = Path.of(path);
                 if (!seen.contains(key(file)) && Files.isRegularFile(file)) {
-                    scope.count(inspectOnce(file, ctx, seen));
+                    scope.count(inspectOnce(file, ctx, seen, gate));
                     inspected++;
                 }
             } catch (Exception ignored) {
@@ -380,8 +389,9 @@ public final class FileScanCheck implements CheckModule {
         return sb.toString();
     }
 
-    private static FileInspection.Outcome inspectOnce(Path file, ScanContext ctx, java.util.Set<String> seen) {
-        return seen.add(key(file)) ? FileInspection.inspect(file, ctx, ID, Category.FILES) : null;
+    private static FileInspection.Outcome inspectOnce(Path file, ScanContext ctx, java.util.Set<String> seen,
+                                                      FileInspection.Gatekeeper gate) {
+        return seen.add(key(file)) ? FileInspection.inspect(file, ctx, ID, Category.FILES, gate) : null;
     }
 
     /** One spelling per file: Windows paths are case-insensitive and may arrive with either slash. */

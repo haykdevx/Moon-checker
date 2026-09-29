@@ -83,4 +83,16 @@ class WindowsParsingTest {
                 AmCache.normalizeFileId("0000a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"));
         assertNull(AmCache.normalizeFileId("not-a-hash"));
     }
+
+    @Test
+    void powershellScriptsTravelEncodedSoQuotesSurvive() {
+        // found on the Windows VM: a script with double quotes reached PowerShell cut apart (-Command text)
+        String script = "$p = @('C:\\Program Files\\x.exe'); \"$($p[0])`t\" + 'done'";
+        java.util.List<String> cmd = WinCommand.powershellCommand(script);
+        assertEquals("-EncodedCommand", cmd.get(cmd.size() - 2));
+        assertFalse(String.join(" ", cmd).contains("Program Files"), "no script text on the command line");
+        String decoded = new String(java.util.Base64.getDecoder().decode(cmd.get(cmd.size() - 1)),
+                java.nio.charset.StandardCharsets.UTF_16LE);
+        assertEquals(WinCommand.utf8Prelude() + script, decoded);
+    }
 }

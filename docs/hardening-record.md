@@ -57,6 +57,8 @@ marked closed without a regression test or a recorded platform run.
 | L2 | Coverage | Walks stopped at 8,000 files, skipped unreadable folders and had no time budget — silently; the collector reported OK | Closed | `FileInspection.scan` reports root missing/unreadable, file limit, time limit, cancellation, unreadable subfolders, links not followed; collectors call `ctx.partial(...)` → new status `PARTIAL` → coverage incomplete → `INCOMPLETE_SCAN`; panel accepts `PARTIAL` | `ScanEngineTest.aCollectorThatCouldNotCoverEverythingIsPartialNotOk`, `ContentAndLocationTest.aWalkSaysWhyItDidNotFinish`, `anUnreadableSubfolderMakesTheWalkIncomplete` |
 | L3 | Coverage | Scan limits invisible to the reviewer (files too large, cloud-only, candidates skipped, drives without an NTFS table) | Closed | Per-file outcomes (`INSPECTED`, `NOT_EXECUTABLE`, `TOO_LARGE`, `MALFORMED`, `UNREADABLE`, `CLOUD_ONLY`, `EMPTY`); `files:scan-scope` / `linuxfiles:scan-scope` context line; non-NTFS drives noted, an unreadable NTFS table is a shortfall; whole-drive pass ordered user-writable → other → program folders | `ContentAndLocationTest.limitsAndUnreadableFilesAreOutcomesNotSilence` |
 | L4 | Linux scope | Steam libraries and Flatpak stores made "complete" coverage impossible to state honestly | Closed | Declared exclusions from the required part (`steamapps`, `flatpak`), walked afterwards with the time left and reported in the scope line | `ContentAndLocationTest.linksAreNotFollowedAndDeclaredExclusionsAreSkipped` |
+| W1 | Checker: Windows | Found on the Windows VM while verifying C3: PowerShell scripts went out as `-Command` text and Java does not escape `"` inside a Windows argument, so the batch signature lookup returned nothing and every Microsoft file read "publisher not verified" (116 s scan, ~40 needless context lines) | Closed | All scripts are sent as `-EncodedCommand` (Base64 UTF-16LE); signature lookups batched 40 per PowerShell start per collector | `WindowsParsingTest.powershellScriptsTravelEncodedSoQuotesSurvive`; VM: Microsoft files verified, 51 s scan |
+| C5 | Checker: suppression | Found on the VM: the identity gate silenced a Microsoft-signed program renamed to `.png` (smoke test row failed) | Closed | Concealment (disguised extension, program-sized hidden stream) is reported as observed whoever signed the bytes; only code heuristics are answered by a verified publisher | `ContentAndLocationTest.aVerifiedPublisherAnswersWhatItsCodeDoesButNotWhyItIsHidden`; VM smoke 8/8 |
 
 ## Verification log
 
@@ -70,6 +72,10 @@ marked closed without a regression test or a recorded platform run.
 | 2026-09-29 | Mutation check: old `totp.py` + no owner lock, PostgreSQL | 6 of the new tests fail, as they should |
 | 2026-09-29 | Java suite | 205 pass, 1 skipped |
 | 2026-09-29 | Java suite after C1–C4, L1–L4 | 227 pass, 1 skipped |
+| 2026-09-29 | Windows 11 VM, smoke (`windows-smoke.ps1`) after C1–C4 | 8/8 PASS but 116 s and ~40 Microsoft files "publisher not verified" → W1 |
+| 2026-09-29 | Windows 11 VM, smoke after W1 | 7/8: disguised signed program silenced → C5 |
+| 2026-09-29 | Windows 11 VM, smoke after C5 | 8/8 PASS, 51 s, 9/9 required parts, no unverified Microsoft files, only planted artefacts + correct context |
+| 2026-09-29 | Java suite after W1, C5 | 229 pass, 1 skipped |
 
 PostgreSQL run: `docker run -d --rm --name moon-test-pg -e POSTGRES_DB=moon -e POSTGRES_USER=moon
 -e POSTGRES_PASSWORD=moontest -p 127.0.0.1:55432:5432 postgres:17-alpine`, then in `web/`:

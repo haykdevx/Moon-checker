@@ -210,6 +210,26 @@ class ContentAndLocationTest {
         assertNull(broken.kind());
     }
 
+    @Test
+    void aVerifiedPublisherAnswersWhatItsCodeDoesButNotWhyItIsHidden(@TempDir Path tmp) throws Exception {
+        // found on the Windows VM: Microsoft-signed notepad.exe renamed to .png was silenced by its signature
+        byte[] fixture = pe("\0dwLocalPlayerPawn\0dwEntityList\0dwViewMatrix\0");
+        Path disguised = Files.write(tmp.resolve("holiday.png"), fixture);
+        String sha = ru.moon.checker.core.Hashing.sha256File(disguised);
+        SignatureDb approved = new SignatureDb(DB.version(), DB.cheatNames(), DB.domains(), DB.hashes(), DB.offsetStrings(),
+                DB.vulnerableDrivers(), DB.cleaners(), DB.macroTools(), DB.allowSigners(), List.of(sha), DB.trustedRoots());
+        List<Finding> got = new ArrayList<>();
+        FileInspection.inspect(disguised, new ScanContext(approved, CheckId.generate(), TestResults.ENV, null, got::add),
+                "files", Category.FILES);
+        assertTrue(got.stream().anyMatch(f -> f.title().contains("disguised") && f.severity() == Severity.HIGH),
+                "concealment is reported whoever signed the hidden program: " + got);
+        assertTrue(got.stream().noneMatch(f -> f.title().contains("offset")),
+                "an approved file's own code needs no reviewer: " + got);
+        List<Finding> plain = new ArrayList<>();
+        FileInspection.inspect(disguised, ctx(plain), "files", Category.FILES);
+        assertTrue(plain.stream().anyMatch(f -> f.title().contains("offset")), "unapproved: both are reported");
+    }
+
     // ---- walks -------------------------------------------------------------------------------------
 
     @Test
