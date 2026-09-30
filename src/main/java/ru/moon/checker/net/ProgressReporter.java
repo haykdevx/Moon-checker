@@ -118,6 +118,8 @@ public final class ProgressReporter implements ScanListener {
                 if (onServerCancelled != null) {
                     onServerCancelled.run();
                 }
+            } else if (stopped.get()) {
+                Log.info("last progress update dropped: the scan finished while it was being sent");
             } else {
                 Log.warn("progress not delivered: " + e.getMessage());
             }
