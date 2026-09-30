@@ -76,6 +76,9 @@ marked closed without a regression test or a recorded platform run.
 | S3 | Supply chain (build) | Bundled JRE downloaded as "latest" and launch4j downloaded without any checksum | Closed | JRE pinned to Temurin 21.0.12.1+1 with Adoptium's published SHA-256; launch4j pinned to the hash of the copy used since 2026-09-14 (trust on first use, stated); mismatches stop the build | `scripts/build-exe.sh` |
 | S4 | Reproducibility | Jar, exe and zip differed between builds of the same source | Closed | Fixed `outputTimestamp`, clean builds, PE TimeDateStamp + checksum normalised (`scripts/pe-normalize.py`, checksum verified against Windows' own notepad.exe and kernel32.dll), deterministic zip | Two consecutive builds: identical jar, exe and zip SHA-256; normalised exe runs on Windows (exit 0) |
 | S5 | Delivery | `MoonCheck.exe` is not Authenticode-signed | Open — blocker | Needs a code-signing certificate (EV recommended); until then Windows shows an unknown-publisher warning and the claimed-build check stays a claim | `Get-AuthenticodeSignature` = NotSigned |
+| P1 | Privacy | Checker logs accumulated forever; the download page said nothing stays on the PC | Closed | Logs pruned after 14 days; `--forget` removes them; download page explains removal in RU/EN | `LogRetentionTest` |
+| U1 | UI | "Checker build" and "About the PC" rows were green when they had no warnings — green read as verified | Closed | Claim rows neutral; only the panel's own checks can be green | headless Chromium check of row classes |
+| U2 | UI (mobile) | "Перепроверить" overflowed its button in the mobile decision bar | Closed | Buttons wrap and fit at 360 px | headless Chromium at 360 px |
 
 ## Verification log
 
@@ -98,6 +101,9 @@ marked closed without a regression test or a recorded platform run.
 | 2026-09-29 | `moonmon.c` `make W=1`, `-fanalyzer` (Linux 7.0 headers) | clean; not loaded |
 | 2026-09-29 | Java suite after D1–D3, K1–K3 | 244 pass, 1 skipped |
 | 2026-09-29 | Panel suite after H1–H3 | SQLite 141 OK (4 PostgreSQL-only skipped); PostgreSQL 17: 141 OK; no missing migrations |
+| 2026-10-01 | Windows 11 VM, checker 1.3.0 full CLI scan → local panel | 9/9 required parts, bound upload, codes equal |
+| 2026-10-01 | Headless Chromium, 8 panel pages × desktop 1366 / mobile 390 | no console errors, no horizontal overflow |
+| 2026-10-01 | Java 245 / panel 141 (SQLite + PostgreSQL) | all pass |
 | 2026-09-29 | Reproducible build, twice | jar `000de50e…`, exe `70a294e8…`, zip `19f78c26…` identical both times |
 
 PostgreSQL run: `docker run -d --rm --name moon-test-pg -e POSTGRES_DB=moon -e POSTGRES_USER=moon

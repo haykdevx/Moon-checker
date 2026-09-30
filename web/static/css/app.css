@@ -382,6 +382,8 @@ details.extra[open] > summary { margin-bottom: 12px; }
 .assurance-row.lvl-warn .assurance-mark { background: var(--suspicious); color: #1a1405; }
 .assurance-row.lvl-bad { border-left-color: var(--cheat); }
 .assurance-row.lvl-bad .assurance-mark { background: var(--cheat); color: #1d0a0a; }
+.assurance-row.lvl-info { border-left-color: #8fa3bb; }
+.assurance-row.lvl-info .assurance-mark { background: #2a2f3a; color: #cfd8e3; }
 .assurance-row.lvl-none { border-left-color: #8fa3bb; }
 .assurance-row.lvl-none .assurance-mark { background: #8fa3bb; color: #0b1016; }
 @media (max-width: 640px) { .assurance-row dd { margin-left: 0; } }
@@ -423,7 +425,7 @@ details.collector[open] > summary { margin-bottom: 12px; }
   .queue-row .btn, .queue-row .actions { width: 100%; }
   .queue-row .actions .btn { flex: 1; }
   .decide-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; position: sticky; bottom: 0; z-index: 4; margin: 16px -14px -14px; padding: 12px 14px 14px; background: #121212; border-top: 1px solid var(--line); }
-  .decide-bar .btn { min-height: 48px; justify-content: center; font-weight: 700; }
+  .decide-bar .btn { min-height: 48px; justify-content: center; font-weight: 700; padding-left: 6px; padding-right: 6px; font-size: 14px; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
   .verdict-card .verdict { font-size: 24px; }
   .section-head .filters { width: 100%; }
   .section-head .filters input[type=search] { flex: 1 1 100%; }

@@ -229,7 +229,7 @@ def detail(request, pk):
         "important": important, "other": other,
         "warnings": [fl for dim in trust.DIMENSIONS for fl in groups[dim] if fl.get("level") in ("bad", "warn")],
         "assurance_rows": [{"dim": dim, "title": ASSURANCE_TITLES[dim], "flags": groups[dim],
-                            "level": "none" if dim == trust.COLLECTOR else trust.worst(groups[dim])}
+                            "level": assurance_level(dim, groups[dim])}
                            for dim in trust.DIMENSIONS],
         "env": env, "meta": meta, "related": related, "coverage_done": coverage_done,
         "kinds": sorted({f.kind for f in findings if f.kind}),
@@ -458,3 +458,13 @@ ASSURANCE_TITLES = {
     "collector": _("Did the official checker really run?"),
     "device": _("About the PC — reported by the checker"),
 }
+
+
+def assurance_level(dim, flags):
+    """Colour of one question: never green for what the player's PC only claims."""
+    if dim == trust.COLLECTOR:
+        return "none"
+    level = trust.worst(flags)
+    if level == "ok" and dim in (trust.ARTIFACT, trust.DEVICE):
+        return "info"
+    return level

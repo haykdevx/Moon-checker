@@ -5,10 +5,13 @@
 | Dimension | Supported | Verified how |
 |---|---|---|
 | Architecture | x86-64 only (CS2 ships no other Linux build) | `Platform.support()` refuses anything else as `UNSUPPORTED_CONFIGURATION` |
-| Distribution | Any distribution with a readable `/proc` and a Java 21 runtime | Unit tests + CLI runs on Ubuntu 26.04 (kernel 7.0) in development; GitHub runners (Ubuntu 24.04) once Actions works again. **No other distribution has been tested.** |
-| Privileges | root for full coverage; without it the scan is `INCOMPLETE_SCAN` | `VerdictEngineTest`, `ScanEngineTest` |
-| Kernel component | Optional `moonmon.ko` (lab prototype) | Compiles warning-free at `-Werror` against 7.0.0-34-generic headers; load test runs in the `kernel-linux` CI job |
+| Distribution | Expected to work on any distribution with a readable `/proc` and a Java 21 runtime | **Tested: Ubuntu 26.04 LTS, kernel 7.0.0-34, as an ordinary user** (full CLI scan 2026-09-29, see `docs/hardening-record.md`). **No other distribution has been tested**; GitHub Actions is unavailable on this account, so no CI runs either |
+| Privileges | root for full coverage; without it the scan is `INCOMPLETE_SCAN` | `VerdictEngineTest`, `ScanEngineTest`; a root run has **not** been done |
+| File collector | Required: Downloads, Desktop, Documents, `.local/share`, `.config`, `.steam` per user, `/tmp`, `/var/tmp`, `/dev/shm`; executables recognised by content (ELF/PE, any name); declared exclusions `steamapps`, `flatpak` walked afterwards; a required folder not read completely → `PARTIAL` | `ContentAndLocationTest`; the Ubuntu run reported `PARTIAL` honestly (a `Documents` folder over 100,000 files; root-only `/tmp` folders) |
+| Kernel component | Optional `moonmon.ko` (lab prototype) | Compiles clean at `W=1` and under GCC `-fanalyzer` against 7.0.0-34 headers; **never loaded** (not on the development host by rule; no isolated VM run yet) |
 | Secure Boot / lockdown | User-mode collectors work in every mode; the out-of-tree module does not load when lockdown refuses unsigned modules | Documented behaviour of kernel lockdown; not tested on a lockdown machine |
+| SELinux / AppArmor enforcing | Unknown | Not tested |
+| Containers / other PID namespaces | The hidden-process comparison treats PIDs it cannot see as races, not hiding; scans inside a container see only the container | Unit tests only (`KernelComponentTest`) |
 
 ## What user mode already sees
 

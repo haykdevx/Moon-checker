@@ -11,11 +11,12 @@ import java.util.TreeMap;
  * Verifies a saved evidence bundle. This is the other half of
  * {@link JsonReport}: it recomputes the canonical hash and HMAC over the
  * payload and compares them with the embedded {@code integrity} block, so an
- * admin can prove a JSON a player sent them was produced by the real checker
- * and has not been edited.
+ * admin can tell whether a JSON a player sent them was changed after the checker
+ * wrote it. The HMAC key ships inside the checker, so this catches casual edits and
+ * corruption; it does not prove which program produced the file (docs/report-assurance.md).
  *
- * <p>Works offline — no server required. The same check is what a backend would
- * run server-side (see {@code prompts/05}).
+ * <p>Works offline — no server required. The panel recomputes the same verification
+ * code over the uploaded bytes (web/checks/ingest.py).
  */
 public final class EvidenceVerifier {
 

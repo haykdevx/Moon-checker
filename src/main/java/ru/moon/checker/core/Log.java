@@ -38,7 +38,37 @@ public final class Log {
         } catch (Exception ignored) {
             return null;
         }
+        pruneOld(dir, KEEP_DAYS);
         return dir.resolve("moon-" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".log");
+    }
+
+    /** Log files are kept this long, then deleted on the next start (they name folders on the PC). */
+    static final int KEEP_DAYS = 14;
+
+    static int pruneOld(Path dir, int keepDays) {
+        int removed = 0;
+        LocalDate cutoff = LocalDate.now().minusDays(keepDays);
+        try (var files = Files.list(dir)) {
+            for (Path f : files.toList()) {
+                String n = f.getFileName().toString();
+                if (n.matches("moon-\\d{8}\\.log")) {
+                    LocalDate day = LocalDate.parse(n.substring(5, 13), DateTimeFormatter.BASIC_ISO_DATE);
+                    if (day.isBefore(cutoff) && Files.deleteIfExists(f)) {
+                        removed++;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // housekeeping must never stop a check
+        }
+        return removed;
+    }
+
+    /** Everything the checker keeps on this PC outside its own folder (logs). */
+    public static Path dataDir() {
+        String base = System.getenv("LOCALAPPDATA");
+        return base != null && !base.isBlank() ? Path.of(base, "MoonCheck")
+                : Path.of(System.getProperty("user.home", "."), ".moon-check");
     }
 
     private static void ensureInit() {

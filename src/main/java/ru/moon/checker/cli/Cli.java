@@ -62,11 +62,40 @@ public final class Cli {
     public static boolean handles(String[] args) {
         for (String a : args) {
             if ("--cli".equals(a) || "--selftest".equals(a) || "--version".equals(a)
-                    || "--help".equals(a) || "--verify".equals(a) || "--evaluate-benign".equals(a)) {
+                    || "--help".equals(a) || "--verify".equals(a) || "--evaluate-benign".equals(a)
+                    || "--forget".equals(a)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * {@code --forget}: removes what the checker keeps on this PC outside its own folder (the logs).
+     * The checker installs nothing — no service, driver, scheduled task or startup entry — so deleting
+     * its folder afterwards removes it completely. Reports saved by hand stay where they were saved.
+     */
+    static int forget() {
+        java.nio.file.Path dir = ru.moon.checker.core.Log.dataDir();
+        int[] n = {0};
+        try {
+            if (java.nio.file.Files.exists(dir)) {
+                try (var walk = java.nio.file.Files.walk(dir)) {
+                    for (java.nio.file.Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                        if (!p.equals(ru.moon.checker.core.Log.logFile())) {
+                            java.nio.file.Files.deleteIfExists(p);
+                            n[0]++;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("could not remove everything in " + dir + ": " + e.getMessage());
+            return 1;
+        }
+        System.out.println("Removed " + n[0] + " item(s) from " + dir + ".");
+        System.out.println("Nothing else was installed: delete the MoonCheck folder to remove the checker completely.");
+        return 0;
     }
 
     /** {@code --evaluate-benign <folder> [--limit N] [--out file.json]}: false positives on legitimate files. */
@@ -102,6 +131,9 @@ public final class Cli {
         if (has(args, "--version")) {
             System.out.println("Moon Checker " + appVersion + " (" + Platform.osName() + ")");
             return 0;
+        }
+        if (has(args, "--forget")) {
+            return forget();
         }
         String benign = valueOf(args, "--evaluate-benign");
         if (benign != null) {

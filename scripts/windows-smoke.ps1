@@ -1,4 +1,4 @@
-﻿# Moon Checker — Windows smoke test (checker 1.2.0).
+﻿# Moon Checker — Windows smoke test (checker 1.3.0).
 # Saved as UTF-8 WITH a BOM: Windows PowerShell 5.1 reads a script without one in the ANSI code page,
 # and the Cyrillic test names and dashes below would break the parser.
 #
