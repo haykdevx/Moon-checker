@@ -1,5 +1,7 @@
 # Moon Checker + Moon Panel
 
+[Инструкция на русском](README.ru.md)
+
 A CS2 PC-inspection tool for the MOON server (cs2-moon.ru).
 
 - **Moon Checker** — a program the player runs on their own PC (Windows 10/11, Linux). It
