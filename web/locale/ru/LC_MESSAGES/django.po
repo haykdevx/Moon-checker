@@ -506,12 +506,20 @@ msgid "Cheat files in the home folder and temporary folders on Linux."
 msgstr "Файлы читов в домашней и временных папках на Linux."
 
 #: checks/templatetags/moon.py
+msgid "Cheat sites the PC looked up recently, whichever program did it."
+msgstr "Сайты читов, к которым ПК недавно обращался (любой программой)."
+
+#: checks/templatetags/moon.py
 msgid "Check incomplete"
 msgstr "Проверка неполная"
 
 #: checks/templatetags/moon.py
 msgid "Clean (old score)"
 msgstr "Чисто (старая оценка)"
+
+#: checks/templatetags/moon.py
+msgid "DNS cache"
+msgstr "DNS-кэш"
 
 #: checks/templatetags/moon.py
 msgid "Deleted files"

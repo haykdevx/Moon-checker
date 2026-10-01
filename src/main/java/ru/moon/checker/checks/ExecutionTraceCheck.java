@@ -57,6 +57,7 @@ public final class ExecutionTraceCheck implements CheckModule {
                 userAssist(ctx, user);
                 muiCache(ctx, user);
                 compatAssistant(ctx, user);
+                featureUsage(ctx, user);
                 runMru(ctx, user);
             }
         }
@@ -204,6 +205,16 @@ public final class ExecutionTraceCheck implements CheckModule {
         String path = user.path("Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store");
         for (String valueName : Registry.values(user.root(), path).keySet()) {
             report(ctx, valueName, valueName + "  [" + user.label() + "]", "CompatibilityAssistant", null);
+        }
+    }
+
+    /** Taskbar usage Windows keeps per program: AppSwitched (switched to) and ShowJumpView (jump list opened). */
+    private void featureUsage(ScanContext ctx, ru.moon.checker.win.UserHives.User user) {
+        for (String key : new String[]{"AppSwitched", "ShowJumpView"}) {
+            String path = user.path("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FeatureUsage\\" + key);
+            for (String valueName : Registry.values(user.root(), path).keySet()) {
+                report(ctx, valueName, valueName + "  [" + user.label() + "]", "FeatureUsage " + key, null);
+            }
         }
     }
 

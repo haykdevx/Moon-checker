@@ -53,6 +53,71 @@ public final class EnvironmentCheck implements CheckModule {
         drivers(ctx);
         dmaHardware(ctx);
         systemState(ctx);
+        pcInfo(ctx);
+    }
+
+    /** A restart shortly before the check: whatever lived only in memory is gone. Context, not evidence. */
+    static String recentRestartNote(long uptimeMinutes) {
+        return uptimeMinutes < 15 ? "PC restarted " + uptimeMinutes + " min before the check: anything that lived only "
+                + "in memory (a running cheat, an open handle) is gone; files and traces on disk are not affected" : null;
+    }
+
+    private void pcInfo(ScanContext ctx) {
+        if (!Platform.isWindows()) {
+            return;
+        }
+        String cpu = ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM,
+                "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "ProcessorNameString");
+        String bios = "HARDWARE\\DESCRIPTION\\System\\BIOS";
+        String board = join(ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM, bios, "BaseBoardManufacturer"),
+                ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM, bios, "BaseBoardProduct"));
+        String system = join(ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM, bios, "SystemManufacturer"),
+                ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM, bios, "SystemProductName"));
+        java.util.List<String> gpus = new java.util.ArrayList<>();
+        String display = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
+        for (String sub : ru.moon.checker.win.Registry.subKeys(ru.moon.checker.win.Registry.HKLM, display)) {
+            String desc = ru.moon.checker.win.Registry.getString(ru.moon.checker.win.Registry.HKLM, display + "\\" + sub, "DriverDesc");
+            if (desc != null && !gpus.contains(desc)) {
+                gpus.add(desc);
+            }
+        }
+        long ramMb = -1;
+        long uptimeMin = -1;
+        int monitors = -1;
+        try {
+            var mem = new com.sun.jna.platform.win32.WinBase.MEMORYSTATUSEX();
+            if (com.sun.jna.platform.win32.Kernel32.INSTANCE.GlobalMemoryStatusEx(mem)) {
+                ramMb = mem.ullTotalPhys.longValue() / (1024 * 1024);
+            }
+            uptimeMin = com.sun.jna.platform.win32.Kernel32.INSTANCE.GetTickCount64() / 60_000;
+            monitors = com.sun.jna.platform.win32.User32.INSTANCE.GetSystemMetrics(80);   // SM_CMONITORS
+        } catch (Throwable ignored) {
+            // the summary is context; a missing value is shown as unknown
+        }
+        ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.INFO, "Данные о ПК / PC information")
+                .module(ID).kind(EvidenceKind.CONTEXT).rule("environment:pc-info")
+                .detail("CPU: " + orUnknown(cpu) + "; GPU: " + (gpus.isEmpty() ? "unknown" : String.join(", ", gpus))
+                        + "; RAM: " + (ramMb > 0 ? (ramMb + 512) / 1024 + " GB" : "unknown")
+                        + "; board: " + orUnknown(board) + "; system: " + orUnknown(system)
+                        + "; monitors: " + (monitors >= 0 ? monitors : "unknown")
+                        + "; uptime: " + (uptimeMin >= 0 ? uptimeMin / 60 + " h " + uptimeMin % 60 + " min" : "unknown"))
+                .source("registry, kernel32").build());
+        String note = uptimeMin >= 0 ? recentRestartNote(uptimeMin) : null;
+        if (note != null) {
+            ctx.emit(Finding.builder(Category.ENVIRONMENT, Severity.INFO,
+                            "ПК перезагружен перед проверкой / PC restarted shortly before the check")
+                    .module(ID).kind(EvidenceKind.CONTEXT).rule("environment:recent-restart")
+                    .detail(note).source("GetTickCount64").build());
+        }
+    }
+
+    private static String join(String a, String b) {
+        String s = ((a == null ? "" : a.strip()) + " " + (b == null ? "" : b.strip())).strip();
+        return s.isEmpty() ? null : s;
+    }
+
+    private static String orUnknown(String s) {
+        return s == null || s.isBlank() ? "unknown" : s.strip();
     }
 
     private void windowTitles(ScanContext ctx) {

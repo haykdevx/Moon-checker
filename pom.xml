@@ -6,7 +6,7 @@
 
     <groupId>ru.moon</groupId>
     <artifactId>moon-checker</artifactId>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <packaging>jar</packaging>
     <name>Moon Checker</name>
     <description>Automated CS2 anti-cheat inspection tool for the MOON server (cs2-moon.ru)</description>
@@ -22,7 +22,7 @@
         <main.class>ru.moon.checker.Main</main.class>
         <!-- fixed timestamps inside the jar: the same source gives the same bytes, so a published
              build can be checked against the source (update with each release) -->
-        <project.build.outputTimestamp>2026-10-01T00:00:00Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-10-01T12:00:00Z</project.build.outputTimestamp>
     </properties>
 
     <dependencies>

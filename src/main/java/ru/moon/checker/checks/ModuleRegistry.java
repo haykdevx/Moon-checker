@@ -28,6 +28,7 @@ public final class ModuleRegistry {
                 new SteamAccountsCheck(),
                 new MacroUsbCheck(),
                 new DefenderCheck(),
+                new DnsCacheCheck(),
                 new AntiForensicCheck()
         );
     }

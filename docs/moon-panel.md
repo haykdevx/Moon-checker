@@ -4,7 +4,7 @@ The checker now reports to a web panel. Admins create a one-time **check code**
 for a player. The player types it into the checker, and the verdict with all
 evidence arrives live in that admin's panel.
 
-Live instance: **https://moon.185.182.9.52.sslip.io** (VPS 185.182.9.52, `/opt/moon-panel`).
+Live instance: **https://cs2-moon.com** (VPS 185.182.9.52, `/opt/moon-panel`; the earlier address https://moon.185.182.9.52.sslip.io is still served for older checkers).
 
 ## How a check works
 

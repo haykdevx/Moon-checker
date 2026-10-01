@@ -138,6 +138,7 @@ COLLECTORS = {
     "steam": (_("Steam accounts"), _("Accounts signed in on this PC and their VAC bans.")),
     "peripherals": (_("Macros and devices"), _("Macro software and USB devices used for scripts.")),
     "defender": (_("Windows Defender"), _("What the antivirus found and removed, and its exclusions.")),
+    "dns": (_("DNS cache"), _("Cheat sites the PC looked up recently, whichever program did it.")),
     "linuxproc": (_("Linux processes"), _("Running processes and what is loaded into the game on Linux.")),
     "linuxfiles": (_("Linux files"), _("Cheat files in the home folder and temporary folders on Linux.")),
     "linuxhist": (_("Linux history"), _("Browser and terminal history matches on Linux.")),

@@ -87,6 +87,90 @@ public final class DefenderCheck implements CheckModule {
         ctx.log(I18n.t("log.defender"));
         threatHistory(ctx);
         protectionState(ctx);
+        exclusions(ctx);
+    }
+
+    /** How one antivirus exclusion is reported. */
+    record ExclusionCall(Severity severity, ru.moon.checker.core.EvidenceKind kind, String rule, String why) {
+    }
+
+    /**
+     * Whether an exclusion hides something. Excluding a user-writable folder, a whole drive or all
+     * programs (.exe/.dll/.sys) is how cheats keep the antivirus away; a program folder excluded
+     * for performance (games, IDEs, build tools) is context.
+     */
+    static ExclusionCall classifyExclusion(String type, String value) {
+        String v = value == null ? "" : value.strip();
+        String lower = v.toLowerCase(java.util.Locale.ROOT);
+        var concealment = ru.moon.checker.core.EvidenceKind.CONCEALMENT;
+        var context = ru.moon.checker.core.EvidenceKind.CONTEXT;
+        switch (type) {
+            case "Extension" -> {
+                String ext = lower.startsWith(".") ? lower.substring(1) : lower;
+                if (java.util.Set.of("exe", "dll", "sys", "scr", "com", "bat", "ps1").contains(ext)) {
+                    return new ExclusionCall(Severity.HIGH, concealment, "defender:exclusion-programs",
+                            "every ." + ext + " file is excluded from antivirus scanning");
+                }
+                return new ExclusionCall(Severity.LOW, context, "defender:exclusion", "file type excluded");
+            }
+            case "Process" -> {
+                return new ExclusionCall(Severity.LOW, context, "defender:exclusion", "process excluded from scanning");
+            }
+            default -> {
+                String n = Locations.normalize(v, true);
+                if (n != null && n.matches("^[a-z]:\\\\?$")) {
+                    return new ExclusionCall(Severity.HIGH, concealment, "defender:exclusion-drive",
+                            "a whole drive is excluded from antivirus scanning");
+                }
+                return switch (Locations.classify(v)) {
+                    case USER_WRITABLE, NETWORK, UNKNOWN -> new ExclusionCall(Severity.MEDIUM, concealment,
+                            "defender:exclusion-user-folder", "a folder an ordinary user can write to is excluded");
+                    case OTHER -> new ExclusionCall(Severity.LOW, context, "defender:exclusion",
+                            "folder excluded (often a game library or tools folder)");
+                    case PROGRAM, SYSTEM -> new ExclusionCall(Severity.LOW, context, "defender:exclusion",
+                            "program or system folder excluded");
+                };
+            }
+        }
+    }
+
+    private void exclusions(ScanContext ctx) {
+        String out = powershell("$p = Get-MpPreference; "
+                + "foreach ($x in $p.ExclusionPath) { 'Path|' + $x }; "
+                + "foreach ($x in $p.ExclusionProcess) { 'Process|' + $x }; "
+                + "foreach ($x in $p.ExclusionExtension) { 'Extension|' + $x }");
+        java.util.List<String[]> items = new java.util.ArrayList<>();
+        if (out != null) {
+            for (String line : out.split("\\R")) {
+                int bar = line.indexOf('|');
+                if (bar > 0 && !line.substring(bar + 1).isBlank() && !line.contains("N/A")) {
+                    items.add(new String[]{line.substring(0, bar).strip(), line.substring(bar + 1).strip()});
+                }
+            }
+        }
+        if (items.isEmpty()) {  // older Windows or no PowerShell module: the registry has the same lists
+            for (String type : new String[]{"Path", "Process", "Extension"}) {
+                String key = "SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\" + (type.equals("Path") ? "Paths"
+                        : type.equals("Process") ? "Processes" : "Extensions");
+                for (String name : ru.moon.checker.win.Registry.values(ru.moon.checker.win.Registry.HKLM, key).keySet()) {
+                    items.add(new String[]{type, name});
+                }
+            }
+        }
+        for (String[] it : items) {
+            var cheat = ctx.signatures().matchCheatName(it[1].toLowerCase(java.util.Locale.ROOT));
+            ExclusionCall call = classifyExclusion(it[0], it[1]);
+            Finding.Builder b = Finding.builder(Category.DEFENDER,
+                            cheat.isPresent() ? cheat.get().severity() : call.severity(),
+                            "Исключение антивируса / Antivirus exclusion")
+                    .module(ID).rule(cheat.isPresent() ? "defender:exclusion-cheat-name" : call.rule())
+                    .detail(it[0] + " exclusion: " + call.why() + cheat.map(r -> " — " + r.label()).orElse(""))
+                    .evidence(it[1]).source("Windows Defender exclusions");
+            if (cheat.isEmpty()) {
+                b.kind(call.kind());
+            }
+            ctx.emit(b.build());
+        }
     }
 
     private void threatHistory(ScanContext ctx) {

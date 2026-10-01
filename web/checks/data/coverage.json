@@ -68,7 +68,8 @@
         "MUICache",
         "Program Compatibility Assistant store",
         "RunMRU",
-        "Recent shortcuts"
+        "Recent shortcuts",
+        "FeatureUsage AppSwitched / ShowJumpView (taskbar usage)"
       ],
       "kinds": [
         "INDICATOR: a program that matches a signature was executed"
@@ -170,7 +171,8 @@
         "Visible window titles",
         "PCI device enumeration",
         "Drivers directory",
-        "Virtual-machine detection"
+        "Virtual-machine detection",
+        "PC summary (CPU, GPU, RAM, board, monitors, uptime)"
       ],
       "kinds": [
         "INDICATOR: process/window/PCI device matches",
@@ -328,17 +330,42 @@
       "privileges": "Administrator for full detection history.",
       "sources": [
         "Get-MpThreatDetection",
-        "Real-time protection state"
+        "Real-time protection state",
+        "Exclusions (Get-MpPreference, registry fallback)"
       ],
       "kinds": [
         "INDICATOR: past game-hack, cheat-engine, trainer or HackTool DLL-injector detections",
         "CONFIGURATION: real-time protection turned off by a setting",
-        "CONTEXT: other HackTool detections (activators, keygens, cracks)"
+        "CONTEXT: other HackTool detections (activators, keygens, cracks)",
+        "CONCEALMENT: exclusions of user-writable folders, whole drives or all programs",
+        "CONTEXT: exclusions of program, game or tools folders"
       ],
       "window": "Until Defender purges its history.",
       "lookalikes": "Defender files Windows/Office activators, keygens and cracks under HackTool; they are software piracy, not game hacking, and are only context. Many gamers turn real-time protection off for performance.",
       "blindSpots": "PCs using another antivirus; history purged.",
       "tests": []
+    },
+    {
+      "id": "dns",
+      "name": "DNS cache",
+      "platforms": [
+        "windows"
+      ],
+      "required": false,
+      "privileges": "None.",
+      "sources": [
+        "Get-DnsClientCache"
+      ],
+      "kinds": [
+        "INDICATOR: a cheat site the PC looked up recently",
+        "CONTEXT: how many names were checked"
+      ],
+      "window": "Minutes to about a day (each record's lifetime); emptied by a restart or ipconfig /flushdns.",
+      "lookalikes": "Opening a cheat site out of curiosity, a link in a chat; a match says the PC contacted the site, not why.",
+      "blindSpots": "Flushed or restarted caches; DNS-over-HTTPS in browsers bypasses the Windows cache.",
+      "tests": [
+        "DnsAndExclusionsTest"
+      ]
     },
     {
       "id": "linuxproc",
@@ -672,6 +699,69 @@
       "meaning": "The Moon kernel component is installed but this run could not open it (not elevated).",
       "lookalikes": "—",
       "limits": "Nothing was compared; the user-mode checks ran."
+    },
+    {
+      "id": "defender:exclusion",
+      "kind": "CONTEXT",
+      "meaning": "An antivirus exclusion of a program, game or tools folder, a file type or a process.",
+      "lookalikes": "Games, IDEs and build tools are often excluded for speed.",
+      "limits": "Never changes the outcome."
+    },
+    {
+      "id": "defender:exclusion-user-folder",
+      "kind": "CONCEALMENT",
+      "meaning": "Windows Defender is told not to scan a folder an ordinary user can write to (Downloads, AppData, Temp, Desktop…).",
+      "lookalikes": "Some players exclude a downloads or mods folder; ask why.",
+      "limits": "MEDIUM; the exclusion list itself, not what is in the folder."
+    },
+    {
+      "id": "defender:exclusion-drive",
+      "kind": "CONCEALMENT",
+      "meaning": "A whole drive is excluded from antivirus scanning.",
+      "lookalikes": "Rare; some users do it for speed on a games drive.",
+      "limits": "HIGH; the setting, not its content."
+    },
+    {
+      "id": "defender:exclusion-programs",
+      "kind": "CONCEALMENT",
+      "meaning": "Every .exe / .dll / .sys (or script) file is excluded from scanning.",
+      "lookalikes": "Practically never legitimate.",
+      "limits": "HIGH."
+    },
+    {
+      "id": "defender:exclusion-cheat-name",
+      "kind": "INDICATOR",
+      "meaning": "An exclusion entry carries a cheat's name.",
+      "lookalikes": "—",
+      "limits": "At the name rule's severity."
+    },
+    {
+      "id": "dns:cheat-domain-cached",
+      "kind": "INDICATOR",
+      "meaning": "The Windows DNS cache holds a cheat site's name: the PC looked it up recently.",
+      "lookalikes": "Curiosity, a link in a chat.",
+      "limits": "Short-lived; emptied by a restart; DNS-over-HTTPS bypasses it."
+    },
+    {
+      "id": "dns:cache-checked",
+      "kind": "CONTEXT",
+      "meaning": "How many cached names were checked.",
+      "lookalikes": "—",
+      "limits": "An empty or small cache is not evidence."
+    },
+    {
+      "id": "environment:pc-info",
+      "kind": "CONTEXT",
+      "meaning": "CPU, GPU, RAM, board, monitors and uptime of the PC.",
+      "lookalikes": "—",
+      "limits": "Self-reported by Windows; useful to recognise the same PC across checks."
+    },
+    {
+      "id": "environment:recent-restart",
+      "kind": "CONTEXT",
+      "meaning": "The PC was restarted less than 15 minutes before the check.",
+      "lookalikes": "Restarting is common and innocent.",
+      "limits": "Never changes the outcome; only memory-resident state is affected."
     }
   ]
 }
