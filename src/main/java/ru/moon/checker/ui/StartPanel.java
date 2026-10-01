@@ -169,8 +169,6 @@ public final class StartPanel extends JPanel {
         col.add(linkStatus);
         col.add(Box.createVerticalStrut(10));
         col.add(ctaRow());
-        col.add(Box.createVerticalStrut(18));
-        col.add(credit());
         col.add(Box.createVerticalGlue());
         return col;
     }
@@ -258,14 +256,6 @@ public final class StartPanel extends JPanel {
         row.add(Box.createHorizontalStrut(16));
         row.add(hint);
         return row;
-    }
-
-    private JComponent credit() {
-        JLabel credit = new JLabel("developed by shadow");
-        credit.setFont(MoonTheme.font(Font.ITALIC, 10));
-        credit.setForeground(MoonTheme.GHOST);
-        credit.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return credit;
     }
 
     /** One checklist entry: a small drawn glyph plus a line of text. */

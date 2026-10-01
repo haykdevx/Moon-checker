@@ -144,10 +144,8 @@ public final class HeaderBar extends JPanel {
         p.add(ru);
         p.add(en);
 
-        JLabel credit = new JLabel("developed by shadow");
-        credit.setFont(MoonTheme.font(Font.ITALIC, 10));
-        credit.setForeground(MoonTheme.MUTED);
-        JPanel creditRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JLabel credit = new CreditBadge();
+        JPanel creditRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 4));
         creditRow.setOpaque(false);
         creditRow.add(credit);
 
