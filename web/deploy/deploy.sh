@@ -11,7 +11,9 @@
 set -euo pipefail
 
 HOST="${MOON_DEPLOY_HOST:-moon-vps}"
-DOMAIN="${MOON_DOMAIN:-moon.185.182.9.52.sslip.io}"
+DOMAIN="${MOON_DOMAIN:-cs2-moon.com}"                        # the panel's public address
+ALIASES="${MOON_DOMAIN_ALIASES:-www.cs2-moon.com}"           # redirect to DOMAIN (same certificate)
+EXTRA="${MOON_EXTRA_DOMAINS:-moon.185.182.9.52.sslip.io}"    # also served: checkers built before the move point here
 PORT="${MOON_WEB_PORT:-8710}"
 UPSTREAM="${MOON_UPSTREAM:-172.30.87.10:8000}"   # web container's fixed address (docker-compose.yml)
 OWNER="${MOON_OWNER_ALIAS:-shadow}"
@@ -61,7 +63,7 @@ elif [ "${MOON_REMOTE_BUILD:-0}" != 1 ] && command -v docker >/dev/null 2>&1; th
   SHIPPED=1
 fi
 
-ssh "$HOST" DOMAIN="$DOMAIN" PORT="$PORT" UPSTREAM="$UPSTREAM" OWNER="$OWNER" REMOTE="$REMOTE" TRUST="'$TRUST'" SHIPPED="$SHIPPED" 'bash -s' <<'REMOTE_SCRIPT'
+ssh "$HOST" DOMAIN="$DOMAIN" ALIASES="'$ALIASES'" EXTRA="'$EXTRA'" PORT="$PORT" UPSTREAM="$UPSTREAM" OWNER="$OWNER" REMOTE="$REMOTE" TRUST="'$TRUST'" SHIPPED="$SHIPPED" 'bash -s' <<'REMOTE_SCRIPT'
 set -euo pipefail
 cd "$REMOTE"
 
@@ -81,6 +83,9 @@ MOON_WEB_PORT=$PORT
 ENV
 fi
 chmod 600 .env
+# every served name is an allowed host; the public URL (player links, download page) is DOMAIN
+ALL_HOSTS="$(echo "$DOMAIN $ALIASES $EXTRA localhost 127.0.0.1" | xargs | tr ' ' ',')"
+sed -i -e "s|^DJANGO_ALLOWED_HOSTS=.*|DJANGO_ALLOWED_HOSTS=$ALL_HOSTS|" .env
 
 echo ">> building and starting containers"
 # plain docker build: compose's bake/buildx path is not available on every host
@@ -93,46 +98,110 @@ done
 [ "$built" = 1 ] || { echo "image build failed" >&2; exit 1; }
 docker compose up -d --no-build --remove-orphans
 for i in $(seq 1 120); do
-  if curl -fsS -m 60 -H "Host: $DOMAIN" "http://$UPSTREAM/healthz" >/dev/null 2>&1; then echo "   web is healthy"; break; fi
+  if curl -fsS -m 60 -H "Host: localhost" "http://$UPSTREAM/healthz" >/dev/null 2>&1; then echo "   web is healthy"; break; fi
   sleep 5
   [ "$i" = 120 ] && { docker compose logs --tail 80 web; echo "web did not become healthy" >&2; exit 1; }
 done
 
-echo ">> nginx site for $DOMAIN"
+echo ">> nginx sites"
 install -m 644 nginx-moon-ratelimit.conf /etc/nginx/conf.d/moon-panel-ratelimit.conf
 mkdir -p /var/www/moon-panel-acme/.well-known/acme-challenge
-CERT="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
-render_site() {
-  sed -e "s/__DOMAIN__/$DOMAIN/g" -e "s/__UPSTREAM__/$UPSTREAM/g" "$1" > /etc/nginx/sites-available/moon-panel
-  ln -sf /etc/nginx/sites-available/moon-panel /etc/nginx/sites-enabled/moon-panel
+SERVER_IP="$(curl -4 -s -m 10 https://api.ipify.org || hostname -I | awk '{print $1}')"
+
+# one site file per served name: moon-panel-<name>; aliases redirect to their main name
+render_site() {   # template name aliases
+  local file="/etc/nginx/sites-available/moon-panel-$2"
+  sed -e "s/__DOMAIN__/$2/g" -e "s/__UPSTREAM__/$UPSTREAM/g" "$1" > "$file"
+  if [ -n "$3" ] && [ "$1" = nginx-moon-panel.conf ]; then
+    cat >> "$file" <<SITE
+
+# aliases of $2: one canonical address
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $3;
+    server_tokens off;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/moon-panel-acme; default_type text/plain; }
+    location / { return 301 https://$2\$request_uri; }
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name $3;
+    server_tokens off;
+    ssl_certificate /etc/letsencrypt/live/$2/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$2/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    return 301 https://$2\$request_uri;
+}
+SITE
+  elif [ -n "$3" ]; then
+    sed -i "s/server_name $2;/server_name $2 $3;/" "$file"
+  fi
+  ln -sf "$file" "/etc/nginx/sites-enabled/moon-panel-$2"
+  rm -f /etc/nginx/sites-enabled/moon-panel   # the single-site layout before multi-domain
   if ! nginx -t; then
-    echo "nginx rejected the moon-panel site; disabling it so the other sites keep working" >&2
-    rm -f /etc/nginx/sites-enabled/moon-panel
+    echo "nginx rejected moon-panel-$2; disabling it so the other sites keep working" >&2
+    rm -f "/etc/nginx/sites-enabled/moon-panel-$2"
     nginx -t && systemctl reload nginx
-    exit 1
+    return 1
   fi
   systemctl reload nginx
 }
-if [ -f "$CERT" ]; then
-  render_site nginx-moon-panel.conf
-else
-  render_site nginx-moon-panel-http.conf
-  # wait until the reload is live and the challenge path is served (slow on a busy host)
+
+points_here() {   # every name resolves to this server
+  for n in "$@"; do
+    [ "$(getent ahostsv4 "$n" | awk '{print $1; exit}')" = "$SERVER_IP" ] || return 1
+  done
+}
+
+serve() {   # name aliases
+  local name="$1" aliases="$2" cert="/etc/letsencrypt/live/$1/fullchain.pem"
+  if [ -f "$cert" ] && { [ -z "$aliases" ] || openssl x509 -in "$cert" -noout -text | grep -q "DNS:${aliases%% *}"; }; then
+    render_site nginx-moon-panel.conf "$name" "$aliases"
+    echo "   https://$name served"
+    return 0
+  fi
+  if ! points_here $name $aliases; then
+    echo "   $name $aliases: DNS does not point at $SERVER_IP yet — skipped (re-run deploy once it does)"
+    return 0
+  fi
+  render_site nginx-moon-panel-http.conf "$name" "$aliases" || return 0
   probe="probe-$$"; echo ok > "/var/www/moon-panel-acme/.well-known/acme-challenge/$probe"
   for i in $(seq 1 60); do
-    [ "$(curl -s -m 20 -H "Host: $DOMAIN" "http://127.0.0.1/.well-known/acme-challenge/$probe")" = ok ] && break
+    [ "$(curl -s -m 20 -H "Host: $name" "http://127.0.0.1/.well-known/acme-challenge/$probe")" = ok ] && break
     sleep 5
   done
   rm -f "/var/www/moon-panel-acme/.well-known/acme-challenge/$probe"
-  echo ">> requesting TLS certificate"
+  echo ">> requesting TLS certificate for $name $aliases"
+  local d="-d $name"
+  for a in $aliases; do d="$d -d $a"; done
   for attempt in 1 2 3; do
-    certbot certonly --webroot -w /var/www/moon-panel-acme -d "$DOMAIN" --non-interactive --agree-tos \
-      --keep-until-expiring --deploy-hook "systemctl reload nginx" && break
+    certbot certonly --webroot -w /var/www/moon-panel-acme $d --cert-name "$name" --expand --non-interactive \
+      --agree-tos --keep-until-expiring --deploy-hook "systemctl reload nginx" && break
     echo "   certbot attempt $attempt failed, retrying in 30 s"; sleep 30
   done
-  [ -f "$CERT" ] || { echo "could not obtain a certificate; the panel stays on plain HTTP" >&2; exit 1; }
-  render_site nginx-moon-panel.conf
+  [ -f "$cert" ] || { echo "could not obtain a certificate for $name; it stays on plain HTTP" >&2; return 0; }
+  render_site nginx-moon-panel.conf "$name" "$aliases"
+  echo "   https://$name served"
+}
+
+for extra in $EXTRA; do serve "$extra" ""; done
+serve "$DOMAIN" "$ALIASES"
+
+# the public address (player links, download page) moves to DOMAIN only once it serves HTTPS
+PUBLIC="$DOMAIN"
+[ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ] || PUBLIC="$(echo $EXTRA | awk '{print $1}')"
+if ! grep -qx "MOON_PUBLIC_URL=https://$PUBLIC" .env; then
+  sed -i "s|^MOON_PUBLIC_URL=.*|MOON_PUBLIC_URL=https://$PUBLIC|" .env
+  docker compose up -d --no-build
+  for i in $(seq 1 60); do
+    curl -fsS -m 30 -H "Host: $PUBLIC" "http://$UPSTREAM/healthz" >/dev/null 2>&1 && break
+    sleep 5
+  done
 fi
+echo "   public address: https://$PUBLIC"
 
 echo ">> trusted checker builds"
 for entry in $TRUST; do
@@ -144,5 +213,5 @@ if [ "$(docker compose exec -T web python manage.py shell -v0 -c 'from accounts.
   docker compose exec -T web python manage.py bootstrap_owner "$OWNER"
 fi
 docker compose ps
-echo ">> done: https://$DOMAIN"
+echo ">> done"
 REMOTE_SCRIPT
