@@ -16,6 +16,12 @@ finding: `docs/hardening-record.md`.
 | Platform reliability | Windows 11 (ru-RU, Cyrillic user): 9/9 required parts, smoke 8/8, GUI at 100 % and 150 %; Linux: honest `PARTIAL` instead of silent truncation; kernel parser fuzzed | VM runs 2026-09-29/30 (`docs/windows-readiness.md`); Ubuntu 26.04 run; 20 000-case kernel-report fuzz; `moonmon.c` clean under `W=1` and `-fanalyzer` | **Met on the tested platforms only** (one Windows build, one Linux distribution; no gaming PC, no third-party antivirus) |
 | Usability | Russian by default, complete translations (enforced by test); desktop and 390-px mobile pages without horizontal overflow or console errors; claims never shown in green | `moon_i18n --check` 608/608; headless Chromium over 8 pages × 2 widths; decision bar fits at 360 px | **Met** for the rendered pages |
 
+Dependency note (2026-10-01): two jackson-databind advisories published after the 1.4.0 build
+(GHSA-wv8q-qhhj-9h54, GHSA-cxp5-3px4-pw24; fixed in 2.18.11) affect polymorphic type IDs and
+object-identity references, neither of which the checker uses (no `@JsonTypeInfo`, default typing
+or `@JsonIdentityInfo`). The source now pins 2.18.11 (tests 248/1 skipped/0 failed); the
+published 1.4.0 package still contains 2.18.10 and the next build replaces it.
+
 ## Open release blockers (external prerequisites)
 
 1. **Code signing:** `MoonCheck.exe` is unsigned (needs a code-signing certificate, EV preferred).
