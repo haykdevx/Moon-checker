@@ -1,3 +1,4 @@
 # Ed25519 public keys (X.509 SubjectPublicKeyInfo, base64) trusted to sign rule overrides.
 # The private key never enters this repository. One key per line; '#' starts a comment.
 MCowBQYDK2VwAyEAf5LdLHJkWD3KCIrHdp/FfAbeSObhD/HeQOEKZ6xXdQo=
+#this was written by hatsune
